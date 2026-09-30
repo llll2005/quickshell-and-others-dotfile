@@ -1,0 +1,13 @@
+# private — OAuth client secret / token caches (scripts/gtasks.py)
+secrets/
+
+# build outputs (rebuild: make -C hypr-plugin/imecaret)
+hypr-plugin/**/*.so
+hypr-plugin/**/*.o
+__pycache__/
+*.pyc
+
+# scratch
+*.bak
+*.tmp
+_attic/

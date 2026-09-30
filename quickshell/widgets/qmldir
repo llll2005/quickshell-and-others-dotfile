@@ -1,0 +1,15 @@
+Menu 1.0 Menu.qml
+Player 1.0 Player.qml
+Companions 1.0 Companions.qml
+Lockscreen 1.0 Lockscreen.qml
+Notifications 1.0 Notifications.qml
+VolumeBar 1.0 VolumeBar.qml
+ControlCenter 1.0 ControlCenter.qml
+WorkspaceSwitcher 1.0 WorkspaceSwitcher.qml
+TopBar 1.0 TopBar.qml
+CornerHud 1.0 CornerHud.qml
+ScreenCapture 1.0 ScreenCapture.qml
+WsMover 1.0 WsMover.qml
+NierTriBg 1.0 NierTriBg.qml
+RegionSelect 1.0 RegionSelect.qml
+ImePanel 1.0 ImePanel.qml

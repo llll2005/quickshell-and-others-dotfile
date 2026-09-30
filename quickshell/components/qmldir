@@ -1,0 +1,13 @@
+module Components
+WipeCurtain 1.0 WipeCurtain.qml
+NierButton   1.0 NierButton.qml
+Scanlines    1.0 Scanlines.qml
+CornerDeco   1.0 CornerDeco.qml
+Emblem       1.0 Emblem.qml
+MapGate      1.0 MapGate.qml
+TriField     1.0 TriField.qml
+CatTab       1.0 CatTab.qml
+GlassBackdrop 1.0 GlassBackdrop.qml
+HitBurst     1.0 HitBurst.qml
+Sparks       1.0 Sparks.qml
+singleton Fx 1.0 Fx.qml

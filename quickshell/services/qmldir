@@ -1,0 +1,10 @@
+module Services
+singleton Audio 1.0 Audio.qml
+singleton Sys 1.0 Sys.qml
+singleton Battery 1.0 Battery.qml
+singleton Backlight 1.0 Backlight.qml
+singleton Net 1.0 Net.qml
+singleton Weather 1.0 Weather.qml
+singleton ClaudeUsage 1.0 ClaudeUsage.qml
+singleton Cal 1.0 Cal.qml
+singleton Tasks 1.0 Tasks.qml
