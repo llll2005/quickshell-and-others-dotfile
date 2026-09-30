@@ -1,0 +1,37 @@
+{
+  "groups": {
+    "dev": {
+      "label": "開發",
+      "icon": "💻",
+      "workspaces": [
+        1,
+        2,
+        3
+      ],
+      "color": "#4a9eff"
+    },
+    "research": {
+      "label": "研究",
+      "icon": "📚",
+      "workspaces": [
+        5,
+        6,
+        8
+      ],
+      "color": "#ff6eb4"
+    },
+    "standalone": {
+      "label": "獨立",
+      "icon": "📌",
+      "workspaces": [
+        4,
+        7,
+        13,
+        16,
+        24,
+        26
+      ],
+      "color": "#8f1060"
+    }
+  }
+}
