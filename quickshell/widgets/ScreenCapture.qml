@@ -7,16 +7,26 @@ import "../components"
 import "../settings"
 import "../theme"
 
-Item {
+// Capture panel: copy / screenshot / record / OCR / colour, with region selection
+// in the same window. Window, lifecycle, glass backdrop, warm-up and rhythm come
+// from components/Popup.qml; the five open/close styles are this panel's own.
+Popup {
     id: root
+
+    IpcHandler {
+        target: "capture"
+        function toggle(): void { root.toggle() }
+        function stop(): void   { root.stopRecording() }
+        // qs ipc call capture style iris   (no argument → just report the current one)
+        function style(id: string): string {
+            if (root.styles.some(function(s){ return s.id === id })) root.openStyle = id
+            return root.openStyle
+        }
+    }
 
     // ── Dimensions (match Menu) ───────────────────────────────────────
     readonly property int lw: 780
     readonly property int lh: 540
-    property real   screenW:     1920
-    property real   screenH:     1080
-    property string screenName:  ""     // Wayland output name, e.g. "DP-1" — for monitor-limited grim
-    property var    shellScreen: null   // ShellScreen — the frame the glass panes refract
     readonly property real hostX: (screenW - lw) / 2
 
     // ── Palette (match Menu) ──────────────────────────────────────────
@@ -32,20 +42,13 @@ Item {
     function inkA(a)   { return Theme.alpha(Theme.ink, a) }
 
     // ── State ─────────────────────────────────────────────────────────
-    property bool   panelOpen:        false
-    property bool   wipeHideRunning:  false
-    // shell.qml maps the PanelWindow only while this is true, so a closed panel
-    // holds no full-screen buffers.
-    readonly property bool mapped: panelOpen || wipeHideRunning || warming
-    // Warm-up: shortly after start the window maps once, invisibly and
-    // click-through, so shaders and glyph caches exist before the first real open
-    // (otherwise that open drops ~3 frames building them).
-    property bool   warming: false
-    // closed → arming → open → closing → closed.
-    // "arming": mapped but fully transparent while the backdrop frame and the
-    // freeze frame are captured (~30 ms) — an empty surface adds nothing to them.
-    property string phase:            "closed"
-    readonly property bool shown:     phase === "open" || phase === "closing" || phase === "selecting"
+    // The intro waits for the freeze frame too (introReady); region selection is a
+    // mode of the open phase (`selecting`): the panel steps aside, the backdrop
+    // becomes the selection layer.
+    property bool   selecting:        false
+    introReady: _freezeDone
+    clickOutCloses: !selecting
+    onWarmingChanged: if (warming) rowsEnter()
     readonly property string defaultCat: "copy"   // page selected every time the panel opens
     property string currentCat:       defaultCat
     property int    focusIdx:         0
@@ -67,7 +70,7 @@ Item {
 
     // ── Region selection ──────────────────────────────────────────────
     // Runs in this same window: the panel steps aside and the glass backdrop
-    // becomes the selection layer, so nothing has to start up (phase "selecting").
+    // becomes the selection layer, so nothing has to start up (`selecting`).
     property string _selCmd:       ""      // command whose NIER_GEOM / NIER_CROP gets filled in
     property bool   _selFrozen:    false   // crop the freeze frame now (else grab live after closing)
     property bool   _liveBackdrop: false   // live selection: panes over the live screen, not the frame
@@ -121,30 +124,13 @@ Item {
 
     signal rowsEnter()
 
-    implicitWidth:  screenW
-    implicitHeight: screenH
-
-    // ── Rhythm ────────────────────────────────────────────────────────
-    // One clock drives the backdrop shader and every idle pulse, so they all
-    // land on the same beat. Only runs while the panel is on screen.
-    readonly property real bpm: 120
-    property real t: 0
-    NumberAnimation on t {
-        running: root.shown
-        from: 0; to: 100000; duration: 100000000; loops: Animation.Infinite
-    }
-    readonly property real beatPhase: (t * bpm / 60) % 1
-    readonly property int  beatIndex: Math.floor(t * bpm / 60)
-    readonly property real pulse:     Math.pow(1 - beatPhase, 3)   // sharp hit, soft decay
-
     property real flashV:    0   // confirm flash
     property real hitT:      0   // confirm hit-stop: the selector pops and holds
 
     // ── Open / close styles ───────────────────────────────────────────
-    // Picked by shell.qml (Settings.captureOpenStyle, `qs ipc call capture style
-    // <id>`); S inside the panel replays the next one for comparison.
-    property string openStyle: "wipe"
-    signal requestStyle(string id)
+    // Settings.captureOpenStyle, or `qs ipc call capture style <id>`; S inside the
+    // panel replays the next one for comparison.
+    property string openStyle: Settings.captureOpenStyle
     readonly property var styles: [
         { id:"wipe",   label:"幕簾" },
         { id:"rise",   label:"浮現" },
@@ -158,8 +144,6 @@ Item {
     property real riseT:     1       // rise: 0 hidden → 1 shown
     property bool _masking:  false   // panel renders through the reveal mask
     property bool _replay:   false   // S: reopen with the next style after closing
-    property bool _panelGone: true
-    property bool _triGone:   true
 
     // ── Categories ────────────────────────────────────────────────────
     readonly property var cats: [
@@ -327,7 +311,7 @@ Item {
     // the panel surface is still empty.
     Process {
         id: freezeP; running: false
-        onExited: (code) => { root._freezeOk = code === 0; root._freezeDone = true; root._tryIntro() }
+        onExited: (code) => { root._freezeOk = code === 0; root._freezeDone = true; freezeTimeout.stop() }
     }
     Process { id: cleanupP; running: false }
 
@@ -357,22 +341,16 @@ Item {
 
     // Poll recording state every 2s — only while the panel is open, the only place
     // `recording` is shown (the REC dot / stop button). Checks immediately on open.
-    Timer { interval:2000; running:root.panelOpen; repeat:true; triggeredOnStart:true; onTriggered: recCheckP.running=true }
+    Timer { interval:2000; running:root.isOpen; repeat:true; triggeredOnStart:true; onTriggered: recCheckP.running=true }
 
 
-    // Open anyway if a capture hangs: no frame → panes over the live screen,
-    // no freeze file → region grabs stay live.
-    Timer { id: armTimeout; interval: 350; onTriggered: root._startIntro() }
-
-    Timer {
-        interval: 2500; running: true
-        onTriggered: if (!root.panelOpen) { root.warming = true; root.rowsEnter(); warmEnd.start() }
-    }
-    Timer { id: warmEnd; interval: 700; onTriggered: root.warming = false }
+    // A hung freeze-frame grab must not hold the intro forever: no freeze file →
+    // region grabs stay live.
+    Timer { id: freezeTimeout; interval: 350; onTriggered: root._freezeDone = true }
 
     function execute(cmd) {
         root._runAfterClose = cmd      // runs from _finishClose, once the window is unmapped
-        root.closePanel()
+        root.close()
     }
 
     function executeOrRegion(cmd) {
@@ -407,7 +385,7 @@ Item {
     // ── Clock ─────────────────────────────────────────────────────────
     // Only ticks while open.
     Timer {
-        interval:1000; running:root.panelOpen; repeat:true; triggeredOnStart:true
+        interval:1000; running:root.isOpen; repeat:true; triggeredOnStart:true
         onTriggered: {
             var d=new Date()
             root.clockStr=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0")
@@ -416,26 +394,14 @@ Item {
 
     Component.onCompleted: checkWfP.running = true
 
-    // ── Backdrop: the shared glass triangles (components/GlassBackdrop.qml) ──
-    GlassBackdrop {
-        id: backdrop
-        anchors.fill: parent
-        z: 0
-        screen:    root.shellScreen
-        capturing: root.panelOpen || root.wipeHideRunning      // kept through the close cross-fade
-        active:    root.phase === "open" || root.phase === "selecting"
-        warm:      root.warming
-        live:      root._liveBackdrop
-        glarePx:   Qt.point(root.screenW / 2, root.screenH / 2)
-        selecting: root.hasSel
-        selection: root.selRect
-        foldRect:  Qt.rect(root.foldX, root.foldY, root.foldW, root.foldH)
-        onFrameReady: root._tryIntro()
-        onHidden: { root._triGone = true; root._maybeFinishClose() }
-    }
-    MouseArea { anchors.fill: parent; z: 1; enabled: root.panelOpen && root.phase === "open"; onClicked: root.closePanel() }
-    // Confirm impact: rings + shards over the panel, a shock ring through the triangles
-    HitBurst { id: burst; z: 3; backdrop: backdrop; spreadX: 1.5; spreadY: 0.7 }
+    // the shared backdrop (components/Popup.qml) doubles as the selection layer
+    backdrop.live:      root._liveBackdrop
+    backdrop.glarePx:   Qt.point(root.screenW / 2, root.screenH / 2)
+    backdrop.selecting: root.hasSel
+    backdrop.selection: root.selRect
+    backdrop.foldRect:  Qt.rect(root.foldX, root.foldY, root.foldW, root.foldH)
+    burst.spreadX: 1.5
+    burst.spreadY: 0.7
 
     // ── Panel host ────────────────────────────────────────────────────
     Item {
@@ -444,7 +410,7 @@ Item {
         x: root.hostX; y: (root.screenH - root.lh) / 2
         width: root.lw; height: root.lh; clip: true
         visible: (root.shown && !root._panelGone) || root.warming
-        opacity: root.warming && !root.shown ? 0.004 : (root.openStyle === "rise" ? root.riseT : 1)
+        opacity: root.openStyle === "rise" && !root.warming ? root.riseT : 1
         transform: [
             Scale {
                 origin.x: root.lw / 2; origin.y: root.lh / 2
@@ -499,7 +465,7 @@ Item {
                 width:0; height:0; visible:false; focus:true
                 Keys.onEscapePressed: {
                     if (root.showRecOpts) root.showRecOpts=false
-                    else root.closePanel()
+                    else root.close()
                 }
                 Keys.onUpPressed: {
                     if (root._busy) return
@@ -1069,7 +1035,7 @@ Item {
         id: selLayer
         anchors.fill: parent
         z: 3
-        opacity: root.phase === "selecting" ? 1 : 0
+        opacity: root.selecting ? 1 : 0
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
@@ -1247,7 +1213,7 @@ Item {
 
         MouseArea {
             anchors.fill: parent
-            enabled: root.phase === "selecting" && root.selConfirm === 0
+            enabled: root.selecting && root.selConfirm === 0
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             cursorShape: Qt.CrossCursor
@@ -1327,7 +1293,7 @@ Item {
     }
     NumberAnimation {
         id: riseOut; target: root; property: "riseT"; to: 0; duration: 240; easing.type: Easing.InCubic
-        onFinished: root._panelClosed()
+        onFinished: root.panelGone()
     }
 
     // ── Scan / iris / blinds: reveal mask ─────────────────────────────
@@ -1355,7 +1321,7 @@ Item {
             duration: root.openStyle === "scan" ? 380 : 300
             easing.type: root.openStyle === "scan" ? Easing.InOutCubic : Easing.InCubic
         }
-        ScriptAction { script: root._panelClosed() }
+        ScriptAction { script: root.panelGone() }
     }
 
     // ── Wipe animations (identical to Menu) ──────────────────────────
@@ -1384,7 +1350,7 @@ Item {
         NumberAnimation { target:panelHost; property:"x"
             from:root.hostX; to:root.hostX+root.lw+2
             duration:340; easing.type:Easing.InExpo }
-        onFinished: root._panelClosed()
+        onFinished: root.panelGone()
     }
 
     // Confirm (as ControlCenter): hit-stop — the selector pops, flashes and holds for
@@ -1394,7 +1360,7 @@ Item {
     property string _fireId:  ""
     SequentialAnimation {
         id: confirmAnim
-        ScriptAction { script: { root.flashV = 1; burst.playAt(burstAnchor, 0, 0, 1) } }
+        ScriptAction { script: { root.flashV = 1; root.burst.playAt(burstAnchor, 0, 0, 1) } }
         ParallelAnimation {
             NumberAnimation { target: root; property: "flashV"; to: 0; duration: 420; easing.type: Easing.OutQuad }
             SequentialAnimation {
@@ -1408,7 +1374,7 @@ Item {
 
     // ── Action handler ────────────────────────────────────────────────
     function fire(cat, id) {
-        if (root._busy || root.phase !== "open") return
+        if (root._busy || root.phase !== "open" || root.selecting) return
         if (cat === "record") { root.handleAction(cat, id); return }   // opens its options page
         root._busy = true
         root._fireCat = cat; root._fireId = id
@@ -1454,7 +1420,7 @@ Item {
         root._liveBackdrop = !root._selFrozen
         root.hasSel = false; root.selDrag = false; root.selConfirm = 0
         root.pickHex = ""; root._probeWant = ""
-        root.phase = "selecting"
+        root.selecting = true
         wipeReveal.stop(); riseIn.stop(); maskIn.stop()
         if (!root._panelGone) {
             if (root.openStyle === "wipe") wipeHide.start()
@@ -1468,7 +1434,7 @@ Item {
         var r  = root.selRect
         var lx = root.phys(r.x), ly = root.phys(r.y)
         var w  = root.phys(r.x + r.width) - lx, h = root.phys(r.y + r.height) - ly
-        var hm = Hyprland.monitorFor(root.shellScreen)
+        var hm = Hyprland.monitorFor(root.screen)
         var sc = hm && hm.scale > 0 ? hm.scale : 1
         // NIER_CROP: inside this monitor's frame (physical px). NIER_GEOM: compositor layout.
         var crop = w + "x" + h + "+" + lx + "+" + ly
@@ -1476,7 +1442,7 @@ Item {
                  + " " + Math.round(w / sc) + "x" + Math.round(h / sc)
         var cmd = root._selCmd.replace("NIER_GEOM", geom).replace("NIER_CROP", crop)
         // the impact comes from where the drag was released (else the region's centre)
-        burst.play(root.curX >= 0 ? root.curX : r.x + r.width / 2,
+        root.burst.play(root.curX >= 0 ? root.curX : r.x + r.width / 2,
                    root.curX >= 0 ? root.curY : r.y + r.height / 2, 0.8)
         if (root._selFrozen) {           // cut from the frame now, while the layer closes
             root._keepFreeze = true
@@ -1490,28 +1456,31 @@ Item {
     }
     function cancelSelect() {
         root.hasSel = false; root.selDrag = false
-        root.closePanel()
+        root.close()
     }
     NumberAnimation {
         id: selConfirmAnim; target: root; property: "selConfirm"
         from: 0; to: 1; duration: 280; easing.type: Easing.OutCubic
-        onFinished: root.closePanel()
+        onFinished: root.close()
     }
 
-    // ── Open / close ──────────────────────────────────────────────────
-    function _tryIntro() {
-        if (root.phase === "arming" && root._freezeDone && backdrop.hasFrame) root._startIntro()
+    // ── Open / close (lifecycle: components/Popup.qml) ──
+    onOpening: {
+        showRecOpts = false; focusIdx = 0; catDir = 1; currentCat = defaultCat
+        _busy = false; _keepFreeze = false; selecting = false
+        _freezeOk = false; _freezeDone = false
+        hasSel = false; selDrag = false; selConfirm = 0; _liveBackdrop = false; _runAfterClose = ""
+        freezeP.running = false
+        freezeP.command = ["grim", "-o", root.screenName, "-t", "ppm", root.freezeFile]
+        freezeP.running = true
+        freezeTimeout.restart()
     }
-    function _startIntro() {
-        if (root.phase !== "arming") return
-        armTimeout.stop()
+    onIntro: {
         // Triangles unfold from where the panel comes from: the right edge for
-        // the wipe (like NierTriBg "right"), the centre for everything else.
+        // the wipe, the centre for everything else.
         backdrop.originPx = root.openStyle === "wipe"
             ? Qt.point(root.screenW, root.screenH * (0.25 + 0.5 * Math.random()))
             : Qt.point(root.screenW / 2, root.screenH / 2)
-        root._panelGone = false; root._triGone = false
-        root.phase = "open"
         wipeHide.stop(); riseOut.stop(); maskOut.stop()
         panelHost.x = root.hostX
         if (root.openStyle === "wipe") {
@@ -1523,17 +1492,22 @@ Item {
         }
         focusTimer.attempts = 0; focusTimer.restart()
     }
-    function _panelClosed() { root._panelGone = true; root._maybeFinishClose() }
-    function _maybeFinishClose() {
-        if (root.phase === "closing" && root._panelGone && root._triGone) root._finishClose()
+    onOutro: {
+        pixelP.running = false
+        selConfirmAnim.stop()
+        if (root.selecting) return             // the panel already stepped aside
+        wipeReveal.stop(); riseIn.stop(); maskIn.stop()
+        if (openStyle === "wipe") wipeHide.start()
+        else if (openStyle === "rise") riseOut.start()
+        else maskOut.start()
     }
-    function _finishClose() {
-        root.wipeHideRunning = false
-        root.phase = "closed"
+    onFinished: {
+        root.selecting = false
         root._busy = false
         root._masking = false
         root.hasSel = false; root.selDrag = false; root.selConfirm = 0
         root._liveBackdrop = false; root.curX = -1; root.curY = -1
+        freezeTimeout.stop()
         if (root._runAfterClose !== "") {
             root._pendingCmd = root._runAfterClose
             root._runAfterClose = ""
@@ -1542,54 +1516,13 @@ Item {
         if (!root._keepFreeze) { cleanupP.running = false; cleanupP.command = ["rm", "-f", root.freezeFile]; cleanupP.running = true }
         if (root._replay) {
             root._replay = false
-            root.requestStyle(root.styles[(root.styleIndex + 1) % root.styles.length].id)
-            Qt.callLater(root.openPanel)
+            root.openStyle = root.styles[(root.styleIndex + 1) % root.styles.length].id
+            Qt.callLater(root.open)
         }
     }
     function replayNextStyle() {
-        if (root.phase !== "open" || root._busy) return
+        if (root.phase !== "open" || root.selecting || root._busy) return
         root._replay = true
-        root.closePanel()
-    }
-
-    function openPanel() {
-        if (panelOpen) return
-        warming = false; warmEnd.stop()
-        panelOpen = true
-        phase = "arming"
-        showRecOpts = false; focusIdx = 0; catDir = 1; currentCat = defaultCat
-        _busy = false; _keepFreeze = false
-        _freezeOk = false; _freezeDone = false
-        hasSel = false; selDrag = false; selConfirm = 0; _liveBackdrop = false; _runAfterClose = ""
-        freezeP.running = false
-        freezeP.command = ["grim", "-o", root.screenName, "-t", "ppm", root.freezeFile]
-        freezeP.running = true
-        armTimeout.restart()
-    }
-    function closePanel() {
-        if (!panelOpen) return
-        if (phase === "arming") {          // nothing on screen yet
-            panelOpen = false
-            armTimeout.stop()
-            _finishClose()
-            return
-        }
-        // wipeHideRunning first: `mapped` must never read false mid-close, or the
-        // window is destroyed and re-created for one frame (a visible flash + stall).
-        var fromSel = phase === "selecting"   // the panel is already hidden / hiding
-        wipeHideRunning = true
-        panelOpen = false
-        phase = "closing"
-        pixelP.running = false
-        selConfirmAnim.stop()
-        if (!fromSel) {
-            wipeReveal.stop(); riseIn.stop(); maskIn.stop()
-            if (openStyle === "wipe") wipeHide.start()
-            else if (openStyle === "rise") riseOut.start()
-            else maskOut.start()
-        }
-    }
-    function togglePanel() {
-        if (panelOpen) closePanel(); else openPanel()
+        root.close()
     }
 }

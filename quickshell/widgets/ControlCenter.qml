@@ -18,8 +18,11 @@ import "../settings"
 //   IPC : qs ipc call ctrl toggle
 // ═════════════════════════════════════════════════════════════════════
 
-ShellRoot {
+// Window, lifecycle, glass backdrop, warm-up and rhythm: components/Popup.qml.
+Popup {
     id: root
+    dimAmount: Math.min(1, Settings.backdropDim + 0.12)   // a touch darker than the other popups
+    autoPanelGone: true      // the cross fades with `live`; the triangles' scatter is the longer part
 
     // ── Paths ──
     property string home:          Quickshell.env("HOME")
@@ -43,30 +46,17 @@ ShellRoot {
     readonly property int  panShiftH: 700   // horizontal (left/right) : sub-menu traverse l'écran
 
     // ── État ──
-    property bool   open:    false
-    property bool   closing: false   // état intermédiaire : slots reviennent au centre, puis fade
+    readonly property bool closing: phase === "closing"   // the slots fold back to the centre, then fade
     property int    level:   1
     property string slot:    "center"
     property string sub:     ""
     property string action:  ""
     property bool   atAction: false  // true = action-navigation mode (user's level 3)
 
-    // ── Rhythm (same clock as ScreenCapture / Menu: pulses, sheen) ──
-    readonly property real bpm: 120
-    property real t: 0
-    NumberAnimation {
-        target: root; property: "t"; running: root.open
-        from: 0; to: 100000; duration: 100000000; loops: Animation.Infinite
-    }
-    readonly property real beatPhase: (t * bpm / 60) % 1
-    readonly property int  beatIndex: Math.floor(t * bpm / 60)
-    readonly property real pulse:     Math.pow(1 - beatPhase, 3)
-
     // `ready`: the frame for the glass backdrop has been captured. The cross stays
     // hidden until then so it never ends up refracted in its own backdrop.
     property bool ready: false
-    Timer { id: readyFallback; interval: 350; onTriggered: root.ready = true }
-    readonly property bool live: open && !closing && ready
+    readonly property bool live: phase === "open" && ready
 
     // ── Hit feel ──
     // kick: a short shove along kickDir whenever the depth changes (enter / back)
@@ -95,7 +85,7 @@ ShellRoot {
         else if (pd === 2 && d === 1) kickDir = Qt.point(-sd.x, -sd.y)               // back to the cross
         else kickDir = Qt.point(0, 0)
         _prevDepth = d
-        if (open && !closing) { kickAnim.restart(); depthPopAnim.restart() }
+        if (isOpen) { kickAnim.restart(); depthPopAnim.restart() }
     }
     // press: every focus move squashes the newly focused item and springs it back
     property real press: 0
@@ -412,11 +402,11 @@ ShellRoot {
     }
     Timer { id: wifiSnapT; interval: 120; onTriggered: root._wifiSnapshot() }
     Timer {   // signal strengths drift; refresh the bars now and then while it's on screen
-        interval: 3000; running: root.open && root.slot === "top"; repeat: true; triggeredOnStart: true
+        interval: 3000; running: root.isOpen && root.slot === "top"; repeat: true; triggeredOnStart: true
         onTriggered: root._wifiSnapshot()
     }
     // scan while the Wi-Fi list is on screen
-    Binding { target: root.wifiDev; property: "scannerEnabled"; value: root.open && root.slot === "top"; when: root.wifiDev !== null }
+    Binding { target: root.wifiDev; property: "scannerEnabled"; value: root.isOpen && root.slot === "top"; when: root.wifiDev !== null }
     Connections { target: Networking; function onWifiEnabledChanged() { wifiSnapT.restart() } }
     Instantiator {
         model: root.wifiDev ? root.wifiDev.networks : null
@@ -496,7 +486,7 @@ ShellRoot {
         if (sig !== _btSig) { _btSig = sig; btDevices = out }
     }
     Timer { id: btSnapT; interval: 120; onTriggered: root._btSnapshot() }
-    Timer { interval: 3000; running: root.open && root.slot === "top"; repeat: true; triggeredOnStart: true; onTriggered: root._btSnapshot() }
+    Timer { interval: 3000; running: root.isOpen && root.slot === "top"; repeat: true; triggeredOnStart: true; onTriggered: root._btSnapshot() }
     Connections {
         target: root.btAdapter
         function onEnabledChanged()     { btSnapT.restart() }
@@ -541,7 +531,7 @@ ShellRoot {
     readonly property bool audioMuted:  Audio.muted
 
     Timer {
-        interval: 1500; running: root.open && root.slot === "bottom"; repeat: true; triggeredOnStart: true
+        interval: 1500; running: root.isOpen && root.slot === "bottom"; repeat: true; triggeredOnStart: true
         onTriggered: pollAudio.running = true
     }
     Process {
@@ -593,7 +583,7 @@ ShellRoot {
     property int  _gapAt: -1           // after a removal the rows from here start _gapH lower…
     property real _gapH:  0            // …and slide up into the gap
     property double nowMs: Date.now()  // for "3m" ages
-    Timer { interval: 20000; running: root.open && root.slot === "right"; repeat: true; onTriggered: root.nowMs = Date.now() }
+    Timer { interval: 20000; running: root.isOpen && root.slot === "right"; repeat: true; onTriggered: root.nowMs = Date.now() }
     Timer { id: gapReset; interval: 450; onTriggered: root._gapAt = -1 }
     // a row flies out: order = its stagger slot, strength > 0 = it throws the impact
     signal notifLeave(string key, int order, real strength)
@@ -601,7 +591,7 @@ ShellRoot {
     // Poll l'historique des notifs depuis le daemon Notifications.qml via IPC
     Timer {
         interval: 1500
-        running: root.open && root.slot === "right"
+        running: root.isOpen && root.slot === "right"
         repeat: true
         triggeredOnStart: true
         onTriggered: {
@@ -773,7 +763,7 @@ ShellRoot {
     }
 
     Timer {
-        interval: 3000; running: root.open && root.slot === "left"; repeat: true; triggeredOnStart: true
+        interval: 3000; running: root.isOpen && root.slot === "left"; repeat: true; triggeredOnStart: true
         onTriggered: qshareEventReader.running = qshareProc.running
     }
 
@@ -835,7 +825,7 @@ ShellRoot {
                     root.measureSelection()
                 }
                 // Rouvre le ControlCenter sur left.send, focus sur la 1re action
-                root.open = true
+                root.isOpen = true
                 root.closing = false
                 root.level = 3
                 root.slot = "left"
@@ -1017,7 +1007,7 @@ ShellRoot {
         cancelWifiPrompt()
     }
     onLevelChanged: { if (level !== 3) cancelWifiPrompt() }
-    onOpenChanged:  { if (!open) { cancelWifiPrompt(); if (_btWantScan || btScanning) btSetScan(false) } }
+    onIsOpenChanged:  { if (!isOpen) { cancelWifiPrompt(); if (_btWantScan || btScanning) btSetScan(false) } }
 
     // Cancel le prompt Wi-Fi proprement (fermeture du TextInput, reset focus au keyHandler)
     function cancelWifiPrompt() {
@@ -1207,47 +1197,21 @@ ShellRoot {
         }
     }
 
-    // ── Toggle / IPC ──
-    function toggle() {
-        if (open || closing) close()
-        else {
-            ready = false; readyFallback.restart()
-            // the screen with focus, picked once per open (no hyprctl + python per open)
-            activeMonitor = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name
-                          : (Quickshell.screens.length ? Quickshell.screens[0].name : "")
-            open = true; closing = false
-            level = 1; slot = "center"; sub = ""; action = ""; atAction = false
-        }
-    }
-    function close() {
-        if (!open) return
-        closing = true      // first: the depth reset below then doesn't kick or pop
-        level = 1; slot = "center"; sub = ""; action = ""; atAction = false
-        closeTimer.start()
-    }
+    // ── Lifecycle (components/Popup.qml) ──
+    onOpening: { ready = false; level = 1; slot = "center"; sub = ""; action = ""; atAction = false }
+    onIntro:   ready = true
+    // phase is already "closing" here, so the depth reset doesn't kick or pop
+    onOutro:   { level = 1; slot = "center"; sub = ""; action = ""; atAction = false }
     function back() {
         if (depth === 3)      atAction = false
         else if (depth === 2) { level = 1; sub = ""; action = "" }   // stay on this section
         else close()
     }
 
-    // Finishes the close once the slots have folded back and the triangles have
-    // scattered (GlassBackdrop.hideDuration, 0.7 s); the window unmaps after that.
-    Timer {
-        id: closeTimer
-        interval: 720
-        repeat: false
-        onTriggered: {
-            // Phase 2 : on cache vraiment (fade out via opacity 0 dans le panel)
-            open = false
-            closing = false
-        }
-    }
-
     IpcHandler {
         target: "ctrl"
         function toggle(): void { root.toggle() }
-        function show(): void   { if (!root.open) root.toggle() }
+        function show(): void   { root.open() }
         function hide(): void   { root.close() }
     }
 
@@ -1358,495 +1322,457 @@ ShellRoot {
         return h
     }
 
-    // ── Détection écran actif ── (set in toggle(), from Hyprland.focusedMonitor)
-    property string activeMonitor: ""
 
     // ═══════════════════════════════════
     //   PANEL
     // ═══════════════════════════════════
-    Variants {
-        model: Quickshell.screens
-        PanelWindow {
-            required property var modelData
-            screen: modelData
-            anchors.top: true; anchors.bottom: true; anchors.left: true; anchors.right: true
-            exclusionMode: ExclusionMode.Ignore
-            color: "transparent"
-            implicitWidth: modelData.width
-            implicitHeight: modelData.height
-            WlrLayershell.layer: WlrLayer.Overlay
-            WlrLayershell.keyboardFocus: (root.open && modelData.name === root.activeMonitor)
-                ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-            visible: root.open || root.closing
-            readonly property bool isActive: modelData.name === root.activeMonitor
+    // ── Conteneur clavier + croix ──
+    Item {
+        id: keyHandler
+        z: 2
+        anchors.fill: parent
+        opacity: root.live ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 220 } }
+        // Cède le focus au TextInput Wi-Fi quand le prompt est ouvert
+        focus: root.isOpen && root.wifiPromptSSID === ""
 
-            // Backdrop: the shared glass triangles (components/GlassBackdrop.qml)
-            GlassBackdrop {
-                id: backdrop
-                anchors.fill: parent
-                z: 0
-                screen:    modelData
-                capturing: root.open
-                active:    root.open && !root.closing && root.ready
-                dimAmount: Math.min(1, Settings.backdropDim + 0.12)   // a touch darker than the other popups
-                onFrameReady: if (isActive) root.ready = true
+        // Reprendre le focus clavier quand le prompt Wi-Fi se ferme
+        Connections {
+            target: root
+            function onWifiPromptSSIDChanged() {
+                if (root.wifiPromptSSID === "") {
+                    keyHandler.forceActiveFocus()
+                }
             }
-            MouseArea {
-                z: 1; anchors.fill: parent
-                enabled: root.open && !root.closing
-                onClicked: root.close()
+        }
+
+        Keys.onPressed: function(e) {
+            var k = e.key
+            if (k === Qt.Key_Escape)                          { root.back();          e.accepted = true }
+            else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) {
+                root.activateCurrent(); e.accepted = true
+            }
+            else if (k === Qt.Key_Tab) {
+                if (root.slot === "right" && root.sub === "history" && root.level === 3)
+                    root.clearAllNotifs()
+                e.accepted = true
+            }
+            else if (k === Qt.Key_Delete || k === Qt.Key_Backspace || k === Qt.Key_X) {
+                var dn = root.depth === 3 && root.slot === "right" && root.sub === "history" ? root.focusedNotif() : null
+                if (dn) root.dismissNotif(dn.key, false)
+                e.accepted = true
+            }
+            else if (k === Qt.Key_W || k === Qt.Key_Up)       { root.navigate("up");    e.accepted = true }
+            else if (k === Qt.Key_S || k === Qt.Key_Down)     { root.navigate("down");  e.accepted = true }
+            else if (k === Qt.Key_A || k === Qt.Key_Left)     { root.navigate("left");  e.accepted = true }
+            else if (k === Qt.Key_D || k === Qt.Key_Right)    { root.navigate("right"); e.accepted = true }
+        }
+
+        // ── Croix avec pan ──
+        Item {
+            id: cross
+            anchors.centerIn: parent
+            width: 1; height: 1
+
+            // Pan global : le cross glisse pour amener le slot focusé vers le centre
+            anchors.horizontalCenterOffset: {
+                if (root.level !== 3) return 0
+                if (root.slot === "left")  return  root.panShiftH
+                if (root.slot === "right") return -root.panShiftH
+                return 0
+            }
+            anchors.verticalCenterOffset: {
+                if (root.level !== 3) return 0
+                if (root.slot === "top")    return  root.panShiftV
+                if (root.slot === "bottom") return -root.panShiftV
+                return 0
+            }
+            Behavior on anchors.horizontalCenterOffset {
+                NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
+            }
+            Behavior on anchors.verticalCenterOffset {
+                NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
             }
 
-            // ── Conteneur clavier + croix ──
-            Item {
-                id: keyHandler
-                z: 2
-                anchors.fill: parent
-                visible: isActive
-                opacity: root.live ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 220 } }
-                // Cède le focus au TextInput Wi-Fi quand le prompt est ouvert
-                focus: root.open && !root.closing && isActive && root.wifiPromptSSID === ""
+            NierArrow { axis: "top" }
+            NierArrow { axis: "bottom" }
+            NierArrow { axis: "left" }
+            NierArrow { axis: "right" }
 
-                // Reprendre le focus clavier quand le prompt Wi-Fi se ferme
-                Connections {
-                    target: root
-                    function onWifiPromptSSIDChanged() {
-                        if (root.wifiPromptSSID === "") {
-                            keyHandler.forceActiveFocus()
-                        }
-                    }
+            Slot {
+                slotKey: "center"
+                title: "MENU"
+                subtitle: "CONTROL CENTER"
+                anchors.centerIn: parent
+                isCenter: true
+            }
+            Slot {
+                slotKey: "top"
+                title: "Connexion"
+                subtitle: "Wi-Fi · Bluetooth"
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: root.live ? -root.slotGapV : 0
+                Behavior on anchors.verticalCenterOffset {
+                    NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
                 }
-
-                Keys.onPressed: function(e) {
-                    var k = e.key
-                    if (k === Qt.Key_Escape)                          { root.back();          e.accepted = true }
-                    else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) {
-                        root.activateCurrent(); e.accepted = true
-                    }
-                    else if (k === Qt.Key_Tab) {
-                        if (root.slot === "right" && root.sub === "history" && root.level === 3)
-                            root.clearAllNotifs()
-                        e.accepted = true
-                    }
-                    else if (k === Qt.Key_Delete || k === Qt.Key_Backspace || k === Qt.Key_X) {
-                        var dn = root.depth === 3 && root.slot === "right" && root.sub === "history" ? root.focusedNotif() : null
-                        if (dn) root.dismissNotif(dn.key, false)
-                        e.accepted = true
-                    }
-                    else if (k === Qt.Key_W || k === Qt.Key_Up)       { root.navigate("up");    e.accepted = true }
-                    else if (k === Qt.Key_S || k === Qt.Key_Down)     { root.navigate("down");  e.accepted = true }
-                    else if (k === Qt.Key_A || k === Qt.Key_Left)     { root.navigate("left");  e.accepted = true }
-                    else if (k === Qt.Key_D || k === Qt.Key_Right)    { root.navigate("right"); e.accepted = true }
+            }
+            Slot {
+                slotKey: "bottom"
+                title: "Audio"
+                subtitle: "Output · Volume"
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: root.live ? root.slotGapV : 0
+                Behavior on anchors.verticalCenterOffset {
+                    NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
                 }
-
-                // ── Croix avec pan ──
-                Item {
-                    id: cross
-                    anchors.centerIn: parent
-                    width: 1; height: 1
-
-                    // Pan global : le cross glisse pour amener le slot focusé vers le centre
-                    anchors.horizontalCenterOffset: {
-                        if (root.level !== 3) return 0
-                        if (root.slot === "left")  return  root.panShiftH
-                        if (root.slot === "right") return -root.panShiftH
-                        return 0
-                    }
-                    anchors.verticalCenterOffset: {
-                        if (root.level !== 3) return 0
-                        if (root.slot === "top")    return  root.panShiftV
-                        if (root.slot === "bottom") return -root.panShiftV
-                        return 0
-                    }
-                    Behavior on anchors.horizontalCenterOffset {
-                        NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
-                    }
-                    Behavior on anchors.verticalCenterOffset {
-                        NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
-                    }
-
-                    NierArrow { axis: "top" }
-                    NierArrow { axis: "bottom" }
-                    NierArrow { axis: "left" }
-                    NierArrow { axis: "right" }
-
-                    Slot {
-                        slotKey: "center"
-                        title: "MENU"
-                        subtitle: "CONTROL CENTER"
-                        anchors.centerIn: parent
-                        isCenter: true
-                    }
-                    Slot {
-                        slotKey: "top"
-                        title: "Connexion"
-                        subtitle: "Wi-Fi · Bluetooth"
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.verticalCenterOffset: root.live ? -root.slotGapV : 0
-                        Behavior on anchors.verticalCenterOffset {
-                            NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
-                        }
-                    }
-                    Slot {
-                        slotKey: "bottom"
-                        title: "Audio"
-                        subtitle: "Output · Volume"
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.verticalCenterOffset: root.live ? root.slotGapV : 0
-                        Behavior on anchors.verticalCenterOffset {
-                            NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
-                        }
-                    }
-                    Slot {
-                        slotKey: "left"
-                        title: "Quickshare"
-                        subtitle: "File transfer"
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.horizontalCenterOffset: root.live ? -root.slotGapH : 0
-                        Behavior on anchors.horizontalCenterOffset {
-                            NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
-                        }
-                    }
-                    Slot {
-                        slotKey: "right"
-                        title: "Notifications"
-                        subtitle: "History · DND"
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.horizontalCenterOffset: root.live ? root.slotGapH : 0
-                        Behavior on anchors.horizontalCenterOffset {
-                            NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
-                        }
-                    }
+            }
+            Slot {
+                slotKey: "left"
+                title: "Quickshare"
+                subtitle: "File transfer"
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.horizontalCenterOffset: root.live ? -root.slotGapH : 0
+                Behavior on anchors.horizontalCenterOffset {
+                    NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
                 }
-
-                // ── Confirm impact: shards + rings here, a shock ring through the triangles ──
-                HitBurst { id: burst; z: 55; backdrop: backdrop }   // components/HitBurst.qml
-                Connections {
-                    target: root
-                    function onImpactAt(win, x, y, s) {
-                        if (!isActive || win !== keyHandler.Window.window) return
-                        burst.play(x, y, s)
-                    }
+            }
+            Slot {
+                slotKey: "right"
+                title: "Notifications"
+                subtitle: "History · DND"
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.horizontalCenterOffset: root.live ? root.slotGapH : 0
+                Behavior on anchors.horizontalCenterOffset {
+                    NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
                 }
+            }
+        }
 
-                // ── Nav bar: depth · path · the keys that work here ──
-                Rectangle {
-                    id: navBar
-                    z: 60
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 34
-                    width: navRow.implicitWidth + 32; height: 34
-                    color: Theme.alpha(Theme.inkStrong, 0.92)
-                    border.color: Theme.alpha(Theme.paper, 0.3); border.width: 1
-                    Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                    Row {
-                        id: navRow
-                        anchors.centerIn: parent
-                        spacing: 16
-                        Row {   // depth meter
-                            spacing: 6; anchors.verticalCenter: parent.verticalCenter
-                            Repeater {
-                                model: 3
-                                Rectangle {
-                                    id: depthGem
-                                    width: 7; height: 7; rotation: 45
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    color: index < root.depth ? root.colLight : "transparent"
-                                    border.color: Theme.alpha(Theme.light, 0.7); border.width: 1
-                                    scale: index === root.depth - 1 ? 1 + 0.35 * root.pulse + 0.9 * root.depthPop : 1
-                                    Behavior on color { ColorAnimation { duration: 180 } }
-                                    Rectangle {   // ring thrown off when this becomes the depth
-                                        id: depthRing
-                                        anchors.centerIn: parent; width: 7; height: 7
-                                        color: "transparent"; border.color: root.colLight; border.width: 1
-                                        opacity: 0
-                                    }
-                                    ParallelAnimation {
-                                        id: depthRingAnim
-                                        NumberAnimation { target: depthRing; property: "scale";   from: 1;   to: 3.6; duration: 460; easing.type: Easing.OutCubic }
-                                        NumberAnimation { target: depthRing; property: "opacity"; from: 0.9; to: 0;   duration: 460; easing.type: Easing.OutQuad }
-                                    }
-                                    Connections {
-                                        target: root
-                                        function onDepthChanged() { if (index === root.depth - 1 && root.live) depthRingAnim.restart() }
-                                    }
-                                }
-                            }
-                        }
-                        Row {   // path
-                            spacing: 8; anchors.verticalCenter: parent.verticalCenter
-                            Repeater {
-                                model: root.crumbs()
-                                Row {
-                                    spacing: 8
-                                    readonly property bool last: index === root.crumbs().length - 1
-                                    Text {
-                                        visible: index > 0; text: "▸"; font.pixelSize: 9
-                                        color: Theme.alpha(Theme.paper, 0.45)
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-                                    Text {
-                                        text: modelData; font.pixelSize: 10; font.letterSpacing: 2
-                                        font.weight: parent.last ? Font.Medium : Font.Normal
-                                        color: parent.last ? root.colLight : Theme.alpha(Theme.paper, 0.6)
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-                                }
-                            }
-                        }
-                        Rectangle { width: 1; height: 14; color: Theme.alpha(Theme.paper, 0.25); anchors.verticalCenter: parent.verticalCenter }
-                        Repeater {   // keys
-                            model: root.navHints()
-                            Row {
-                                spacing: 6; anchors.verticalCenter: parent.verticalCenter
-                                Rectangle {
-                                    width: nk.implicitWidth + 8; height: 16; color: "transparent"
-                                    border.color: Theme.alpha(Theme.paper, 0.35); border.width: 1
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    Text { id: nk; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: 8; font.letterSpacing: 1; color: root.colCard }
-                                }
-                                Text { text: modelData[1]; font.pixelSize: 9; font.letterSpacing: 2; color: Theme.alpha(Theme.paper, 0.75); anchors.verticalCenter: parent.verticalCenter }
-                            }
-                        }
-                    }
-                }
+        // ── Confirm impact: shards + rings here, a shock ring through the triangles ──
+        HitBurst { id: burst; z: 55; backdrop: backdrop }   // components/HitBurst.qml
+        Connections {
+            target: root
+            function onImpactAt(win, x, y, s) {
+                if (win !== keyHandler.Window.window) return
+                burst.play(x, y, s)
+            }
+        }
 
-                // ═══════════════════════════════════════════════════════
-                //   QR Modal qshare (visible quand qshareUrl !== "")
-                // ═══════════════════════════════════════════════════════
-                Rectangle {
-                    id: qrBackdrop
-                    anchors.fill: parent
-                    color: "#000000"
-                    opacity: (root.qshareUrl !== "" && isActive) ? 0.55 : 0
-                    visible: opacity > 0
-                    z: 100
-                    Behavior on opacity { NumberAnimation { duration: 280 } }
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: root.stopQshare()
-                        enabled: root.qshareUrl !== ""
-                    }
-                }
-
-                Item {
-                    id: qrModal
-                    anchors.centerIn: parent
-                    width: 380; height: 560
-                    z: 101
-                    opacity: (root.qshareUrl !== "" && isActive) ? 1 : 0
-                    visible: opacity > 0
-                    scale: (root.qshareUrl !== "" && isActive) ? 1.0 : 0.92
-                    Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                    Behavior on scale   { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-
-                    // Fond carte
-                    Rectangle {
-                        anchors.fill: parent
-                        color: root.colCard
-                        border.color: root.colInk
-                        border.width: 1
-                    }
-                    // Bordure interne décalée
-                    Rectangle {
-                        anchors.fill: parent
-                        anchors.margins: 4
-                        color: "transparent"
-                        border.color: root.colInk
-                        border.width: 1
-                        opacity: 0.35
-                    }
-                    // Diamond corners + glass rim (as ScreenCapture / Menu)
-                    Item {
-                        anchors.fill: parent; z: 3
-                        visible: true
+        // ── Nav bar: depth · path · the keys that work here ──
+        Rectangle {
+            id: navBar
+            z: 60
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 34
+            width: navRow.implicitWidth + 32; height: 34
+            color: Theme.alpha(Theme.inkStrong, 0.92)
+            border.color: Theme.alpha(Theme.paper, 0.3); border.width: 1
+            Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            Row {
+                id: navRow
+                anchors.centerIn: parent
+                spacing: 16
+                Row {   // depth meter
+                    spacing: 6; anchors.verticalCenter: parent.verticalCenter
+                    Repeater {
+                        model: 3
                         Rectangle {
-                            x: 1; y: 1; width: parent.width - 2; height: 1
-                            gradient: Gradient {
-                                orientation: Gradient.Horizontal
-                                GradientStop { position: 0.0; color: "transparent" }
-                                GradientStop { position: 0.35 + 0.05 * Math.sin(root.t * 0.8); color: Theme.alpha(Theme.light, 0.9) }
-                                GradientStop { position: 1.0; color: "transparent" }
+                            id: depthGem
+                            width: 7; height: 7; rotation: 45
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: index < root.depth ? root.colLight : "transparent"
+                            border.color: Theme.alpha(Theme.light, 0.7); border.width: 1
+                            scale: index === root.depth - 1 ? 1 + 0.35 * root.pulse + 0.9 * root.depthPop : 1
+                            Behavior on color { ColorAnimation { duration: 180 } }
+                            Rectangle {   // ring thrown off when this becomes the depth
+                                id: depthRing
+                                anchors.centerIn: parent; width: 7; height: 7
+                                color: "transparent"; border.color: root.colLight; border.width: 1
+                                opacity: 0
                             }
-                        }
-                        Repeater {
-                            model: 4
-                            Rectangle {
-                                width: 7; height: 7; rotation: 45; color: root.colInk
-                                x: (index % 2 === 0 ? 0 : parent.width) - 3.5
-                                y: (index < 2 ? 0 : parent.height) - 3.5
+                            ParallelAnimation {
+                                id: depthRingAnim
+                                NumberAnimation { target: depthRing; property: "scale";   from: 1;   to: 3.6; duration: 460; easing.type: Easing.OutCubic }
+                                NumberAnimation { target: depthRing; property: "opacity"; from: 0.9; to: 0;   duration: 460; easing.type: Easing.OutQuad }
+                            }
+                            Connections {
+                                target: root
+                                function onDepthChanged() { if (index === root.depth - 1 && root.live) depthRingAnim.restart() }
                             }
                         }
                     }
-
-                    Column {
-                        anchors.fill: parent
-                        anchors.margins: 24
-                        anchors.bottomMargin: 52   // place pour le bouton STOP
-                        spacing: 10
-
-                        // Header
-                        Text {
-                            text: "QSHARE"
-                            font.pixelSize: 11
-                            font.letterSpacing: 5
-                            font.weight: Font.Medium
-                            color: root.colInk
-                            opacity: 0.6
-                        }
-                        Rectangle { width: 36; height: 1; color: root.colInk; opacity: 0.5 }
-
-                        Item { width: 1; height: 4 }
-
-                        // Direction + cible du transfert
-                        Text {
-                            width: parent.width
-                            text: (root.qshareMode === "recv" ? "PHONE → PC   " : "PC → PHONE   ")
-                                  + root.qshareLabel
-                            font.pixelSize: 12
-                            font.weight: Font.Medium
-                            color: root.colInk
-                            elide: Text.ElideMiddle
-                        }
-                        // Mode réseau, en clair
-                        Text {
-                            width: parent.width
-                            text: root.qshareTunnel
-                                  ? "Internet · works on mobile data"
-                                  : "LAN · phone must share this Wi-Fi"
-                            font.pixelSize: 10
-                            color: root.colInkSoft
-                        }
-
-                        // QR area
-                        Item {
-                            width: parent.width
-                            height: 280
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: 280; height: 280
-                                color: root.colHi
-                                Image {
-                                    anchors.fill: parent
-                                    anchors.margins: 8
-                                    source: root.qshareQrPath !== ""
-                                            ? "file://" + root.qshareQrPath + "?t=" + Date.now()
-                                            : ""
-                                    fillMode: Image.PreserveAspectFit
-                                    smooth: false
-                                    cache: false
-                                    asynchronous: true
-                                }
-                                // Loading state — le tunnel Cloudflare prend
-                                // quelques secondes, on dit pourquoi ça attend
-                                Text {
-                                    anchors.centerIn: parent
-                                    width: parent.width - 24
-                                    visible: root.qshareQrPath === ""
-                                    text: root.qshareStatus !== ""
-                                          ? root.qshareStatus.toUpperCase()
-                                          : "GENERATING…"
-                                    font.pixelSize: 10
-                                    font.letterSpacing: 3
-                                    color: root.colCard
-                                    opacity: 0.6
-                                    horizontalAlignment: Text.AlignHCenter
-                                    wrapMode: Text.WordWrap
-                                }
+                }
+                Row {   // path
+                    spacing: 8; anchors.verticalCenter: parent.verticalCenter
+                    Repeater {
+                        model: root.crumbs()
+                        Row {
+                            spacing: 8
+                            readonly property bool last: index === root.crumbs().length - 1
+                            Text {
+                                visible: index > 0; text: "▸"; font.pixelSize: 9
+                                color: Theme.alpha(Theme.paper, 0.45)
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                text: modelData; font.pixelSize: 10; font.letterSpacing: 2
+                                font.weight: parent.last ? Font.Medium : Font.Normal
+                                color: parent.last ? root.colLight : Theme.alpha(Theme.paper, 0.6)
+                                anchors.verticalCenter: parent.verticalCenter
                             }
                         }
-
-                        // URL en petit
-                        Text {
-                            width: parent.width
-                            text: root.qshareUrl
-                            font.family: "Iosevka, monospace"
-                            font.pixelSize: 9
-                            color: root.colInk
-                            opacity: 0.55
-                            elide: Text.ElideMiddle
-                            horizontalAlignment: Text.AlignHCenter
+                    }
+                }
+                Rectangle { width: 1; height: 14; color: Theme.alpha(Theme.paper, 0.25); anchors.verticalCenter: parent.verticalCenter }
+                Repeater {   // keys
+                    model: root.navHints()
+                    Row {
+                        spacing: 6; anchors.verticalCenter: parent.verticalCenter
+                        Rectangle {
+                            width: nk.implicitWidth + 8; height: 16; color: "transparent"
+                            border.color: Theme.alpha(Theme.paper, 0.35); border.width: 1
+                            anchors.verticalCenter: parent.verticalCenter
+                            Text { id: nk; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: 8; font.letterSpacing: 1; color: root.colCard }
                         }
+                        Text { text: modelData[1]; font.pixelSize: 9; font.letterSpacing: 2; color: Theme.alpha(Theme.paper, 0.75); anchors.verticalCenter: parent.verticalCenter }
+                    }
+                }
+            }
+        }
 
-                        // Journal des transferts (le serveur reste allumé, donc
-                        // il peut y en avoir plusieurs pour un seul QR)
+        // ═══════════════════════════════════════════════════════
+        //   QR Modal qshare (visible quand qshareUrl !== "")
+        // ═══════════════════════════════════════════════════════
+        Rectangle {
+            id: qrBackdrop
+            anchors.fill: parent
+            color: "#000000"
+            opacity: root.qshareUrl !== "" ? 0.55 : 0
+            visible: opacity > 0
+            z: 100
+            Behavior on opacity { NumberAnimation { duration: 280 } }
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.stopQshare()
+                enabled: root.qshareUrl !== ""
+            }
+        }
+
+        Item {
+            id: qrModal
+            anchors.centerIn: parent
+            width: 380; height: 560
+            z: 101
+            opacity: root.qshareUrl !== "" ? 1 : 0
+            visible: opacity > 0
+            scale: root.qshareUrl !== "" ? 1.0 : 0.92
+            Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+            Behavior on scale   { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+
+            // Fond carte
+            Rectangle {
+                anchors.fill: parent
+                color: root.colCard
+                border.color: root.colInk
+                border.width: 1
+            }
+            // Bordure interne décalée
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 4
+                color: "transparent"
+                border.color: root.colInk
+                border.width: 1
+                opacity: 0.35
+            }
+            // Diamond corners + glass rim (as ScreenCapture / Menu)
+            Item {
+                anchors.fill: parent; z: 3
+                visible: true
+                Rectangle {
+                    x: 1; y: 1; width: parent.width - 2; height: 1
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 0.35 + 0.05 * Math.sin(root.t * 0.8); color: Theme.alpha(Theme.light, 0.9) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                }
+                Repeater {
+                    model: 4
+                    Rectangle {
+                        width: 7; height: 7; rotation: 45; color: root.colInk
+                        x: (index % 2 === 0 ? 0 : parent.width) - 3.5
+                        y: (index < 2 ? 0 : parent.height) - 3.5
+                    }
+                }
+            }
+
+            Column {
+                anchors.fill: parent
+                anchors.margins: 24
+                anchors.bottomMargin: 52   // place pour le bouton STOP
+                spacing: 10
+
+                // Header
+                Text {
+                    text: "QSHARE"
+                    font.pixelSize: 11
+                    font.letterSpacing: 5
+                    font.weight: Font.Medium
+                    color: root.colInk
+                    opacity: 0.6
+                }
+                Rectangle { width: 36; height: 1; color: root.colInk; opacity: 0.5 }
+
+                Item { width: 1; height: 4 }
+
+                // Direction + cible du transfert
+                Text {
+                    width: parent.width
+                    text: (root.qshareMode === "recv" ? "PHONE → PC   " : "PC → PHONE   ")
+                          + root.qshareLabel
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
+                    color: root.colInk
+                    elide: Text.ElideMiddle
+                }
+                // Mode réseau, en clair
+                Text {
+                    width: parent.width
+                    text: root.qshareTunnel
+                          ? "Internet · works on mobile data"
+                          : "LAN · phone must share this Wi-Fi"
+                    font.pixelSize: 10
+                    color: root.colInkSoft
+                }
+
+                // QR area
+                Item {
+                    width: parent.width
+                    height: 280
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 280; height: 280
+                        color: root.colHi
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            source: root.qshareQrPath !== ""
+                                    ? "file://" + root.qshareQrPath + "?t=" + Date.now()
+                                    : ""
+                            fillMode: Image.PreserveAspectFit
+                            smooth: false
+                            cache: false
+                            asynchronous: true
+                        }
+                        // Loading state — le tunnel Cloudflare prend
+                        // quelques secondes, on dit pourquoi ça attend
                         Text {
-                            width: parent.width
-                            visible: root.qshareTicks.length === 0
-                            text: root.qshareMode === "recv"
-                                  ? "Scan, then pick files on your phone"
-                                  : "Scan to open the file list on your phone"
+                            anchors.centerIn: parent
+                            width: parent.width - 24
+                            visible: root.qshareQrPath === ""
+                            text: root.qshareStatus !== ""
+                                  ? root.qshareStatus.toUpperCase()
+                                  : "GENERATING…"
                             font.pixelSize: 10
-                            font.letterSpacing: 1.5
-                            color: root.colInk
-                            opacity: 0.7
+                            font.letterSpacing: 3
+                            color: root.colCard
+                            opacity: 0.6
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
                         }
-                        Column {
-                            width: parent.width
-                            spacing: 1
-                            visible: root.qshareTicks.length > 0
-                            Repeater {
-                                // Les 3 derniers transferts, plus récent en haut
-                                model: root.qshareTicks.slice(-3).reverse()
-                                Text {
-                                    width: parent.width
-                                    text: "✓ " + modelData
-                                    font.family: "Iosevka, monospace"
-                                    font.pixelSize: 10
-                                    color: root.colInk
-                                    opacity: 0.85
-                                    elide: Text.ElideMiddle
-                                    horizontalAlignment: Text.AlignHCenter
-                                }
-                            }
-                            Text {
-                                width: parent.width
-                                visible: root.qshareTicks.length > 3
-                                text: root.qshareTicks.length + " transfers total"
-                                font.pixelSize: 9
-                                color: root.colInkSoft
-                                horizontalAlignment: Text.AlignHCenter
-                            }
-                        }
                     }
+                }
 
-                    // Bouton Cancel/Stop en bas-droite
-                    Rectangle {
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        anchors.margins: 14
-                        width: 90; height: 26
-                        color: cancelMA.containsMouse ? root.colInk : "transparent"
-                        border.color: root.colInk
-                        border.width: 1
-                        Behavior on color { ColorAnimation { duration: 180 } }
+                // URL en petit
+                Text {
+                    width: parent.width
+                    text: root.qshareUrl
+                    font.family: "Iosevka, monospace"
+                    font.pixelSize: 9
+                    color: root.colInk
+                    opacity: 0.55
+                    elide: Text.ElideMiddle
+                    horizontalAlignment: Text.AlignHCenter
+                }
 
+                // Journal des transferts (le serveur reste allumé, donc
+                // il peut y en avoir plusieurs pour un seul QR)
+                Text {
+                    width: parent.width
+                    visible: root.qshareTicks.length === 0
+                    text: root.qshareMode === "recv"
+                          ? "Scan, then pick files on your phone"
+                          : "Scan to open the file list on your phone"
+                    font.pixelSize: 10
+                    font.letterSpacing: 1.5
+                    color: root.colInk
+                    opacity: 0.7
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                }
+                Column {
+                    width: parent.width
+                    spacing: 1
+                    visible: root.qshareTicks.length > 0
+                    Repeater {
+                        // Les 3 derniers transferts, plus récent en haut
+                        model: root.qshareTicks.slice(-3).reverse()
                         Text {
-                            anchors.centerIn: parent
-                            // Le serveur tourne tant que ce modal est ouvert
-                            text: "× STOP"
+                            width: parent.width
+                            text: "✓ " + modelData
+                            font.family: "Iosevka, monospace"
                             font.pixelSize: 10
-                            font.letterSpacing: 2.5
-                            font.weight: Font.Medium
-                            color: cancelMA.containsMouse ? root.colCard : root.colInk
-                            Behavior on color { ColorAnimation { duration: 180 } }
-                        }
-                        MouseArea {
-                            id: cancelMA
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.stopQshare()
+                            color: root.colInk
+                            opacity: 0.85
+                            elide: Text.ElideMiddle
+                            horizontalAlignment: Text.AlignHCenter
                         }
                     }
+                    Text {
+                        width: parent.width
+                        visible: root.qshareTicks.length > 3
+                        text: root.qshareTicks.length + " transfers total"
+                        font.pixelSize: 9
+                        color: root.colInkSoft
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                }
+            }
+
+            // Bouton Cancel/Stop en bas-droite
+            Rectangle {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 14
+                width: 90; height: 26
+                color: cancelMA.containsMouse ? root.colInk : "transparent"
+                border.color: root.colInk
+                border.width: 1
+                Behavior on color { ColorAnimation { duration: 180 } }
+
+                Text {
+                    anchors.centerIn: parent
+                    // Le serveur tourne tant que ce modal est ouvert
+                    text: "× STOP"
+                    font.pixelSize: 10
+                    font.letterSpacing: 2.5
+                    font.weight: Font.Medium
+                    color: cancelMA.containsMouse ? root.colCard : root.colInk
+                    Behavior on color { ColorAnimation { duration: 180 } }
+                }
+                MouseArea {
+                    id: cancelMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.stopQshare()
                 }
             }
         }
@@ -1898,7 +1824,7 @@ ShellRoot {
         }
 
         opacity: {
-            if (!root.open && !root.closing) return 0
+            if (!root.isOpen && !root.closing) return 0
             if (root.closing) return 0.55  // toutes au repos pendant la fermeture
             if (isFocused)  return 1.0
             if (root.level >= 2) return 0.18
@@ -1927,7 +1853,7 @@ ShellRoot {
         z: isFocus ? 5 : 2
 
         opacity: {
-            if (!root.open && !root.closing) return 0
+            if (!root.isOpen && !root.closing) return 0
             if (root.level === 3) {
                 if (isFocus) return 1.0
                 if (isCenter) return 0.4

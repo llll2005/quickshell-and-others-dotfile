@@ -61,11 +61,12 @@ ShellRoot {
     }
 
     // ── CONTROLCENTER ──
-    ControlCenter {}
 
     CornerHud {}
     Menu {}
     WsMover {}
+    ScreenCapture {}
+    ControlCenter {}
 
     // ── WORKSPACE SWITCHER ── (disabled; workspace state is in TopBar)
     // WorkspaceSwitcher {}
@@ -115,67 +116,8 @@ ShellRoot {
 
 
 
-    // ── CAPTURE monitor detection ──────────────────────────────────────
-    property string captureActiveMonitor: Quickshell.screens.length>0 ? Quickshell.screens[0].name : ""
-    // Capture panel open/close style: wipe | rise | scan | iris | blinds
-    property string captureStyle: Settings.captureOpenStyle
-    signal captureFireToggle()
-    signal captureStopRecord()
 
 
-    // ── CAPTURE IPC ───────────────────────────────────────────────────
-    // hyprland.conf: bind = , Print,       exec, qs ipc call capture toggle
-    //                bind = SUPER, Print,  exec, qs ipc call capture stop
-    IpcHandler {
-        target: "capture"
-        function toggle(): void { root.captureActiveMonitor = root.focusedMonitor(); root.captureFireToggle() }
-        function stop():   void { root.captureStopRecord() }
-        // qs ipc call capture style iris   (no argument → just report the current one)
-        function style(id: string): string {
-            if (["wipe", "rise", "scan", "iris", "blinds"].indexOf(id) !== -1) root.captureStyle = id
-            return root.captureStyle
-        }
-    }
-
-
-    // ── SCREEN CAPTURE ───────────────────────────────────────────────
-    Variants {
-        model: Quickshell.screens
-        PanelWindow {
-            required property var modelData
-            screen: modelData
-            anchors.top:true;anchors.left:true;anchors.right:true;anchors.bottom:true
-            exclusionMode: ExclusionMode.Ignore
-            // Mapped only while open; Overlay so it shows above fullscreen windows.
-            visible: capItem.mapped
-            // click-through while it maps invisibly for the warm-up
-            mask: capItem.warming ? noInput : null
-            Region { id: noInput }
-            WlrLayershell.layer: WlrLayer.Overlay
-            color: "transparent"
-            WlrLayershell.keyboardFocus: capItem.panelOpen
-                                         ? WlrKeyboardFocus.Exclusive
-                                         : WlrKeyboardFocus.None
-            implicitWidth: modelData.width; implicitHeight: modelData.height
-
-            ScreenCapture {
-                id: capItem; anchors.fill:parent
-                screenW: modelData.width; screenH: modelData.height
-                screenName: modelData.name
-                shellScreen: modelData
-                openStyle: root.captureStyle
-                onRequestStyle: (id) => root.captureStyle = id
-            }
-            Connections {
-                target: root
-                function onCaptureFireToggle() {
-                    if (root.captureActiveMonitor !== modelData.name) return
-                    if (capItem.panelOpen) capItem.closePanel(); else capItem.openPanel()
-                }
-                function onCaptureStopRecord() { capItem.stopRecording() }
-            }
-        }
-    }
 
     // ── PLAYER ──
     Variants {
