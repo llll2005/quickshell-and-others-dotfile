@@ -20,8 +20,6 @@ Popup {
     burst.spreadX: 1.5
     burst.spreadY: 0.7
 
-    property real   revealP:    1      // diamond iris: 0 hidden → 1 open
-    property bool   _masking:   false
     property string currentCat: "all"
     property string searchQuery: ""
     property int    focusIdx:   0
@@ -122,7 +120,12 @@ Popup {
             }
             list.push({ a: a, s: score, c: launchCounts[a.meta] || 0 })
         }
-        list.sort(function(x, y) { return (y.s - x.s) || (y.c - x.c) || x.a.name.localeCompare(y.a.name) })
+        list.sort(function(x, y) {
+            if (y.s !== x.s) return y.s - x.s
+            if (y.c !== x.c) return y.c - x.c
+            var a = x.a.name.toLowerCase(), b = y.a.name.toLowerCase()
+            return a < b ? -1 : a > b ? 1 : 0
+        })
         return list.map(function(e) { return e.a })
     }
 
@@ -336,23 +339,18 @@ Popup {
     }
 
     // ── Panel host (clip + wipe) ──
-    Item {
+    IrisHost {
         id: panelHost
         z: 2
         x: (root.screenW - root.lw) / 2
         y: (root.screenH - root.lh) / 2
         width:  root.lw
         height: root.lh
-        clip:   true
         visible: root.shown || root.warming
-        layer.enabled: root._masking || root.warming
-        layer.effect: ShaderEffect {
-            property real  progress: root.revealP
-            property real  mode:     0          // diamond iris
-            property size  dims:     Qt.size(root.lw, root.lh)
-            property color edge:     Theme.alpha(Theme.light, 0.75)
-            fragmentShader: "../components/shaders/reveal.frag.qsb?v=2"   // bump ?v= after recompiling (see TriField.qml)
-        }
+        forceLayer: root.warming
+        onMidReveal: root._startEntering()
+        onRevealed:  scanAnim.start()
+        onConcealed: root.panelGone()
 
         PaperCard {
             id:     panelContent
@@ -839,26 +837,6 @@ Popup {
         root.close()
     }
 
-    // ── Diamond iris (reveal mask, components/shaders/reveal.frag) ──
-    SequentialAnimation {
-        id: maskIn
-        ScriptAction { script: { root.revealP = 0; root._masking = true } }
-        ParallelAnimation {
-            NumberAnimation { target: root; property: "revealP"; to: 1; duration: 520; easing.type: Easing.OutQuart }
-            SequentialAnimation {
-                PauseAnimation { duration: 200 }
-                ScriptAction { script: root._startEntering() }
-            }
-        }
-        ScriptAction { script: { root._masking = false; scanAnim.start() } }
-    }
-    SequentialAnimation {
-        id: maskOut
-        ScriptAction { script: root._masking = true }
-        NumberAnimation { target: root; property: "revealP"; to: 0; duration: 300; easing.type: Easing.InCubic }
-        ScriptAction { script: root.panelGone() }
-    }
-
     // ── Lifecycle (components/Popup.qml) ──
     onOpening: {
         searchQuery = ""; focusIdx = 0; catDir = 1; _busy = false; currentCat = "all"
@@ -867,7 +845,7 @@ Popup {
         focusTimer.attempts = 0
         focusTimer.restart()
     }
-    onIntro:  { maskOut.stop(); maskIn.start() }
-    onOutro:  { maskIn.stop(); maskOut.start() }
-    onFinished: { _masking = false; _busy = false }
+    onIntro:    panelHost.reveal()
+    onOutro:    panelHost.conceal()
+    onFinished: { panelHost.reset(); _busy = false }
 }
