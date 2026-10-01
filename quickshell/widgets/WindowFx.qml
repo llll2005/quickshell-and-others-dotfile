@@ -253,7 +253,9 @@ Scope {
                 }
             }
 
-            // ── focus: lock-on brackets ──
+            // ── focus: lock-on ── Corner brackets fly in from wide and clamp on; at the
+            // centre a diamond spins down into place, a core pops, crosshair arms shoot
+            // out and two diamond shock rings spread. Everything fades out together.
             Item {
                 id: reticle
                 property bool shown: false
@@ -261,19 +263,30 @@ Scope {
                 x: tx; y: ty; width: tw; height: th
                 visible: shown
                 opacity: 0
-                Behavior on x      { enabled: reticle.shown; SpringAnimation { spring: 6; damping: 0.32; epsilon: 0.5 } }
-                Behavior on y      { enabled: reticle.shown; SpringAnimation { spring: 6; damping: 0.32; epsilon: 0.5 } }
-                Behavior on width  { enabled: reticle.shown; SpringAnimation { spring: 6; damping: 0.32; epsilon: 0.5 } }
-                Behavior on height { enabled: reticle.shown; SpringAnimation { spring: 6; damping: 0.32; epsilon: 0.5 } }
-                property real flash: 0
+                Behavior on x      { enabled: reticle.shown; SpringAnimation { spring: 7; damping: 0.27; epsilon: 0.5 } }
+                Behavior on y      { enabled: reticle.shown; SpringAnimation { spring: 7; damping: 0.27; epsilon: 0.5 } }
+                Behavior on width  { enabled: reticle.shown; SpringAnimation { spring: 7; damping: 0.27; epsilon: 0.5 } }
+                Behavior on height { enabled: reticle.shown; SpringAnimation { spring: 7; damping: 0.27; epsilon: 0.5 } }
 
+                property real flash: 0      // 1 → 0: the landing flash
+                property real squeeze: 0    // brackets clamp inward once after landing
+                property real core: 0       // 0 → 1: the centre diamond spins down into place
+                property real armT: 0       // 0 → 1: the crosshair arms shoot out
+                property real ring1: 0
+                property real ring2: 0
+                property real outT: 0       // 0 → 1 while fading: the centre opens a little
+
+                // the brackets sit `pad` outside the window, framing its border instead
+                // of lying on it (the border is drawn in the same light colour)
+                readonly property real pad: 6
                 function lockOn(x, y, w, h) {
-                    var fresh = !shown
-                    if (fresh) {           // come in from a little wider and contract onto it
-                        shown = false; tx = x - 26; ty = y - 26; tw = w + 52; th = h + 52
+                    x -= pad; y -= pad; w += 2 * pad; h += 2 * pad
+                    if (!shown) {          // come in from wide and contract onto it
+                        tx = x - 70; ty = y - 70; tw = w + 140; th = h + 140
                         shown = true
                     }
                     tx = x; ty = y; tw = w; th = h
+                    outA.stop(); outT = 0
                     life.restart()
                 }
                 function leave() { if (shown && !life.running) return; if (shown) { life.stop(); outA.restart() } }
@@ -282,38 +295,63 @@ Scope {
                 SequentialAnimation {
                     id: life
                     ParallelAnimation {
-                        NumberAnimation { target: reticle; property: "opacity"; to: 1; duration: 70 }
-                        NumberAnimation { target: reticle; property: "flash"; from: 1; to: 0; duration: 420; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: reticle; property: "opacity"; to: 1; duration: 60 }
+                        NumberAnimation { target: reticle; property: "flash"; from: 1; to: 0; duration: 560; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: reticle; property: "core"; from: 0; to: 1; duration: 380; easing.type: Easing.OutBack; easing.overshoot: 2.2 }
+                        SequentialAnimation {
+                            PauseAnimation { duration: 70 }
+                            NumberAnimation { target: reticle; property: "armT"; from: 0; to: 1; duration: 300; easing.type: Easing.OutExpo }
+                        }
+                        SequentialAnimation {
+                            PauseAnimation { duration: 150 }
+                            NumberAnimation { target: reticle; property: "ring1"; from: 0; to: 1; duration: 560; easing.type: Easing.OutCubic }
+                        }
+                        SequentialAnimation {
+                            PauseAnimation { duration: 250 }
+                            NumberAnimation { target: reticle; property: "ring2"; from: 0; to: 1; duration: 560; easing.type: Easing.OutCubic }
+                        }
+                        SequentialAnimation {
+                            PauseAnimation { duration: 200 }
+                            NumberAnimation { target: reticle; property: "squeeze"; from: 0; to: 1; duration: 80; easing.type: Easing.OutQuad }
+                            NumberAnimation { target: reticle; property: "squeeze"; to: 0; duration: 380; easing.type: Easing.OutBack; easing.overshoot: 2.6 }
+                        }
                     }
-                    PauseAnimation { duration: 380 }
+                    PauseAnimation { duration: 360 }
                     ScriptAction { script: outA.restart() }
                 }
                 SequentialAnimation {
                     id: outA
-                    NumberAnimation { target: reticle; property: "opacity"; to: 0; duration: 180; easing.type: Easing.InQuad }
+                    ParallelAnimation {
+                        NumberAnimation { target: reticle; property: "opacity"; to: 0; duration: 240; easing.type: Easing.InQuad }
+                        NumberAnimation { target: reticle; property: "outT"; from: 0; to: 1; duration: 240; easing.type: Easing.InQuad }
+                    }
                     ScriptAction { script: reticle.shown = false }
                 }
 
-                readonly property real arm: Math.max(14, Math.min(46, Math.min(width, height) * 0.14))
                 readonly property color col: Theme.light
+                readonly property color under: Theme.alpha(Theme.inkStrong, 0.82)
+                readonly property real arm: Math.max(14, Math.min(46, Math.min(width, height) * 0.14))
+                readonly property real inset: squeeze * 7
+
+                // ── the corner brackets ──
                 Repeater {
                     model: 4
                     Item {
                         readonly property bool r: index % 2 === 1
                         readonly property bool b: index >= 2
-                        x: r ? reticle.width - reticle.arm : 0
-                        y: b ? reticle.height - reticle.arm : 0
+                        x: r ? reticle.width - reticle.arm - reticle.inset : reticle.inset
+                        y: b ? reticle.height - reticle.arm - reticle.inset : reticle.inset
                         width: reticle.arm; height: reticle.arm
                         // dark under-line keeps the bracket legible on light windows
-                        Rectangle { x: parent.r ? parent.width - 4 : -1; y: -1; width: 5; height: parent.height + 2; color: Theme.alpha(Theme.inkStrong, 0.5) }
-                        Rectangle { x: -1; y: parent.b ? parent.height - 4 : -1; width: parent.width + 2; height: 5; color: Theme.alpha(Theme.inkStrong, 0.5) }
+                        Rectangle { x: parent.r ? parent.width - 4 : -1; y: -1; width: 5; height: parent.height + 2; color: reticle.under }
+                        Rectangle { x: -1; y: parent.b ? parent.height - 4 : -1; width: parent.width + 2; height: 5; color: reticle.under }
                         Rectangle { x: parent.r ? parent.width - 3 : 0; width: 3; height: parent.height; color: reticle.col }
                         Rectangle { y: parent.b ? parent.height - 3 : 0; width: parent.width; height: 3; color: reticle.col }
                         Rectangle {   // the cut-diamond corner
-                            width: 7; height: 7; rotation: 45; antialiasing: true; color: reticle.col
-                            x: (parent.r ? parent.width : 0) - 3.5
-                            y: (parent.b ? parent.height : 0) - 3.5
-                            scale: 1 + reticle.flash * 0.8
+                            width: 8; height: 8; rotation: 45; antialiasing: true; color: reticle.col
+                            x: (parent.r ? parent.width : 0) - 4
+                            y: (parent.b ? parent.height : 0) - 4
+                            scale: 1 + reticle.flash * 1.1
                         }
                     }
                 }
@@ -321,7 +359,67 @@ Scope {
                     anchors.fill: parent
                     color: "transparent"
                     border.color: reticle.col; border.width: 2
-                    opacity: reticle.flash * 0.8
+                    opacity: reticle.flash * 0.85
+                }
+
+                // ── the centre mark ──
+                Item {
+                    id: centre
+                    anchors.centerIn: parent
+                    width: 0; height: 0
+                    readonly property real d: Math.max(22, Math.min(46, Math.min(reticle.width, reticle.height) * 0.07))
+                    readonly property real gap: d * 0.9 + 4
+                    readonly property real len: Math.max(22, Math.min(90, Math.min(reticle.width, reticle.height) * 0.12))
+                    scale: 1 + reticle.outT * 0.35
+
+                    // shock rings
+                    Repeater {
+                        model: [0, 1]
+                        Rectangle {
+                            readonly property real p: modelData === 0 ? reticle.ring1 : reticle.ring2
+                            width: centre.d; height: centre.d; x: -width / 2; y: -height / 2
+                            rotation: 45; antialiasing: true
+                            color: "transparent"; border.color: reticle.col; border.width: 1.5
+                            scale: 1 + p * 3.4
+                            opacity: p > 0 ? (1 - p) * 0.85 : 0
+                        }
+                    }
+                    // crosshair arms (+ an end tick), each over a dark under-line
+                    Repeater {
+                        model: 4
+                        Item {
+                            rotation: index * 90
+                            Rectangle { x: centre.gap - 1; y: -2.5; width: centre.len * reticle.armT + 2; height: 5; color: reticle.under }
+                            Rectangle { x: centre.gap; y: -1; width: centre.len * reticle.armT; height: 2; color: reticle.col }
+                            Rectangle {
+                                x: centre.gap + centre.len * reticle.armT - 2; y: -5
+                                width: 2; height: 10; color: reticle.col
+                                opacity: reticle.armT
+                            }
+                        }
+                    }
+                    // the diamond: spins half a turn while shrinking into place
+                    Rectangle {
+                        width: centre.d + 4; height: centre.d + 4; x: -width / 2; y: -height / 2
+                        rotation: 45 + (1 - reticle.core) * 180; antialiasing: true
+                        scale: 2.6 - 1.6 * reticle.core
+                        color: "transparent"; border.color: reticle.under; border.width: 5
+                    }
+                    Rectangle {
+                        width: centre.d; height: centre.d; x: -width / 2; y: -height / 2
+                        rotation: 45 + (1 - reticle.core) * 180; antialiasing: true
+                        scale: 2.6 - 1.6 * reticle.core
+                        color: Theme.alpha(reticle.col, 0.12 + 0.3 * reticle.flash)
+                        border.color: reticle.col; border.width: 2
+                    }
+                    // the core
+                    Rectangle {
+                        width: centre.d * 0.34; height: width; x: -width / 2; y: -height / 2
+                        rotation: 45; antialiasing: true
+                        color: reticle.col
+                        border.color: reticle.under; border.width: 1
+                        scale: Math.max(0, reticle.core)
+                    }
                 }
             }
         }
