@@ -101,7 +101,15 @@ Popup {
 
     // ── values: shell.conf through Config, with this panel's writes shown at once ──
     property var _pending: ({})
-    Connections { target: Config; function onShellChanged() { root._pending = ({}) } }
+    // a value stays "pending" until the reloaded file shows it
+    Connections {
+        target: Config
+        function onShellChanged() {
+            var p = {}
+            for (var k in root._pending) if (String(Config.shell[k]) !== String(root._pending[k])) p[k] = root._pending[k]
+            root._pending = p
+        }
+    }
     function value(row) {
         if (row.type === "status") return Health[row.key]
         if (row.key in _pending) return _pending[row.key]
@@ -111,12 +119,22 @@ Popup {
         if (row.type === "num") return typeof v === "number" ? v : row.def
         return String(v)
     }
+    // writes go one at a time (quick presses are batched into the next one), so two
+    // writers never race on shell.conf
+    property var _queue: []
     function setValue(row, v) {
         var p = Object.assign({}, _pending); p[row.key] = v; _pending = p
         var dot = row.key.indexOf(".")
-        Quickshell.execDetached(["python3", Quickshell.shellDir + "/scripts/conf-set.py",
-                                 row.key.substring(0, dot), row.key.substring(dot + 1), String(v)])
+        _queue = _queue.concat([row.key.substring(0, dot), row.key.substring(dot + 1), String(v)])
+        if (!writer.running) _flush()
     }
+    function _flush() {
+        if (_queue.length === 0) return
+        writer.command = ["python3", Quickshell.shellDir + "/scripts/conf-set.py"].concat(_queue)
+        _queue = []
+        writer.running = true
+    }
+    Process { id: writer; onExited: root._flush() }
     function decimals(row) { var s = String(row.step); return s.indexOf(".") < 0 ? 0 : s.length - s.indexOf(".") - 1 }
     function textOf(row) {
         var v = value(row)

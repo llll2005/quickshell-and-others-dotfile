@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Set one option in config/shell.conf, keeping its comments and layout:
+"""Set options in config/shell.conf, keeping their comments and layout:
 
-    conf-set.py <section> <key> <value>
+    conf-set.py <section> <key> <value> [<section> <key> <value> …]
+
+All of them are written in one go (the settings panel batches its changes, so two
+writers never race on the file).
 
 The value is written as given (true/false, a number, text; text holding # or ; is
 quoted). A missing key is added at the end of its section, a missing section at the
@@ -20,11 +23,8 @@ def fmt(v):
     return '"%s"' % v if re.search(r'[#;"]|^\s|\s$', v) else v
 
 
-def main():
-    if len(sys.argv) != 4:
-        sys.exit(__doc__)
-    section, key, value = sys.argv[1], sys.argv[2], fmt(sys.argv[3])
-    lines = open(PATH, encoding='utf-8').read().split('\n')
+def apply(lines, section, key, value):
+    value = fmt(value)
     head = re.compile(r'^\[([^\]]+)\]\s*([#;].*)?$')
     start = next((i for i, l in enumerate(lines) if (m := head.match(l.strip())) and m.group(1).strip() == section), None)
     if start is None:
@@ -53,6 +53,16 @@ def main():
             while at > start + 1 and lines[at - 1].strip() == '':
                 at -= 1
             lines.insert(at, '%s = %s' % (key, value))
+    return lines
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or len(args) % 3:
+        sys.exit(__doc__)
+    lines = open(PATH, encoding='utf-8').read().split('\n')
+    for i in range(0, len(args), 3):
+        lines = apply(lines, args[i], args[i + 1], args[i + 2])
     with open(PATH, 'r+', encoding='utf-8') as f:
         f.seek(0)
         f.write('\n'.join(lines))
