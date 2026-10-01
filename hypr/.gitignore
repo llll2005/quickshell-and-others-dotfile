@@ -1,2 +1,3 @@
 *.bak
 *.tmp
+ui/qs_theme.lua
