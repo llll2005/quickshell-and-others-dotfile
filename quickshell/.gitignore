@@ -12,3 +12,9 @@ __pycache__/
 *.tmp
 _attic/
 .loaded
+
+# third-party artwork, not redistributed (see the README): the calendar months,
+# the companions' sprites, the NieR arrow glyph
+assets/cal/
+assets/*.gif
+assets/nier-arrow.png

@@ -1716,6 +1716,7 @@ Popup {
               axis === "left"   ? -90 : 90
 
         Image {
+            id: arrowImg
             anchors.fill: parent
             source: root.arrowPng
             sourceSize.width: 256
@@ -1723,6 +1724,27 @@ Popup {
             fillMode: Image.PreserveAspectFit
             smooth: true
             rotation: ar.isFocused ? ar.focusRotation : ar.restRotation
+        }
+        // assets/nier-arrow.png (the game's glyph) isn't in the repo: a diamond and a
+        // chevron in the theme's ink stand in for it
+        Item {
+            anchors.fill: parent
+            visible: arrowImg.status !== Image.Ready
+            rotation: arrowImg.rotation
+            Rectangle {
+                width: parent.width * 0.16; height: width; rotation: 45; antialiasing: true
+                anchors.horizontalCenter: parent.horizontalCenter; y: parent.height * 0.1
+                color: Theme.ink
+            }
+            Canvas {
+                anchors.fill: parent
+                onPaint: {
+                    var c = getContext("2d"), w = width, h = height
+                    c.reset(); c.fillStyle = Theme.ink
+                    c.beginPath(); c.moveTo(w * 0.2, h * 0.36); c.lineTo(w * 0.5, h * 0.94)
+                    c.lineTo(w * 0.8, h * 0.36); c.lineTo(w * 0.5, h * 0.56); c.closePath(); c.fill()
+                }
+            }
         }
 
         opacity: {
