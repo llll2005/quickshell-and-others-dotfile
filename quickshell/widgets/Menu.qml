@@ -5,36 +5,27 @@ import Quickshell.Wayland
 import "../components"
 import "../theme"
 
-Item {
+// App launcher. Window, lifecycle, glass backdrop, warm-up and rhythm come from
+// components/Popup.qml; the diamond iris reveal (reveal.frag) is this panel's own.
+Popup {
     id: root
 
     readonly property int lw: 780
     readonly property int lh: 540
-    property real screenW: 1920
-    property real screenH: 1080
-    property var  shellScreen: null   // ShellScreen — the frame the glass panes refract
 
-    property bool   menuOpen:        false
-    property bool   wipeHideRunning: false  // reste true pendant l'animation de fermeture
-    // Same open/close model as ScreenCapture: closed → arming (mapped but empty
-    // while a frame of the screen is captured) → open → closing (diamond iris
-    // contracts, triangles scatter) → closed. shell.qml maps the window only
-    // while `mapped`.
-    property string phase:   "closed"
-    readonly property bool shown:  phase === "open" || phase === "closing"
-    property bool   warming: false     // one invisible, click-through render at start (shaders, glyphs, icons)
-    readonly property bool mapped: menuOpen || wipeHideRunning || warming
+    IpcHandler {
+        target: "menu"
+        function toggle(): void { root.toggle() }
+    }
+    burst.spreadX: 1.5
+    burst.spreadY: 0.7
+
     property real   revealP:    1      // diamond iris: 0 hidden → 1 open
     property bool   _masking:   false
-    property bool   _panelGone: true
-    property bool   _triGone:   true
     property string currentCat: "all"
     property string searchQuery: ""
     property int    focusIdx:   0
     property string clockStr:   "--:--:--"
-
-    implicitWidth:  screenW
-    implicitHeight: screenH
 
     // Palette
     readonly property color paper:     Theme.paper
@@ -47,17 +38,6 @@ Item {
     readonly property color light:     Theme.light
     function paperA(a) { return Theme.alpha(Theme.paper, a) }
     function inkA(a)   { return Theme.alpha(Theme.ink, a) }
-
-    // ── Rhythm (same clock as ScreenCapture: pulses, sheen, ripples) ──
-    readonly property real bpm: 120
-    property real t: 0
-    NumberAnimation on t {
-        running: root.shown
-        from: 0; to: 100000; duration: 100000000; loops: Animation.Infinite
-    }
-    readonly property real beatPhase: (t * bpm / 60) % 1
-    readonly property int  beatIndex: Math.floor(t * bpm / 60)
-    readonly property real pulse:     Math.pow(1 - beatPhase, 3)
 
     // ── Category transitions follow the gesture (+1 = → / swipe left) ──
     property int    catDir:  1
@@ -123,7 +103,7 @@ Item {
     // ── Lecture .desktop ──
     Process {
         id: desktopReader
-        command: ["bash", Qt.resolvedUrl("../list-apps.sh").toString().replace("file://","")]
+        command: ["python3", Quickshell.shellDir + "/scripts/list-apps.py"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -200,20 +180,13 @@ Item {
         launchProc.running = false
         launchProc.command = ["sh", "-c", "nohup " + cmd + " >/dev/null 2>&1 &"]
         launchProc.running = true
-        root.closeMenu()
+        root.close()
     }
-
-    function launch(cmd) {
-        if (!cmd || cmd === "") return
-        launchProc.running = false
-        launchProc.command = ["sh", "-c", "nohup " + cmd + " >/dev/null 2>&1 &"]
-        launchProc.running = true
-        root.closeMenu()
-    }
+    function launch(cmd) { root.launchApp(cmd) }
 
     // Only ticks while open (hidden full-screen surface would redraw each second).
     Timer {
-        interval: 1000; running: root.menuOpen; repeat: true; triggeredOnStart: true
+        interval: 1000; running: root.isOpen; repeat: true; triggeredOnStart: true
         onTriggered: {
             var d = new Date()
             root.clockStr = String(d.getHours()).padStart(2,"0") + ":"
@@ -240,26 +213,6 @@ Item {
         desktopReader.running = true
     }
 
-    // ── Backdrop: the shared glass triangles (components/GlassBackdrop.qml) ──
-    GlassBackdrop {
-        id: backdrop
-        anchors.fill: parent
-        z: 0
-        screen:    root.shellScreen
-        capturing: root.menuOpen || root.wipeHideRunning
-        active:    root.phase === "open"
-        warm:      root.warming
-        onFrameReady: root._startIntro()
-        onHidden: { root._triGone = true; root._maybeFinishClose() }
-    }
-    MouseArea {
-        anchors.fill: parent; z: 1
-        enabled: root.menuOpen
-        onClicked: root.closeMenu()
-    }
-    // Launch impact: rings + shards over the panel, a shock ring through the triangles
-    HitBurst { id: burst; z: 3; backdrop: backdrop; spreadX: 1.5; spreadY: 0.7 }
-
     // ── Panel host (clip + wipe) ──
     Item {
         id: panelHost
@@ -270,7 +223,6 @@ Item {
         height: root.lh
         clip:   true
         visible: root.shown || root.warming
-        opacity: root.warming && !root.shown ? 0.004 : 1
         layer.enabled: root._masking || root.warming
         layer.effect: ShaderEffect {
             property real  progress: root.revealP
@@ -367,7 +319,7 @@ Item {
                                 font.pixelSize:9; font.letterSpacing:1.5; color:root.inkSoft; y:2
                                 NumberAnimation on x {
                                     from:120; to:-lhTick.implicitWidth
-                                    duration:12000; loops:Animation.Infinite; running:root.menuOpen
+                                    duration:12000; loops:Animation.Infinite; running:root.isOpen
                                 }
                             }
                         }
@@ -423,10 +375,10 @@ Item {
                                     width:72; height:2; color:root.lineSoft
                                     Rectangle {
                                         height:parent.height; color:root.accent
-                                        SequentialAnimation on x { running:root.menuOpen; loops:Animation.Infinite
+                                        SequentialAnimation on x { running:root.isOpen; loops:Animation.Infinite
                                             NumberAnimation { from:0; to:44; duration:1400; easing.type:Easing.InOutSine }
                                             NumberAnimation { from:44; to:0; duration:1400; easing.type:Easing.InOutSine } }
-                                        SequentialAnimation on width { running:root.menuOpen; loops:Animation.Infinite
+                                        SequentialAnimation on width { running:root.isOpen; loops:Animation.Infinite
                                             NumberAnimation { from:10; to:28; duration:1400; easing.type:Easing.InOutSine }
                                             NumberAnimation { from:28; to:10; duration:1400; easing.type:Easing.InOutSine } }
                                     }
@@ -471,7 +423,7 @@ Item {
                                 FocusScope {
                                     id:searchScope; width:parent.width-60; height:30
                                     anchors.verticalCenter:parent.verticalCenter
-                                    focus: root.menuOpen
+                                    focus: root.isOpen
 
                                     TextInput {
                                         id:           searchInput
@@ -486,7 +438,7 @@ Item {
 
                                         onTextEdited: { root.searchQuery=text; root.focusIdx=0 }
 
-                                        Keys.onEscapePressed: root.closeMenu()
+                                        Keys.onEscapePressed: root.close()
                                         Keys.onUpPressed: {
                                             root.focusIdx=Math.max(0,root.focusIdx-1)
                                             appList.positionViewAtIndex(root.focusIdx, ListView.Contain)
@@ -814,7 +766,7 @@ Item {
     // app starts while the panel closes
     SequentialAnimation {
         id: launchConfirm
-        ScriptAction { script: { root.flashV = 1; burst.playAt(burstAnchor, 0, 0, 1) } }
+        ScriptAction { script: { root.flashV = 1; root.burst.playAt(burstAnchor, 0, 0, 1) } }
         ParallelAnimation {
             NumberAnimation { target: root; property: "flashV"; to: 0; duration: 420; easing.type: Easing.OutQuad }
             SequentialAnimation {
@@ -848,67 +800,18 @@ Item {
         id: maskOut
         ScriptAction { script: root._masking = true }
         NumberAnimation { target: root; property: "revealP"; to: 0; duration: 300; easing.type: Easing.InCubic }
-        ScriptAction { script: root._panelClosed() }
+        ScriptAction { script: root.panelGone() }
     }
 
-    // Open anyway if the screen capture never arrives (panes then sit over the live screen).
-    Timer { id: armTimeout; interval: 350; onTriggered: root._startIntro() }
-    Timer {
-        interval: 2500; running: true
-        onTriggered: if (!root.menuOpen) { root.warming = true; warmEnd.start() }
-    }
-    Timer { id: warmEnd; interval: 700; onTriggered: root.warming = false }
-
-    // ── API ──
-    function openMenu() {
-        if (menuOpen) return
-        warming = false; warmEnd.stop()
-        menuOpen    = true
-        phase       = "arming"
-        searchQuery = ""
-        focusIdx    = 0
-        catDir      = 1
-        _busy       = false
-        currentCat  = "all"
-        // Sync TextInput text avec la property vide
+    // ── Lifecycle (components/Popup.qml) ──
+    onOpening: {
+        searchQuery = ""; focusIdx = 0; catDir = 1; _busy = false; currentCat = "all"
         searchInput.text = ""
         if (!appsLoaded) desktopReader.running = true
-        armTimeout.restart()
         focusTimer.attempts = 0
         focusTimer.restart()
     }
-
-    function _startIntro() {
-        if (phase !== "arming") return
-        armTimeout.stop()
-        _panelGone = false; _triGone = false
-        phase = "open"
-        maskOut.stop()
-        maskIn.start()
-    }
-    function _panelClosed() { _panelGone = true; _maybeFinishClose() }
-    function _maybeFinishClose() {
-        if (phase === "closing" && _panelGone && _triGone) _finishClose()
-    }
-    function _finishClose() {
-        wipeHideRunning = false
-        phase = "closed"
-        _masking = false
-        _busy = false
-    }
-
-    function closeMenu() {
-        if (!menuOpen) return
-        if (phase === "arming") {      // nothing on screen yet
-            menuOpen = false
-            armTimeout.stop()
-            _finishClose()
-            return
-        }
-        wipeHideRunning  = true    // before menuOpen: the window stays mapped (no remap flash)
-        menuOpen         = false
-        phase            = "closing"
-        maskIn.stop()
-        maskOut.start()
-    }
+    onIntro:  { maskOut.stop(); maskIn.start() }
+    onOutro:  { maskIn.stop(); maskOut.start() }
+    onFinished: { _masking = false; _busy = false }
 }

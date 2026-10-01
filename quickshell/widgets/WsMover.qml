@@ -1,30 +1,25 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import "../components"
 import "../theme"
 
-Item {
+// Move every window of the current workspace to another one (number + ↵).
+// Window, lifecycle and glass backdrop: components/Popup.qml.
+Popup {
     id: root
 
     readonly property int pw: 440
     readonly property int ph: 200
-    property real screenW: 1920
-    property real screenH: 1080
+    property int curWs: 0
 
-    property var  shellScreen:     null   // the frame the glass backdrop refracts
-    property bool panelOpen:       false
-    property bool wipeHideRunning: false
-    // Open: map empty → frame captured (_ready) + first frame shown (_gateOk) →
-    // reveal. Close: the window unmaps once both the panel and the triangles are gone.
-    property bool _ready:     false
-    property bool _gateOk:    false
-    property bool _panelGone: true
-    property bool _bgGone:    true
-    property int  curWs:           0
-
-    implicitWidth:  screenW
-    implicitHeight: screenH
+    IpcHandler {
+        target: "wsmove"
+        function open(): void  { root.open() }
+        function close(): void { root.close() }
+    }
+    backdrop.originPx: Qt.point(screenW, screenH / 2)   // unfolds from the side the panel slides in from
 
     // ── Palette (YoRHa Paper · 與 Menu 一致) ─────────────────────────────
     readonly property color paper:     Theme.paper
@@ -34,19 +29,6 @@ Item {
     readonly property color lineSoft:  Theme.alpha(Theme.ink, 0.25)
     readonly property color lineVsoft: Theme.alpha(Theme.ink, 0.12)
     readonly property color accent:    Theme.accent
-
-    // ── Processes ────────────────────────────────────────────────────────
-    Process {
-        id: getCurWs
-        command: ["sh", "-c", "hyprctl activeworkspace -j | jq '.id'"]
-        running: false
-        stdout: SplitParser {
-            onRead: data => {
-                var n = parseInt(data.trim())
-                if (n > 0) { root.curWs = n; root._doOpen() }
-            }
-        }
-    }
 
     Process { id: moveProc; running: false }
 
@@ -60,45 +42,18 @@ Item {
         }
     }
 
-    // ── API ───────────────────────────────────────────────────────────────
-    function open() {
-        if (panelOpen) return
+    // ── Lifecycle (components/Popup.qml) ──
+    onOpening: {
+        curWs = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 0
         wsInput.text = ""
-        getCurWs.running = true
-    }
-
-    function _doOpen() {
-        _ready = false; _gateOk = false; _panelGone = false; _bgGone = false
-        panelOpen = true
         wipeHide.stop()
-        readyFallback.restart()
-        // The window is unmapped while closed: show the reveal's start state and
-        // wait for the first presented frame so the OutExpo slide isn't clipped.
+        // the reveal's start state: off to the right, behind the curtain
         panelHost.x       = (root.screenW - root.pw) / 2 + root.pw + 2
         wipeCurtain.x     = 0
         wipeCurtain.width = root.pw
-        revealGate.arm()
     }
-
-    MapGate { id: revealGate; onReady: { root._gateOk = true; root._tryReveal() } }
-    Timer { id: readyFallback; interval: 350; onTriggered: { root._ready = true; root._tryReveal() } }
-    function _tryReveal() {
-        if (root.panelOpen && root._gateOk && root._ready && !wipeReveal.running) wipeReveal.start()
-    }
-    function _maybeFinish() {
-        if (!root.panelOpen && root._panelGone && root._bgGone) root.wipeHideRunning = false
-    }
-
-    function close() {
-        if (!panelOpen) return
-        wipeHideRunning = true    // before panelOpen: the window stays mapped (no remap flash)
-        panelOpen = false
-        if (!_ready) _bgGone = true   // the backdrop never unfolded, so it won't report hidden()
-        readyFallback.stop()
-        revealGate.disarm()
-        wipeReveal.stop()
-        wipeHide.start()
-    }
+    onIntro: wipeReveal.start()
+    onOutro: { wipeReveal.stop(); wipeHide.start() }
 
     function confirm() {
         var t = parseInt(wsInput.text.trim())
@@ -113,23 +68,6 @@ Item {
         root.close()
     }
 
-    // ── Backdrop: the shared glass triangles (components/GlassBackdrop.qml) ──
-    GlassBackdrop {
-        anchors.fill: parent
-        z: 0
-        screen:    root.shellScreen
-        capturing: root.panelOpen || root.wipeHideRunning
-        active:    root.panelOpen && root._ready
-        originPx:  Qt.point(width, height / 2)    // unfolds from the side the panel slides in from
-        onFrameReady: { root._ready = true; readyFallback.stop(); root._tryReveal() }
-        onHidden: { root._bgGone = true; root._maybeFinish() }
-    }
-    MouseArea {
-        z: 1; anchors.fill: parent
-        enabled: root.panelOpen || root.wipeHideRunning
-        onClicked: root.close()
-    }
-
     // ── Panel host (clip + wipe) ──────────────────────────────────────────
     Item {
         id: panelHost
@@ -138,7 +76,7 @@ Item {
         y: (root.screenH - root.ph) / 2
         width: root.pw; height: root.ph
         clip:    true
-        visible: (root.panelOpen && root._ready) || wipeReveal.running || wipeHide.running
+        visible: root.shown
 
         // Shake animation on invalid input
         SequentialAnimation {
@@ -346,6 +284,6 @@ Item {
             to:(root.screenW-root.pw)/2+root.pw+2
             duration:280; easing.type:Easing.InExpo
         }
-        onFinished: { root._panelGone = true; root._maybeFinish() }
+        onFinished: root.panelGone()
     }
 }

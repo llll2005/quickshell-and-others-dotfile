@@ -63,9 +63,9 @@ ShellRoot {
     // ── CONTROLCENTER ──
     ControlCenter {}
 
-    // ── TOP STATUS UI ── (TopBar full-width OR CornerHud; switch via Settings.cornerHudEnabled)
-    TopBar {}
     CornerHud {}
+    Menu {}
+    WsMover {}
 
     // ── WORKSPACE SWITCHER ── (disabled; workspace state is in TopBar)
     // WorkspaceSwitcher {}
@@ -105,8 +105,6 @@ ShellRoot {
 
     property string currentUser: Quickshell.env("USER") || "user"
 
-    property string menuActiveMonitor: Quickshell.screens.length>0 ? Quickshell.screens[0].name : ""
-    signal menuFireToggle()
 
     // The monitor with focus, straight from Hyprland's state. (Each popup used to run
     // active-monitor.sh — hyprctl + awk — before it could open.)
@@ -115,10 +113,6 @@ ShellRoot {
         return m ? m.name : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "")
     }
 
-    // ── WSMOVER monitor detection ──────────────────────────────────────
-    property string wsmoveActiveMonitor: Quickshell.screens.length>0 ? Quickshell.screens[0].name : ""
-    signal wsmoveFireOpen()
-    signal wsmoveFireClose()
 
 
     // ── CAPTURE monitor detection ──────────────────────────────────────
@@ -128,19 +122,6 @@ ShellRoot {
     signal captureFireToggle()
     signal captureStopRecord()
 
-
-    // ── MENU IPC ──────────────────────────────────────────────────────
-    IpcHandler {
-        target: "menu"
-        function toggle(): void { root.menuActiveMonitor = root.focusedMonitor(); root.menuFireToggle() }
-    }
-
-    // ── WSMOVER IPC ───────────────────────────────────────────────────
-    IpcHandler {
-        target: "wsmove"
-        function open(): void  { root.wsmoveActiveMonitor = root.focusedMonitor(); root.wsmoveFireOpen() }
-        function close(): void { root.wsmoveFireClose() }
-    }
 
     // ── CAPTURE IPC ───────────────────────────────────────────────────
     // hyprland.conf: bind = , Print,       exec, qs ipc call capture toggle
@@ -153,31 +134,6 @@ ShellRoot {
         function style(id: string): string {
             if (["wipe", "rise", "scan", "iris", "blinds"].indexOf(id) !== -1) root.captureStyle = id
             return root.captureStyle
-        }
-    }
-
-    // ── MENU ──
-    Variants {
-        model: Quickshell.screens
-        PanelWindow {
-            required property var modelData
-            screen:modelData
-            anchors.top:true;anchors.left:true;anchors.right:true;anchors.bottom:true
-            exclusionMode:ExclusionMode.Ignore
-            // Mapped only while open (no full-screen buffers when closed); Overlay so
-            // it also shows above fullscreen windows, which cover the Top layer.
-            visible:menuItem.mapped
-            mask:menuItem.warming?noInputMenu:null   // click-through while warming up
-            Region{id:noInputMenu}
-            WlrLayershell.layer:WlrLayer.Overlay
-            color:"transparent"
-            WlrLayershell.keyboardFocus:menuItem.menuOpen?WlrKeyboardFocus.Exclusive:WlrKeyboardFocus.None
-            implicitWidth:modelData.width;implicitHeight:modelData.height
-            Menu{id:menuItem;anchors.fill:parent;screenW:modelData.width;screenH:modelData.height;shellScreen:modelData}
-            Connections{target:root;function onMenuFireToggle(){
-                if(root.menuActiveMonitor!==modelData.name)return
-                if(menuItem.menuOpen)menuItem.closeMenu();else menuItem.openMenu()
-            }}
         }
     }
 
@@ -217,36 +173,6 @@ ShellRoot {
                     if (capItem.panelOpen) capItem.closePanel(); else capItem.openPanel()
                 }
                 function onCaptureStopRecord() { capItem.stopRecording() }
-            }
-        }
-    }
-
-    // ── WORKSPACE MOVER ───────────────────────────────────────────────
-    Variants {
-        model: Quickshell.screens
-        PanelWindow {
-            required property var modelData
-            screen: modelData
-            anchors.top:true; anchors.left:true; anchors.right:true; anchors.bottom:true
-            exclusionMode: ExclusionMode.Ignore
-            // Mapped only while open; Overlay so it shows above fullscreen windows.
-            visible: wsMoverItem.panelOpen || wsMoverItem.wipeHideRunning
-            WlrLayershell.layer: WlrLayer.Overlay
-            color: "transparent"
-            WlrLayershell.keyboardFocus: wsMoverItem.panelOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-            implicitWidth: modelData.width; implicitHeight: modelData.height
-            WsMover {
-                id: wsMoverItem; anchors.fill: parent
-                screenW: modelData.width; screenH: modelData.height
-                shellScreen: modelData
-            }
-            Connections {
-                target: root
-                function onWsmoveFireClose() { if (wsMoverItem.panelOpen) wsMoverItem.close() }
-                function onWsmoveFireOpen() {
-                    if (root.wsmoveActiveMonitor !== modelData.name) return
-                    wsMoverItem.open()
-                }
             }
         }
     }
