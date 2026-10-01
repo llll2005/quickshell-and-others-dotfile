@@ -53,6 +53,23 @@ Popup {
     property string action:  ""
     property bool   atAction: false  // true = action-navigation mode (user's level 3)
 
+    // ── Power mode ──
+    // ↵ on the centre turns the cross over: the arms become the power actions (top Lock ·
+    // Sleep, left Log out, right Reboot · UEFI, bottom Shut down · Hibernate) and the
+    // centre leads back. ↵ on one runs it: Lock at once, the rest through `exitKey` (the
+    // triangles collapse, the screen goes dark, the command runs), and all but Sleep ask
+    // first on a YES / NO card (NO by default).
+    property string mode: "main"            // "main" · "power"
+    readonly property bool power: mode === "power"
+    property bool   folded: false           // the arms tucked into the centre while the cross turns over
+    property string _nextMode: "main"
+    property string confirmKey: ""          // the action the YES / NO card asks about
+    property bool   confirmYes: false
+    property double _cardAt: 0
+    property string exitKey: ""             // the action under way (the dark screen)
+    property string exitError: ""
+    property real   exitFade: 0
+
     // `ready`: the frame for the glass backdrop has been captured. The cross stays
     // hidden until then so it never ends up refracted in its own backdrop.
     property bool ready: false
@@ -151,11 +168,54 @@ Popup {
                               actions:[{key:"placeholder",label:"Sub-menu coming"}]}
     })
 
+    // ── Power actions ──
+    readonly property var powerSubs: ({
+        top:    [ {key:"lock",      label:"Lock"},
+                  {key:"sleep",     label:"Sleep"} ],
+        left:   [ {key:"logout",    label:"Log out"} ],
+        right:  [ {key:"reboot",    label:"Reboot"},
+                  {key:"firmware",  label:"Reboot to UEFI"} ],
+        bottom: [ {key:"poweroff",  label:"Shut down"},
+                  {key:"hibernate", label:"Hibernate"} ]
+    })
+    // ask: the YES / NO card's question (none: runs at once) · exit: the dark screen's
+    // line (none: Lock, which just closes the panel)
+    readonly property var powerActs: ({
+        lock:      { h3:"Lock", zh:"鎖定螢幕", exit:"", ask:"",
+                     cmd:["sh", "-c", "pidof hyprlock || hyprlock"],
+                     hint:"用 hyprlock 鎖定（同 SUPER+L）。立即執行。" },
+        sleep:     { h3:"Sleep", zh:"睡眠 · 暫停到記憶體", exit:"SLEEP MODE", ask:"",
+                     cmd:["systemctl", "suspend"],
+                     hint:"關掉螢幕、保留所有視窗；按鍵或開蓋喚醒，醒來先解鎖。立即執行。" },
+        logout:    { h3:"Log out", zh:"登出 Hyprland", exit:"LOGGING OUT", ask:"登出？",
+                     cmd:["hyprctl", "dispatch", "hl.dsp.exit()"],
+                     hint:"關閉所有視窗並結束工作階段，回到登入畫面。",
+                     warn:"所有視窗都會關閉，未儲存的工作會遺失。" },
+        reboot:    { h3:"Reboot", zh:"重新開機", exit:"REBOOTING", ask:"重新開機？",
+                     cmd:["systemctl", "reboot"],
+                     hint:"關閉所有程式後重新開機。",
+                     warn:"所有視窗都會關閉，未儲存的工作會遺失。" },
+        firmware:  { h3:"Reboot to UEFI", zh:"重開進 BIOS / UEFI", exit:"ENTERING FIRMWARE SETUP", ask:"重開進 BIOS / UEFI？",
+                     cmd:["systemctl", "reboot", "--firmware-setup"],
+                     hint:"重新開機，並在下次開機時直接進入韌體設定畫面。",
+                     warn:"會直接重開，未儲存的工作會遺失。" },
+        poweroff:  { h3:"Shut down", zh:"關機", exit:"SYSTEM SHUTDOWN", ask:"關機？",
+                     cmd:["systemctl", "poweroff"],
+                     hint:"關閉所有程式後關機。",
+                     warn:"所有視窗都會關閉，未儲存的工作會遺失。" },
+        hibernate: { h3:"Hibernate", zh:"休眠 · 存到磁碟後斷電", exit:"HIBERNATING", ask:"休眠？",
+                     cmd:["systemctl", "hibernate"],
+                     hint:"把目前的工作狀態寫進 swap 後完全斷電，下次開機原樣還原。",
+                     warn:"工作狀態會寫入磁碟後斷電。第一次使用前先存好工作。" }
+    })
+
     function detailKey() { return slot + "." + sub }
-    function subList(s)  { return root.subs[s] || [] }
+    function subList(s)  { return (power ? root.powerSubs : root.subs)[s] || [] }
+    function hasDetail() { return power ? (sub in root.powerActs) : (detailKey() in root.details) }
 
     // ── Construit la liste d'actions dynamique selon le sub focus ──
     function actList() {
+        if (power) return []        // a power sub runs on ↵ itself: no action list
         var key = detailKey()
         // Wi-Fi : toggle + un bouton par réseau scanné
         if (key === "top.wifi") {
@@ -269,6 +329,7 @@ Popup {
     }
 
     function detailH3() {
+        if (power) { var pa = root.powerActs[sub]; return pa ? pa.h3 : "" }
         var key = detailKey()
         if (key === "top.wifi")          return "Wi-Fi"
         if (key === "top.bluetooth")     return "Bluetooth"
@@ -282,6 +343,7 @@ Popup {
         return d ? d.h3 : ""
     }
     function detailStatus() {
+        if (power) { var pa = root.powerActs[sub]; return pa ? pa.zh : "" }
         var key = detailKey()
         if (key === "top.wifi") {
             if (!wifiEnabled) return "Disabled"
@@ -325,6 +387,7 @@ Popup {
         return d2 ? d2.status : ""
     }
     function detailOn() {
+        if (power) return false
         var key = detailKey()
         if (key === "top.wifi")          return wifiEnabled
         if (key === "top.bluetooth")     return btEnabled
@@ -341,6 +404,7 @@ Popup {
     // One-line plain-language explanation shown under the status dot.
     // Empty string = no hint row for this panel.
     function detailHint() {
+        if (power) { var pa = root.powerActs[sub]; return pa ? pa.hint : "" }
         var key = detailKey()
         if (key === "left.send") {
             return qshareTunnel
@@ -402,11 +466,11 @@ Popup {
     }
     Timer { id: wifiSnapT; interval: 120; onTriggered: root._wifiSnapshot() }
     Timer {   // signal strengths drift; refresh the bars now and then while it's on screen
-        interval: 3000; running: root.isOpen && root.slot === "top"; repeat: true; triggeredOnStart: true
+        interval: 3000; running: root.isOpen && root.slot === "top" && !root.power; repeat: true; triggeredOnStart: true
         onTriggered: root._wifiSnapshot()
     }
     // scan while the Wi-Fi list is on screen
-    Binding { target: root.wifiDev; property: "scannerEnabled"; value: root.isOpen && root.slot === "top"; when: root.wifiDev !== null }
+    Binding { target: root.wifiDev; property: "scannerEnabled"; value: root.isOpen && root.slot === "top" && !root.power; when: root.wifiDev !== null }
     Connections { target: Networking; function onWifiEnabledChanged() { wifiSnapT.restart() } }
     Instantiator {
         model: root.wifiDev ? root.wifiDev.networks : null
@@ -486,7 +550,7 @@ Popup {
         if (sig !== _btSig) { _btSig = sig; btDevices = out }
     }
     Timer { id: btSnapT; interval: 120; onTriggered: root._btSnapshot() }
-    Timer { interval: 3000; running: root.isOpen && root.slot === "top"; repeat: true; triggeredOnStart: true; onTriggered: root._btSnapshot() }
+    Timer { interval: 3000; running: root.isOpen && root.slot === "top" && !root.power; repeat: true; triggeredOnStart: true; onTriggered: root._btSnapshot() }
     Connections {
         target: root.btAdapter
         function onEnabledChanged()     { btSnapT.restart() }
@@ -910,7 +974,7 @@ Popup {
     onSlotChanged: {
         if (live) pressAnim.restart()
         cancelWifiPrompt()
-        if (slot === "top")    { _wifiSnapshot(); _btSnapshot() }
+        if (slot === "top" && !power) { _wifiSnapshot(); _btSnapshot() }
     }
     onSubChanged: {
         _seenNotif = ({})
@@ -1075,17 +1139,20 @@ Popup {
     }
 
     function activateCurrent() {
-        if (_hitting) return
-        if (depth === 1 && slot === "center") return
-        if (depth === 2 && actList().length === 0) { blocked(); return }
+        if (_hitting || folded) return
+        if (depth === 2 && !power && actList().length === 0) { blocked(); return }
         _hitting = true
         hitDepth = depth
-        confirmPulse(depth === 3 ? 1.0 : 0.6)
+        confirmPulse(depth === 3 || (power && depth === 2) ? 1.0 : 0.6)
         hitAnim.restart()
     }
     function _afterHit() {
-        if (depth === 1) { enterSlot(); return }
-        if (depth === 2) { enterActions(); return }
+        if (depth === 1) {
+            if (slot === "center") setMode(power ? "main" : "power")
+            else enterSlot()
+            return
+        }
+        if (depth === 2) { if (power) powerRun(sub); else enterActions(); return }
         if (level === 3 && action) {
             // Notifications: ↵ opens one whose app still listens (its default action),
             // otherwise it shows / hides the details
@@ -1099,14 +1166,126 @@ Popup {
         }
     }
 
+    // ── Power mode ──
+    // The cross turns over: the arms tuck into the centre, swap their labels behind it
+    // and spring back out.
+    function setMode(m) {
+        if (mode === m || morphT.running) return
+        _nextMode = m
+        folded = true
+        morphT.restart()
+    }
+    Timer { id: morphT; interval: 200; onTriggered: { root.mode = root._nextMode; root.folded = false } }
+
+    function powerRun(key) {
+        var a = powerActs[key]
+        if (!a) return
+        if (a.ask) { confirmYes = false; _cardAt = Date.now(); confirmKey = key; return }
+        _powerGo(key)
+    }
+    // the YES / NO card: the chosen button pops and throws its burst, then the answer lands
+    property real cHitT: 0
+    SequentialAnimation {
+        id: cHitAnim
+        NumberAnimation { target: root; property: "cHitT"; from: 0; to: 1; duration: 45; easing.type: Easing.OutQuad }
+        PauseAnimation { duration: 75 }
+        ScriptAction { script: root._confirmDone() }
+        NumberAnimation { target: root; property: "cHitT"; to: 0; duration: 220; easing.type: Easing.OutCubic }
+    }
+    function confirmChoose(yes) { if (confirmYes !== yes && !cHitAnim.running) { confirmYes = yes; pressAnim.restart() } }
+    function confirmActivate() {
+        if (confirmKey === "" || cHitAnim.running) return
+        var b = confirmYes ? yesBtn : noBtn
+        burst.playAt(b, b.width / 2, b.height / 2, confirmYes ? 1.25 : 0.5)
+        cHitAnim.restart()
+    }
+    function confirmCancel() { if (!cHitAnim.running) confirmKey = "" }
+    function _confirmDone() {
+        var k = confirmKey, yes = confirmYes
+        confirmKey = ""
+        if (yes) _powerGo(k)
+    }
+
+    // Exit: the triangles collapse and the arms tuck in while the screen fades to black,
+    // then the command runs. A failure (an inhibitor, no swap for hibernation…) shows
+    // its message and brings the menu back; after Sleep / Hibernate (both return as soon
+    // as they're queued) the screen clears again and the panel closes.
+    function _powerGo(key) {
+        var a = powerActs[key]
+        if (!a.exit) { Quickshell.execDetached(a.cmd); close(); return }    // Lock
+        exitError = ""
+        exitKey = key
+        collapse = true
+        folded = true
+        exitAnim.restart()
+    }
+    SequentialAnimation {
+        id: exitAnim
+        ParallelAnimation {
+            // the dark rises under the triangles as they scatter, so they fly off into it
+            NumberAnimation { target: root; property: "underlay"; from: 0; to: 1; duration: 260; easing.type: Easing.OutQuad }
+            SequentialAnimation {
+                PauseAnimation { duration: 140 }
+                NumberAnimation { target: root; property: "exitFade"; from: 0; to: 1; duration: 820; easing.type: Easing.InOutQuad }
+            }
+        }
+        PauseAnimation { duration: 120 }
+        ScriptAction { script: { powerProc.command = root.powerActs[root.exitKey].cmd; powerProc.running = true } }
+    }
+    property int _exitCode: 0
+    Process {
+        id: powerProc
+        stderr: StdioCollector { id: powerErr }
+        onExited: (code) => { root._exitCode = code; exitCheckT.restart() }
+    }
+    Timer {   // the stderr collector may finish just after the exit
+        id: exitCheckT; interval: 120
+        onTriggered: {
+            if (root.exitKey === "") return
+            if (root._exitCode !== 0) {
+                var err = (powerErr.text || "").trim().split("\n")[0]
+                root.exitError = err !== "" ? err : "exit code " + root._exitCode
+                exitFailT.restart()
+            } else if (root.exitKey === "sleep" || root.exitKey === "hibernate") exitResumeT.restart()
+            else exitStuckT.restart()
+        }
+    }
+    Timer { id: exitFailT;   interval: 2800;  onTriggered: root._exitBack(false) }
+    Timer { id: exitResumeT; interval: 5000;  onTriggered: root._exitBack(true) }
+    Timer { id: exitStuckT;  interval: 20000; onTriggered: root._exitBack(true) }   // still here: don't stay dark
+    property bool _exitThenClose: false
+    function _exitBack(thenClose) {
+        _exitThenClose = thenClose
+        if (!thenClose) collapse = false        // the triangles unfold under the fading black
+        exitBackAnim.restart()
+    }
+    ParallelAnimation {
+        id: exitBackAnim
+        NumberAnimation { target: root; property: "exitFade"; to: 0; duration: 420; easing.type: Easing.OutCubic }
+        NumberAnimation { target: root; property: "underlay"; to: 0; duration: 520; easing.type: Easing.OutCubic }
+        onFinished: {
+            if (root._exitThenClose) root.close()
+            root.exitKey = ""; root.exitError = ""
+            root.folded = false
+        }
+    }
+    function _resetPower() {
+        morphT.stop(); cHitAnim.stop(); exitAnim.stop(); exitBackAnim.stop()
+        exitCheckT.stop(); exitFailT.stop(); exitResumeT.stop(); exitStuckT.stop()
+        mode = "main"; folded = false; confirmKey = ""; confirmYes = false
+        exitKey = ""; exitError = ""; exitFade = 0; cHitT = 0
+    }
+
     // ── Lifecycle (components/Popup.qml) ──
-    onOpening: { ready = false; level = 1; slot = "center"; sub = ""; action = ""; atAction = false }
+    onOpening: { _resetPower(); ready = false; level = 1; slot = "center"; sub = ""; action = ""; atAction = false }
     onIntro:   ready = true
     // phase is already "closing" here, so the depth reset doesn't kick or pop
-    onOutro:   { level = 1; slot = "center"; sub = ""; action = ""; atAction = false }
+    // (the mode stays: the arms fold in with the labels they had)
+    onOutro:   { confirmKey = ""; level = 1; slot = "center"; sub = ""; action = ""; atAction = false }
     function back() {
         if (depth === 3)      atAction = false
         else if (depth === 2) { level = 1; sub = ""; action = "" }   // stay on this section
+        else if (power)       { slot = "center"; setMode("main") }
         else close()
     }
 
@@ -1192,7 +1371,12 @@ Popup {
 
     // ── Nav bar text ──
     function slotTitle(k) {
-        return ({top:"Connexion", bottom:"Audio", left:"Quickshare", right:"Notifications"})[k] || ""
+        return (power ? {top:"Standby", bottom:"Shutdown", left:"Session", right:"Restart"}
+                      : {top:"Connexion", bottom:"Audio", left:"Quickshare", right:"Notifications"})[k] || ""
+    }
+    function slotSubtitle(k) {
+        return (power ? {top:"Lock · Sleep", bottom:"Power off · Hibernate", left:"Log out", right:"Reboot · UEFI"}
+                      : {top:"Wi-Fi · Bluetooth", bottom:"Output · Volume", left:"File transfer", right:"History · DND"})[k] || ""
     }
     function subLabel() {
         var l = subList(slot).filter(function(s){ return s.key === sub })
@@ -1200,18 +1384,30 @@ Popup {
     }
     function crumbs() {
         var c = ["MENU"]
+        if (power) c.push("POWER")
         if (slot !== "center") c.push(slotTitle(slot))
         if (depth >= 2) c.push(subLabel())
         if (depth === 3) c.push("ACTION")
+        if (confirmKey !== "") c.push("CONFIRM")
         return c
     }
     function navHints() {
         var deep = deeperDir() === "left" ? "←" : "→", away = awayDir() === "left" ? "←" : "→"
-        if (depth === 1) return slot === "center"
-            ? [["↑↓←→", "SELECT"], ["ESC", "CLOSE"]]
-            : [["↑↓←→", "SELECT"], ["↵", "OPEN"], ["ESC", "CLOSE"]]
+        if (confirmKey !== "") return [["←→", "SELECT"], ["↵", "CONFIRM"], ["Y / N", "YES / NO"], ["ESC", "CANCEL"]]
+        if (depth === 1) {
+            if (power) return slot === "center"
+                ? [["↑↓←→", "SELECT"], ["↵ / ESC", "MENU"]]
+                : [["↑↓←→", "SELECT"], ["↵", "OPEN"], ["ESC", "MENU"]]
+            return slot === "center"
+                ? [["↑↓←→", "SELECT"], ["↵", "POWER"], ["ESC", "CLOSE"]]
+                : [["↑↓←→", "SELECT"], ["↵", "OPEN"], ["ESC", "CLOSE"]]
+        }
         if (depth === 2) {
             var backKey = slot === "top" ? "↓ / ESC" : slot === "bottom" ? "↑ / ESC" : away + " / ESC"
+            if (power) {
+                var pa = powerActs[sub]
+                return [["↑↓", "SELECT"], [deep + " / ↵", pa && pa.ask ? "RUN…" : "RUN"], [backKey, "BACK"]]
+            }
             return [["↑↓", "SELECT"], [deep + " / ↵", "ENTER"], [backKey, "BACK"]]
         }
         var h = [[slot === "bottom" && sub === "volume" ? "↑↓" : "↑↓", slot === "bottom" && sub === "volume" ? "VOLUME" : "SELECT"],
@@ -1233,7 +1429,7 @@ Popup {
         id: keyHandler
         z: 2
         anchors.fill: parent
-        opacity: root.live ? 1 : 0
+        opacity: root.live && root.exitKey === "" ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 220 } }
         // Cède le focus au TextInput Wi-Fi quand le prompt est ouvert
         focus: root.isOpen && root.wifiPromptSSID === ""
@@ -1250,6 +1446,18 @@ Popup {
 
         Keys.onPressed: function(e) {
             var k = e.key
+            if (root.exitKey !== "") { e.accepted = true; return }     // the screen is going dark
+            if (root.confirmKey !== "") {                               // the YES / NO card
+                if (k === Qt.Key_Escape || k === Qt.Key_N)              root.confirmCancel()
+                else if (k === Qt.Key_Y)                                { root.confirmChoose(true); root.confirmActivate() }
+                else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) root.confirmActivate()
+                else if (k === Qt.Key_Left || k === Qt.Key_A)           root.confirmChoose(true)
+                else if (k === Qt.Key_Right || k === Qt.Key_D)          root.confirmChoose(false)
+                else if (k === Qt.Key_Tab || k === Qt.Key_Up || k === Qt.Key_Down || k === Qt.Key_W || k === Qt.Key_S)
+                    root.confirmChoose(!root.confirmYes)
+                e.accepted = true
+                return
+            }
             if (k === Qt.Key_Escape)                          { root.back();          e.accepted = true }
             else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) {
                 root.activateCurrent(); e.accepted = true
@@ -1303,53 +1511,53 @@ Popup {
 
             Slot {
                 slotKey: "center"
-                title: "MENU"
-                subtitle: "CONTROL CENTER"
+                title: root.power ? "POWER" : "MENU"
+                subtitle: root.power ? "↵  BACK TO MENU" : "CONTROL CENTER"
                 anchors.centerIn: parent
                 isCenter: true
             }
             Slot {
                 slotKey: "top"
-                title: "Connexion"
-                subtitle: "Wi-Fi · Bluetooth"
+                title: root.slotTitle("top")
+                subtitle: root.slotSubtitle("top")
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.verticalCenterOffset: root.live ? -root.slotGapV : 0
+                anchors.verticalCenterOffset: root.live && !root.folded ? -root.slotGapV : 0
                 Behavior on anchors.verticalCenterOffset {
-                    NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
+                    NumberAnimation { duration: root.live && !root.folded ? 420 : 200; easing.type: root.live && !root.folded ? Easing.OutBack : Easing.InCubic }
                 }
             }
             Slot {
                 slotKey: "bottom"
-                title: "Audio"
-                subtitle: "Output · Volume"
+                title: root.slotTitle("bottom")
+                subtitle: root.slotSubtitle("bottom")
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.verticalCenterOffset: root.live ? root.slotGapV : 0
+                anchors.verticalCenterOffset: root.live && !root.folded ? root.slotGapV : 0
                 Behavior on anchors.verticalCenterOffset {
-                    NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
+                    NumberAnimation { duration: root.live && !root.folded ? 420 : 200; easing.type: root.live && !root.folded ? Easing.OutBack : Easing.InCubic }
                 }
             }
             Slot {
                 slotKey: "left"
-                title: "Quickshare"
-                subtitle: "File transfer"
+                title: root.slotTitle("left")
+                subtitle: root.slotSubtitle("left")
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.horizontalCenterOffset: root.live ? -root.slotGapH : 0
+                anchors.horizontalCenterOffset: root.live && !root.folded ? -root.slotGapH : 0
                 Behavior on anchors.horizontalCenterOffset {
-                    NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
+                    NumberAnimation { duration: root.live && !root.folded ? 420 : 200; easing.type: root.live && !root.folded ? Easing.OutBack : Easing.InCubic }
                 }
             }
             Slot {
                 slotKey: "right"
-                title: "Notifications"
-                subtitle: "History · DND"
+                title: root.slotTitle("right")
+                subtitle: root.slotSubtitle("right")
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.horizontalCenterOffset: root.live ? root.slotGapH : 0
+                anchors.horizontalCenterOffset: root.live && !root.folded ? root.slotGapH : 0
                 Behavior on anchors.horizontalCenterOffset {
-                    NumberAnimation { duration: root.live ? 420 : 220; easing.type: root.live ? Easing.OutBack : Easing.InCubic }
+                    NumberAnimation { duration: root.live && !root.folded ? 420 : 200; easing.type: root.live && !root.folded ? Easing.OutBack : Easing.InCubic }
                 }
             }
         }
@@ -1443,6 +1651,124 @@ Popup {
                         }
                         Text { text: modelData[1]; font.pixelSize: 9; font.letterSpacing: 2; color: Theme.alpha(Theme.paper, 0.75); anchors.verticalCenter: parent.verticalCenter }
                     }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //   YES / NO card (power actions that ask first)
+        //   under the HitBurst (z 55) and the nav bar (z 60)
+        // ═══════════════════════════════════════════════════════
+        Rectangle {
+            id: confirmDim
+            anchors.fill: parent
+            z: 48
+            color: "black"
+            opacity: root.confirmKey !== "" ? 0.42 : 0
+            visible: opacity > 0.01
+            Behavior on opacity { NumberAnimation { duration: 200 } }
+            MouseArea { anchors.fill: parent; enabled: root.confirmKey !== ""; onClicked: root.confirmCancel() }
+        }
+        Item {
+            id: confirmCard
+            z: 50
+            anchors.centerIn: parent
+            width: 440; height: confirmCol.implicitHeight + 48
+            readonly property bool on: root.confirmKey !== ""
+            property string shownKey: ""       // keeps the text while the card fades out
+            onOnChanged: if (on) { shownKey = root.confirmKey; cTitleScramble.start() }
+            readonly property var pa: root.powerActs[shownKey] || ({h3: "", ask: "", warn: ""})
+            opacity: on ? 1 : 0
+            scale: on ? 1 : 0.94
+            visible: opacity > 0.01
+            Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+            Behavior on scale   { NumberAnimation { duration: 260; easing.type: Easing.OutBack; easing.overshoot: 2 } }
+            MouseArea { anchors.fill: parent; enabled: confirmCard.on }   // a click on the card isn't one outside
+
+            Rectangle { anchors.fill: parent; color: root.colCard; border.color: root.colInk; border.width: 1 }
+            Rectangle {
+                anchors.fill: parent; anchors.margins: 4
+                color: "transparent"; border.color: root.colInk; border.width: 1; opacity: 0.35
+            }
+            Item {   // diamond corners + glass rim (as the other cards)
+                anchors.fill: parent; z: 3
+                Rectangle {
+                    x: 1; y: 1; width: parent.width - 2; height: 1
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 0.35 + 0.05 * Math.sin(root.t * 0.8); color: Theme.alpha(Theme.light, 0.9) }
+                        GradientStop { position: 1.0; color: "transparent" }
+                    }
+                }
+                Repeater {
+                    model: 4
+                    Rectangle {
+                        width: 7; height: 7; rotation: 45; color: root.colInk
+                        x: (index % 2 === 0 ? 0 : parent.width) - 3.5
+                        y: (index < 2 ? 0 : parent.height) - 3.5
+                    }
+                }
+            }
+
+            Column {
+                id: confirmCol
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 24 }
+                spacing: 0
+                Row {
+                    spacing: 8
+                    Rectangle {
+                        width: 6; height: 6; rotation: 45; color: Theme.warn
+                        anchors.verticalCenter: parent.verticalCenter
+                        scale: 1 + 0.35 * root.pulse
+                    }
+                    Text { text: "CONFIRM"; font.pixelSize: 11; font.letterSpacing: 5; font.weight: Font.Medium; color: root.colInk; opacity: 0.6 }
+                }
+                Item { width: 1; height: 8 }
+                Rectangle { width: 36; height: 1; color: root.colInk; opacity: 0.5 }
+                Item { width: 1; height: 14 }
+                Text {
+                    id: cTitle
+                    property string targetText: confirmCard.pa.h3.toUpperCase()
+                    text: targetText
+                    font.pixelSize: 20; font.letterSpacing: 6; font.weight: Font.Medium
+                    color: root.colInk
+                    ScrambleAnim { id: cTitleScramble; target: cTitle; duration: 320 }
+                }
+                Item { width: 1; height: 10 }
+                Text { text: confirmCard.pa.ask; font.pixelSize: 15; color: root.colInk }
+                Item { width: 1; height: 4 }
+                Text {
+                    width: confirmCol.width
+                    text: confirmCard.pa.warn || ""
+                    font.pixelSize: 11; color: root.colInkSoft; wrapMode: Text.WordWrap; lineHeight: 1.2
+                }
+                Item { width: 1; height: 22 }
+                Item {   // YES · NO, one ink selector springing between them (an afterimage trailing)
+                    id: cBtns
+                    width: confirmCol.width; height: 38
+                    readonly property real bw: (width - 16) / 2
+                    readonly property real selX: root.confirmYes ? 0 : bw + 16
+                    Rectangle {
+                        width: cBtns.bw; height: cBtns.height; color: root.colInk; opacity: 0.22
+                        x: cBtns.selX
+                        Behavior on x { SpringAnimation { spring: 3.2; damping: 0.34; epsilon: 0.3 } }
+                    }
+                    Item {
+                        width: cBtns.bw; height: cBtns.height
+                        x: cBtns.selX
+                        Behavior on x { SpringAnimation { spring: 5.5; damping: 0.30; epsilon: 0.25 } }
+                        scale: 1 - 0.05 * root.press + 0.06 * root.cHitT
+                        Rectangle { anchors.fill: parent; color: root.colInk }
+                        Rectangle {   // the edge: brick on YES
+                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                            width: 3 + 2 * root.pulse
+                            color: root.confirmYes ? Theme.warn : root.colAccent
+                        }
+                        Rectangle { anchors.fill: parent; color: root.colLight; opacity: 0.45 * root.cHitT }
+                    }
+                    ConfirmBtn { id: yesBtn; yes: true;  x: 0;              width: cBtns.bw }
+                    ConfirmBtn { id: noBtn;  yes: false; x: cBtns.bw + 16;  width: cBtns.bw }
                 }
             }
         }
@@ -1680,6 +2006,61 @@ Popup {
         }
     }
 
+    // ── Power exit: the triangles collapse, the screen goes dark, the command runs ──
+    Item {
+        id: exitLayer
+        anchors.fill: parent
+        z: 300
+        visible: root.exitKey !== ""
+        // nothing behind it reacts any more
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; hoverEnabled: true }
+        Rectangle { anchors.fill: parent; color: "black"; opacity: root.exitFade }
+        property string line: root.exitKey !== "" ? (root.powerActs[root.exitKey] || {exit: ""}).exit : ""
+        Column {
+            anchors.centerIn: parent
+            spacing: 16
+            opacity: Math.min(1, root.exitFade * 1.5)
+            Item {
+                width: 18; height: 18
+                anchors.horizontalCenter: parent.horizontalCenter
+                Rectangle {
+                    anchors.centerIn: parent; width: 12; height: 12; rotation: 45
+                    color: "transparent"; border.color: root.exitError !== "" ? Theme.warn : Theme.light; border.width: 1
+                }
+                Rectangle {
+                    anchors.centerIn: parent; width: 5; height: 5; rotation: 45
+                    color: root.exitError !== "" ? Theme.warn : Theme.light
+                    opacity: 0.35 + 0.65 * root.pulse
+                }
+            }
+            Text {
+                id: exitTitle
+                anchors.horizontalCenter: parent.horizontalCenter
+                property string targetText: root.exitError !== "" ? "FAILED" : exitLayer.line
+                text: targetText
+                onTargetTextChanged: if (targetText !== "") exitScramble.start()
+                font.pixelSize: 18; font.letterSpacing: 8; font.weight: Font.Medium
+                color: root.exitError !== "" ? Theme.warn : Theme.light
+                ScrambleAnim { id: exitScramble; target: exitTitle; duration: 520 }
+            }
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 260 * root.exitFade; height: 1
+                color: Theme.light; opacity: 0.45
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(implicitWidth, 640)
+                horizontalAlignment: Text.AlignHCenter
+                text: root.exitError !== "" ? root.exitError
+                    : root.exitKey !== "" ? "$ " + (root.powerActs[root.exitKey] || {cmd: []}).cmd.join(" ") : ""
+                font.family: "Iosevka, monospace"; font.pixelSize: 11
+                color: Theme.alpha(Theme.light, 0.6)
+                elide: Text.ElideRight
+            }
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     //   COMPOSANTS
     // ═══════════════════════════════════════════════════════════════════
@@ -1757,6 +2138,43 @@ Popup {
         Behavior on opacity { NumberAnimation { duration: 320 } }
     }
 
+    // ── YES / NO button (the selector under it is drawn by the card) ──
+    component ConfirmBtn: Item {
+        id: cb
+        property bool yes: false
+        readonly property bool sel: root.confirmYes === yes
+        height: 38
+        scale: sel ? 1 - 0.05 * root.press + 0.06 * root.cHitT : 1
+        Rectangle {
+            anchors.fill: parent; color: "transparent"
+            border.color: root.colInk; border.width: cb.sel ? 2 : 1
+            opacity: cb.sel ? 1 : 0.55
+        }
+        Rectangle {
+            width: 6; height: 6; rotation: cb.sel ? 225 : 45
+            Behavior on rotation { NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
+            anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
+            color: cb.sel ? root.colCard : root.colInk
+            opacity: cb.sel ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 160 } }
+        }
+        Text {
+            anchors.centerIn: parent
+            text: cb.yes ? "YES" : "NO"
+            font.pixelSize: 13; font.letterSpacing: 4; font.weight: Font.Medium
+            color: cb.sel ? root.colCard : root.colInk
+            Behavior on color { ColorAnimation { duration: 120 } }
+        }
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            // a card that opens under a resting pointer doesn't pick for it
+            onPositionChanged: if (Date.now() - root._cardAt > 250) root.confirmChoose(cb.yes)
+            onClicked: { root.confirmChoose(cb.yes); root.confirmActivate() }
+        }
+    }
+
     // ── Slot ──
     component Slot: Item {
         id: sl
@@ -1772,6 +2190,7 @@ Popup {
               (slotKey === "left"   && root.slot === "right")  ||
               (slotKey === "right"  && root.slot === "left"))
         readonly property bool isInL3: isFocus && root.level === 3
+        readonly property bool inverted: isCenter && root.power    // the turned-over cross: an ink centre
 
         width: 280; height: 56
         z: isFocus ? 5 : 2
@@ -1836,8 +2255,9 @@ Popup {
         Connections {
             target: root
             function onConfirmPulse(s) {
-                if (!sl.isFocus || sl.isCenter || root.depth !== 1) return
-                var p = focusMark.mapToItem(null, 4, focusMark.height / 2)
+                if (!sl.isFocus || root.depth !== 1) return
+                var p = sl.isCenter ? box.mapToItem(null, box.width / 2, box.height / 2)    // the centre: from its middle
+                                    : focusMark.mapToItem(null, 4, focusMark.height / 2)
                 root.impactAt(sl.Window.window, p.x, p.y, s)
             }
         }
@@ -1847,7 +2267,7 @@ Popup {
             id: boxWrap
             anchors.fill: parent
             opacity: sl.isInL3 ? 0 : 1
-            scale: sl.isFocus && !sl.isCenter ? root.focusScale(1) : 1
+            scale: sl.isFocus ? root.focusScale(1) : 1
             // a focused section steps out along its own direction
             transform: Translate {
                 x: sl.isFocus && !sl.isCenter ? (sl.slotKey === "left" ? -8 : sl.slotKey === "right" ? 8 : 0) : 0
@@ -1860,9 +2280,10 @@ Popup {
             Rectangle {
                 id: box
                 anchors.fill: parent
-                color: root.colCard
+                color: sl.inverted ? root.colHi : root.colCard
                 border.color: root.colInk
                 border.width: 1
+                Behavior on color { ColorAnimation { duration: 200 } }
 
                 // Onglet asymétrique — on the edge facing the centre
                 Rectangle {
@@ -1882,7 +2303,7 @@ Popup {
                     anchors.fill: parent
                     anchors.margins: 4
                     color: "transparent"
-                    border.color: root.colInk
+                    border.color: sl.inverted ? root.colCard : root.colInk
                     border.width: 1
                     opacity: sl.isFocus ? 0.6 : (sl.isCenter ? 0.5 : 0.35)
                     Behavior on opacity { NumberAnimation { duration: 220 } }
@@ -1966,18 +2387,22 @@ Popup {
                     spacing: 2
                     z: 4
                     Text {
-                        text: sl.title
+                        id: slotTitleTxt
+                        property string targetText: sl.title
+                        text: targetText
+                        onTargetTextChanged: titleScramble.start()    // the cross turning over
                         font.pixelSize: sl.isCenter ? 15 : 13
                         font.weight: Font.Medium
                         font.letterSpacing: sl.isCenter ? 6 : 0.3
-                        color: root.colInk
+                        color: sl.inverted ? root.colCard : root.colInk
                         horizontalAlignment: sl.isCenter ? Text.AlignHCenter : Text.AlignLeft
                         anchors.horizontalCenter: sl.isCenter ? parent.horizontalCenter : undefined
+                        ScrambleAnim { id: titleScramble; target: slotTitleTxt; duration: 300 }
                     }
                     Text {
                         text: sl.subtitle
                         font.pixelSize: sl.isCenter ? 9 : 10
-                        color: root.colInkSoft
+                        color: sl.inverted ? Theme.alpha(root.colCard, 0.7) : root.colInkSoft
                         font.letterSpacing: sl.isCenter ? 1 : 0.2
                         horizontalAlignment: sl.isCenter ? Text.AlignHCenter : Text.AlignLeft
                         anchors.horizontalCenter: sl.isCenter ? parent.horizontalCenter : undefined
@@ -2056,7 +2481,7 @@ Popup {
         // Détails
         Item {
             id: detailsItem
-            visible: sl.isInL3 && (root.detailKey() in root.details)
+            visible: sl.isInL3 && root.hasDetail()
             opacity: visible ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 280 } }
 
@@ -2066,6 +2491,7 @@ Popup {
             anchors.rightMargin: 30
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: {
+                if (root.power) return 0      // a short card: level with its section
                 if (sl.slotKey === "top")    return -200
                 if (sl.slotKey === "bottom") return  100
                 return 0
@@ -2195,10 +2621,34 @@ Popup {
                     width: detailsCol.width
                     visible: root.detailHint() !== ""
                     text: root.detailHint()
-                    font.pixelSize: 10
+                    font.pixelSize: root.power ? 11 : 10
                     color: root.colInkSoft
                     lineHeight: 1.25
                     wrapMode: Text.WordWrap
+                }
+                // ── Power: what runs, and whether it asks first ──
+                Item { width: 1; height: root.power ? 12 : 0 }
+                Row {
+                    visible: root.power && (root.sub in root.powerActs)
+                    width: detailsCol.width
+                    spacing: 8
+                    readonly property var pa: root.powerActs[root.sub] || ({cmd: [], ask: ""})
+                    Text {
+                        text: "$ " + parent.pa.cmd.join(" ").replace("sh -c ", "")
+                        font.family: "Iosevka, monospace"; font.pixelSize: 10
+                        color: root.colInk; opacity: 0.7
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Rectangle {
+                        width: askTag.implicitWidth + 10; height: 16
+                        color: "transparent"; border.color: root.colInk; border.width: 1; opacity: 0.6
+                        anchors.verticalCenter: parent.verticalCenter
+                        Text {
+                            id: askTag; anchors.centerIn: parent
+                            text: parent.parent.pa.ask ? "ASKS FIRST" : "RUNS AT ONCE"
+                            font.pixelSize: 8; font.letterSpacing: 1.5; color: root.colInk
+                        }
+                    }
                 }
 
                 // ── Liste des fichiers sélectionnés (left.send) ──
@@ -2657,6 +3107,7 @@ Popup {
         MouseArea {
             anchors.fill: boxWrap
             hoverEnabled: true
+            enabled: root.confirmKey === "" && root.exitKey === ""
             onEntered: if (root.level === 1) root.slot = sl.slotKey
             onClicked: {
                 if (root.level === 1) {
@@ -2779,7 +3230,7 @@ Popup {
         onIsFocusChanged: if (isFocus && part === "face") subScramble.start()
 
         MouseArea {
-            enabled: si.part === "face"
+            enabled: si.part === "face" && root.confirmKey === "" && root.exitKey === ""
             anchors.fill: parent
             hoverEnabled: true
             // the pointer's list is the active one: hovering a sub puts you on depth 2

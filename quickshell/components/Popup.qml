@@ -37,6 +37,8 @@ PanelWindow {
     property real  dimAmount:     Settings.backdropDim
     property int   armTimeout:    350
     property real  bpm:           120
+    property bool  collapse:      false   // scatter the triangles while staying open (the CC's power exit)
+    property real  underlay:      0       // black under the triangles (they scatter into the dark, not onto the desktop)
 
     property alias backdrop: glass
     property alias burst:    hit
@@ -75,7 +77,7 @@ PanelWindow {
         if (phase === "closing") _finish()          // reopened mid-close: start clean
         warming = false; warmEnd.stop()
         screen = scr || focusedScreen()
-        _panelGone = false; _triGone = false
+        _panelGone = false; _triGone = false; collapse = false; underlay = 0
         phase = "arming"
         _gateOk = false
         gate.arm()
@@ -105,6 +107,8 @@ PanelWindow {
     property bool _timedOut:  false
     property bool _gateOk:    false
     onIntroReadyChanged: _tryIntro()
+    // the triangles unfold again after a collapse: a later close waits for their scatter
+    onCollapseChanged: if (!collapse && phase === "open") _triGone = false
     function _tryIntro() {
         if (phase !== "arming" || !introReady || !_gateOk) return
         if (!glass.hasFrame && !_timedOut) return
@@ -137,12 +141,18 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: grabKeyboard && isOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
+    Rectangle {
+        anchors.fill: parent
+        color: "black"
+        opacity: pop.underlay
+        visible: opacity > 0
+    }
     GlassBackdrop {
         id: glass
         anchors.fill: parent
         screen:    pop.screen
         capturing: pop.phase !== "closed"
-        active:    pop.phase === "open"
+        active:    pop.phase === "open" && !pop.collapse
         warm:      pop.warming
         dimAmount: pop.dimAmount
         onFrameReady: pop._tryIntro()

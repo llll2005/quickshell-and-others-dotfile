@@ -122,6 +122,30 @@ textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--b
 .navbar span.cur { color: var(--light); }
 .navbar kbd { font-family: var(--mono), var(--font-mono); font-size: 8px; padding: 0 4px; border: 1px solid color-mix(in srgb, var(--paper) 35%, transparent); color: var(--paper); }
 @media (max-width: 700px) { .subs, .navbar { display: none; } .crossgrid { grid-template-columns: repeat(3, minmax(0, 96px)); } .card small { display: none; } }
+/* Control Center, power mode: the turned-over cross (ink centre), the YES / NO card, the dark exit */
+.card.center.inv { background: var(--inkStrong); }
+.card.center.inv::before { border-color: color-mix(in srgb, var(--paper) 50%, transparent); }
+.card.center.inv b { color: var(--paper); } .card.center.inv small { color: color-mix(in srgb, var(--paper) 70%, transparent); }
+.pdesk .cross { right: 34%; }
+.pdim { position: absolute; inset: 0 0 0 52%; background: linear-gradient(90deg, transparent, rgba(0,0,0,.42) 22%); }
+.ccard { position: absolute; right: 5%; top: 50%; transform: translateY(-50%); width: min(300px, 40%); background: var(--paper); border: 1px solid var(--ink); padding: 16px 18px; color: var(--ink); }
+.ccard::before { content: ""; position: absolute; inset: 3px; border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent); pointer-events: none; }
+.ccard .hd { display: flex; align-items: center; gap: 7px; font-size: 9px; letter-spacing: .4em; opacity: .7; }
+.ccard .hd i { width: 5px; height: 5px; transform: rotate(45deg); background: var(--warn); }
+.ccard hr { width: 28px; border: 0; border-top: 1px solid var(--ink); opacity: .5; margin: 7px 0 10px; }
+.ccard .t { font-size: 15px; letter-spacing: .3em; font-weight: 500; }
+.ccard .q { font-size: 12px; margin-top: 6px; } .ccard .w { font-size: 9.5px; color: var(--inkSoft); margin-top: 2px; }
+.ccard .bt { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.ccard .bt span { position: relative; text-align: center; font-size: 11px; letter-spacing: .3em; padding: 6px 0; border: 1px solid color-mix(in srgb, var(--ink) 55%, transparent); }
+.ccard .bt span.sel { background: var(--ink); color: var(--paper); border: 2px solid var(--ink); }
+.ccard .bt span.sel::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+.ccard .bt span.sel::after { content: ""; position: absolute; left: 10px; top: 50%; width: 5px; height: 5px; margin-top: -3px; transform: rotate(45deg); background: var(--paper); }
+.pexit { background: #000; height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; }
+.pexit i { width: 9px; height: 9px; transform: rotate(45deg); border: 1px solid var(--light); }
+.pexit b { font-weight: 500; font-size: 13px; letter-spacing: .5em; color: var(--light); }
+.pexit hr { width: 180px; border: 0; border-top: 1px solid var(--light); opacity: .45; margin: 0; }
+.pexit span { font-size: 9px; color: color-mix(in srgb, var(--light) 60%, transparent); }
+@media (max-width: 700px) { .pdesk .cross { right: 0; } .pdim, .ccard { display: none; } }
 
 /* launcher */
 .launch { background: var(--paper); color: var(--ink); position: relative;
@@ -362,6 +386,40 @@ textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--b
           <kbd>↑↓</kbd><span>SELECT</span><kbd>→ / ↵</kbd><span>ENTER</span>
         </div>
       </div>
+    </section>
+
+    <section>
+      <p class="cap">CONTROL CENTER · 電源（MENU 上按 ↵）· 確認 · 關機前的黑幕</p>
+      <div class="frame desk pdesk" id="desk2">
+        <canvas id="tri2" aria-hidden="true"></canvas>
+        <div class="cross">
+          <div class="crossgrid">
+            <span></span>
+            <div class="card"><b>Standby</b><small>Lock · Sleep</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <span></span>
+            <div class="card"><b>Session</b><small>Log out</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <div class="card center inv"><b>POWER</b><small>↵ BACK TO MENU</small></div>
+            <div class="card focus"><b>Restart</b><small>Reboot · UEFI</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <span></span>
+            <div class="card"><b>Shutdown</b><small>Power off · Hibernate</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <span></span>
+          </div>
+        </div>
+        <div class="pdim" aria-hidden="true"></div>
+        <div class="ccard" aria-hidden="true">
+          <div class="hd mono"><i></i>CONFIRM</div><hr>
+          <div class="t">REBOOT</div>
+          <div class="q">重新開機？</div>
+          <div class="w">所有視窗都會關閉，未儲存的工作會遺失。</div>
+          <div class="bt mono"><span>YES</span><span class="sel">NO</span></div>
+        </div>
+        <div class="navbar mono" aria-hidden="true">
+          <i class="d on"></i><i class="d on"></i><i class="d"></i>
+          <span>MENU ▸ POWER ▸ Restart ▸ Reboot ▸</span><span class="cur">CONFIRM</span>
+          <kbd>←→</kbd><span>SELECT</span><kbd>↵</kbd><span>CONFIRM</span><kbd>ESC</kbd><span>CANCEL</span>
+        </div>
+      </div>
+      <div class="frame pexit mono" aria-hidden="true" style="margin-top:8px"><i></i><b>REBOOTING</b><hr><span>$ systemctl reboot</span></div>
     </section>
 
     <div class="duo">
@@ -657,7 +715,7 @@ function apply() {
   // Hyprland's gradient angle: 0 = left→right, counter-clockwise; CSS's: 0 = bottom→top, clockwise
   s.setProperty("--bangle", (90 - tokens.bangle) + "deg");
   s.setProperty("--mono", `"${tokens.mono}"`); s.setProperty("--cjk", `"${tokens.cjk}"`);
-  drawWs(); drawTri(); checks(); syncEdited(); exportConf();
+  drawWs(); drawTri(); drawTri("tri2", "desk2"); checks(); syncEdited(); exportConf();
   store.set("nsp-draft", JSON.stringify({ base, tokens, name: document.getElementById("themeName").value }));
 }
 
@@ -676,8 +734,9 @@ function drawWs() {
 // underneath, dimmed; ~2/3 of the panes lean dark, the rest take the triangle colour;
 // 3 px gaps; a few lit rims and vertex stars in the glint colour.
 function hash(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
-function drawTri() {
-  const cv = document.getElementById("tri"), box = document.getElementById("desk");
+function drawTri(cvId = "tri", boxId = "desk") {
+  const cv = document.getElementById(cvId), box = document.getElementById(boxId);
+  if (!cv || !box) return;
   const dpr = Math.min(2, window.devicePixelRatio || 1), W = box.clientWidth, H = box.clientHeight;
   if (!W || !H) return;
   cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -758,6 +817,6 @@ document.getElementById("copyBtn").addEventListener("click", () => {
     if (d && d.tokens && THEMES[d.base]) { base = d.base; pristine = JSON.stringify(resolve(parse(THEMES[base]))); tokens = Object.assign(resolve(parse(THEMES[base])), d.tokens); if (d.name) document.getElementById("themeName").value = d.name; }
   } catch (e) {}
   buildChips(); buildEditor(); apply();
-  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawTri, 120); });
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawTri(); drawTri("tri2", "desk2"); }, 120); });
 })();
 </script>
