@@ -720,7 +720,7 @@ Popup {
                             model:[
                                 {l:"TERMINAL", cmd:"kitty"},
                                 {l:"FILES",    cmd:"kitty -e yazi"},
-                                {l:"LOCK",     cmd:"$HOME/.config/quickshell/lock.sh"},
+                                {l:"LOCK",     cmd:"$HOME/.config/quickshell/scripts/lock.sh"},
                                 {l:"SHUTDOWN", cmd:"systemctl poweroff", danger:true}
                             ]
                             delegate: Item {
