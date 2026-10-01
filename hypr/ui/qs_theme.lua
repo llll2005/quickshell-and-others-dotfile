@@ -7,4 +7,5 @@ return {
     inactive = "rgba(221e1766)",
     shadow = 0x2ac8b89a,
     shadow_idle = 0x08000000,
+    windowFx = true,
 }

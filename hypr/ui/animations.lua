@@ -39,7 +39,18 @@ local SPRING_SPEED = 1
 hl.animation({ leaf = "windows",     enabled = true, speed = SPRING_SPEED, spring = "jelly" })
 hl.animation({ leaf = "windowsMove", enabled = true, speed = SPRING_SPEED, spring = "jelly" })
 hl.animation({ leaf = "windowsIn",   enabled = true, speed = SPRING_SPEED, spring = "jelly_pop", style = "slide bottom" })
-hl.animation({ leaf = "windowsOut",  enabled = true, speed = 3,            bezier = "tuck",      style = "slide bottom" })
+-- Quickshell's close melt (widgets/WindowFx.qml) cuts the closing window from a frozen
+-- screen frame: it must stay put while that frame is taken, so its own slide-out is
+-- off while the melt is on (`[effects] windowClose` → qs_theme.lua `windowFx`, written
+-- by ~/.config/quickshell/scripts/theme-sync.py). The fade below stays.
+local okQS, QS = pcall(dofile, os.getenv("HOME") .. "/.config/hypr/ui/qs_theme.lua")
+if okQS and type(QS) == "table" and QS.windowFx then
+	-- no movement (popin at 100 %), so the window stays put while its frame is frozen;
+	-- the fade below keeps it on screen long enough
+	hl.animation({ leaf = "windowsOut", enabled = true, speed = 3, bezier = "sink", style = "popin 100%" })
+else
+	hl.animation({ leaf = "windowsOut", enabled = true, speed = 3, bezier = "tuck", style = "slide bottom" })
+end
 
 -- ── Fade ─────────────────────────────────────────────────────
 -- fadeOut 與 windowsOut 同為 300ms，退場的位移與透明度同步結束
