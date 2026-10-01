@@ -8,3 +8,5 @@ HitBurst     1.0 HitBurst.qml
 Sparks       1.0 Sparks.qml
 singleton Fx 1.0 Fx.qml
 Popup        1.0 Popup.qml
+PaperCard    1.0 PaperCard.qml
+SpringSelector 1.0 SpringSelector.qml

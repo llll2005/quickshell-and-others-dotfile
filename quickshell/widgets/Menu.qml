@@ -232,42 +232,10 @@ Popup {
             fragmentShader: "../components/shaders/reveal.frag.qsb?v=2"   // bump ?v= after recompiling (see TriField.qml)
         }
 
-        // Contenu
-        Rectangle {
+        PaperCard {
             id:     panelContent
             anchors.fill: parent
-            color:  root.paper
-            border.color: root.ink; border.width: 1
-
-            // Grille fine
-            Repeater {
-                model: Math.floor(root.lw/20)+1
-                Rectangle { x:index*20; y:0; width:1; height:root.lh; color:root.lineVsoft }
-            }
-            Repeater {
-                model: Math.floor(root.lh/20)+1
-                Rectangle { x:0; y:index*20; width:root.lw; height:1; color:root.lineVsoft }
-            }
-
-            // Glass rim + cut-diamond corners (as ScreenCapture)
-            Rectangle {
-                x: 1; y: 1; width: parent.width - 2; height: 1
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.35 + 0.05 * Math.sin(root.t * 0.8); color: Theme.alpha(Theme.light, 0.9) }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-            }
-            Repeater {
-                model: 4
-                Rectangle {
-                    width: 7; height: 7; rotation: 45
-                    x: (index % 2 === 0 ? 0 : root.lw) - 3.5
-                    y: (index < 2 ? 0 : root.lh) - 3.5
-                    color: root.ink
-                }
-            }
+            t: root.t
 
             // Clic n'importe où → focus sur search
             MouseArea {
@@ -472,66 +440,21 @@ Popup {
                             id:appList; width:parent.width; height:parent.parent.height-46
                             clip:true; model:root.filteredApps; keyNavigationEnabled:false
 
-                            // A ListView does NOT move declared children into its content (only a
-                            // plain Flickable does), so each of these sets `parent: contentItem`
-                            // itself — otherwise they stay put while the rows scroll away.
-                            // Afterimages trail the selector on slower springs.
-                            Rectangle {
-                                parent: appList.contentItem
-                                z: -2; width: appList.width; height: root.rowH; color: root.ink; opacity: 0.10
-                                visible: root.filteredApps.length > 0
-                                y: appSel.targetY
-                                Behavior on y { SpringAnimation { spring: 2.2; damping: 0.36; epsilon: 0.3 } }
-                            }
-                            Rectangle {
-                                parent: appList.contentItem
-                                z: -2; width: appList.width; height: root.rowH; color: root.ink; opacity: 0.22
-                                visible: root.filteredApps.length > 0
-                                y: appSel.targetY
-                                Behavior on y { SpringAnimation { spring: 3.4; damping: 0.34; epsilon: 0.3 } }
-                            }
-                            Item {
+                            SpringSelector {
                                 id: appSel
                                 parent: appList.contentItem
-                                z: -1
-                                readonly property real targetY: root.focusIdx * root.rowH
-                                width: appList.width; height: root.rowH
+                                width: appList.width; rowH: root.rowH
+                                targetY: root.focusIdx * root.rowH
+                                hitT: root.hitT; flashV: root.flashV; pulse: root.pulse
                                 visible: root.filteredApps.length > 0
                                 opacity: 1 - root.listOut
-                                y: targetY
-                                Behavior on y { SpringAnimation { spring: 5.5; damping: 0.30; epsilon: 0.25 } }
-                                scale: 1 + 0.05 * root.hitT
-                                Rectangle { anchors.fill: parent; color: root.ink }
-                                Rectangle {
-                                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                                    width: 2 + 4 * root.pulse; color: root.accent
-                                }
-                                Item {
-                                    anchors.fill: parent; clip: true
-                                    Rectangle {
-                                        id: sheen
-                                        width: 80; height: parent.height * 2; y: -parent.height / 2
-                                        rotation: 18; x: -140
-                                        gradient: Gradient {
-                                            orientation: Gradient.Horizontal
-                                            GradientStop { position: 0.0; color: "transparent" }
-                                            GradientStop { position: 0.5; color: Theme.alpha(Theme.light, 0.26) }
-                                            GradientStop { position: 1.0; color: "transparent" }
-                                        }
-                                    }
-                                    NumberAnimation {
-                                        id: sheenAnim; target: sheen; property: "x"
-                                        from: -140; to: appSel.width + 60; duration: 640; easing.type: Easing.OutCubic
-                                    }
-                                }
-                                Rectangle { anchors.fill: parent; color: root.light; opacity: root.flashV * 0.4 }
                             }
                             // where the launch burst comes from: the focused row's icon (its target row)
                             Item { id: burstAnchor; parent: appList.contentItem; x: 32 + 22 + 14 + 14; y: appSel.targetY + root.rowH / 2 }
                             Connections {
                                 target: root
-                                function onFocusIdxChanged() { sheenAnim.restart() }
-                                function onBeatIndexChanged() { if (root.beatIndex > 0 && root.beatIndex % 8 === 0) sheenAnim.restart() }
+                                function onFocusIdxChanged() { appSel.sheen() }
+                                function onBeatIndexChanged() { if (root.beatIndex > 0 && root.beatIndex % 8 === 0) appSel.sheen() }
                             }
 
                             delegate: Item {
