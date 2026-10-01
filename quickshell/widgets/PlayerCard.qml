@@ -397,10 +397,13 @@ Item {
                                 return
                             }
                             root._processingCover = true
-                            grabToImage(function(result) {
+                            coverWatchdog.restart()
+                            var ok = grabToImage(function(result) {
                                 extractCanvas.grabResult = result
                                 extractCanvas.requestPaint()
                             }, Qt.size(root.dataSz, root.dataSz))
+                            // no window on screen to grab from: try again when the card shows
+                            if (!ok) { root._processingCover = false; root._lastCoverUrl = ""; root._coverPending = true }
                         }
                     }
 
@@ -576,25 +579,37 @@ Item {
 
     Connections {
         target: root
-        function onMpCoverUrlChanged() {
-            if (root.mpCoverUrl === root._lastCoverUrl) return
-            root._lastCoverUrl = root.mpCoverUrl
+        function onMpCoverUrlChanged() { root._loadCover() }
+        // the cover is turned into the pixel matrix with grabToImage, which needs the
+        // window on screen: while the card is hidden (its window unmapped) it waits
+        function onMappedChanged() { if (root.mapped && root._coverPending) root._loadCover() }
+    }
+    property bool _coverPending: false
+    // a grab that never calls back must not block every later cover
+    Timer { id: coverWatchdog; interval: 2000; onTriggered: root._processingCover = false }
+    function _loadCover() {
+        if (!root.mapped) { root._coverPending = true; return }
+        root._coverPending = false
+        if (root.mpCoverUrl === root._lastCoverUrl) return
+        root._lastCoverUrl = root.mpCoverUrl
 
-            if (root.mpCoverUrl !== "") {
-                if (root._processingCover) {
-                    console.log("Player: Delaying cover load - processing in progress")
-                    return
-                }
-                coverSrc.source = ""
-                coverSrc.source = root.mpCoverUrl
-            } else {
-                root._processingCover = true
-                coverCanvas.setGenerative()
-                revealTimer.restart()
-                coverCanvas.requestPaint()
-                root._processingCover = false
+        if (root.mpCoverUrl !== "") {
+            if (root._processingCover) {
+                console.log("Player: Delaying cover load - processing in progress")
+                return
             }
+            coverSrc.source = ""
+            coverSrc.source = root.mpCoverUrl
+        } else {
+            root._processingCover = true
+            coverCanvas.setGenerative()
+            revealTimer.restart()
+            coverCanvas.requestPaint()
+            root._processingCover = false
         }
+    }
+    Connections {
+        target: root
         function onMpTitleChanged() {
             if (root.mpTitle === root._lastTitle) return
             root._lastTitle = root.mpTitle
