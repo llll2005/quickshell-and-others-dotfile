@@ -9,3 +9,4 @@ singleton ClaudeUsage 1.0 ClaudeUsage.qml
 singleton Cal 1.0 Cal.qml
 singleton Tasks 1.0 Tasks.qml
 singleton Notifs 1.0 Notifs.qml
+singleton Media 1.0 Media.qml
