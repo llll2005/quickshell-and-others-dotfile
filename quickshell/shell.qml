@@ -17,6 +17,7 @@ ShellRoot {
     ImePanel {}         // fcitx5 candidate window (kimpanel bridge)
     Player {}           // floating media player
     Companions {}       // sprites (off by default)
+    WindowFx {}         // window open / close / focus effects (imecaret plugin)
 
     // ── popups (components/Popup.qml: glass backdrop, focused screen, Overlay) ──
     Menu {}             // app launcher          qs ipc call menu toggle

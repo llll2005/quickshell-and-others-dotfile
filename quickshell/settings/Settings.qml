@@ -35,6 +35,11 @@ QtObject {
     // ── effects (components/Fx.qml) ──
     readonly property bool clickFx:   Config.bool("effects.click", true)
     readonly property real burstSize: Config.num("effects.burstSize", 0.7)
+    // window effects (widgets/WindowFx.qml, via the imecaret plugin)
+    readonly property bool windowOpenFx:      Config.bool("effects.windowOpen", true)
+    readonly property bool windowCloseFx:     Config.bool("effects.windowClose", true)
+    readonly property bool focusReticle:      Config.bool("effects.focusReticle", true)
+    readonly property bool focusReticleHover: Config.bool("effects.focusReticleHover", false)
 
     // ── fcitx5 candidate window (widgets/ImePanel.qml) ──
     readonly property bool imePanelEnabled: Config.bool("ime.panel", true)

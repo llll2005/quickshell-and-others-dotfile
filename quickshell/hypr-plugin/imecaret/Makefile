@@ -4,3 +4,7 @@ imecaret.so: main.cpp
 		`pkg-config --cflags pixman-1 libdrm hyprland pangocairo libinput libudev wayland-server xkbcommon`
 clean:
 	rm -f imecaret.so
+# swap a fresh build into the running Hyprland
+reload:
+	./reload.sh
+.PHONY: clean reload

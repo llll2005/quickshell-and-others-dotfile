@@ -11,3 +11,4 @@ __pycache__/
 *.bak
 *.tmp
 _attic/
+.loaded
