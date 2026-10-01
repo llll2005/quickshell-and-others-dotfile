@@ -522,59 +522,18 @@ Popup {
     Timer { id: btPowerT; interval: 500; onTriggered: if (root.btAdapter) root.btAdapter.enabled = true }
 
     // ── Données système : Audio ──
-    property var    audioSinks: []        // [{name, description, default}]
-    property string audioDefaultSink: ""
-    // Volume/mute come from the shared Audio service (native Pipewire) so the
-    // ControlCenter and TopBar always show the same live value. pollAudio below
-    // only enumerates output devices now.
+    // Outputs and volume come from the shared Audio service (native Pipewire): live,
+    // no pactl polling.
+    readonly property var audioSinks: Audio.sinks.map(function(n) {
+        return { name: n.name, description: n.description || n.nickname || n.name,
+                 isDefault: Audio.sink !== null && n.id === Audio.sink.id }
+    })
+    readonly property string audioDefaultSink: Audio.sink ? Audio.sink.name : ""
     readonly property real audioVolume: Audio.volume   // 0.0 - 1.5 (1.0 == 100%)
     readonly property bool audioMuted:  Audio.muted
 
-    Timer {
-        interval: 1500; running: root.isOpen && root.slot === "bottom"; repeat: true; triggeredOnStart: true
-        onTriggered: pollAudio.running = true
-    }
-    Process {
-        id: pollAudio
-        command: ["sh","-c",
-            "echo \"DEFAULT:$(pactl get-default-sink 2>/dev/null)\"; " +
-            "echo \"VOLUME:$(pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null | grep -oP '\\d+%' | head -1 | tr -d '%')\"; " +
-            "echo \"MUTE:$(pactl get-sink-mute @DEFAULT_SINK@ 2>/dev/null | awk '{print $2}')\"; " +
-            "pactl list short sinks 2>/dev/null | while read line; do " +
-            "  id=$(echo \"$line\" | awk '{print $1}'); " +
-            "  name=$(echo \"$line\" | awk '{print $2}'); " +
-            "  desc=$(pactl list sinks 2>/dev/null | awk -v n=\"$name\" '$1==\"Name:\" && $2==n{f=1} f && /Description:/{$1=\"\"; print substr($0,2); exit}'); " +
-            "  echo \"SINK:$name|$desc\"; " +
-            "done"
-        ]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var lines = this.text.trim().split("\n")
-                var sinks = []
-                for (var i = 0; i < lines.length; i++) {
-                    var line = lines[i]
-                    if (line.indexOf("DEFAULT:") === 0) {
-                        root.audioDefaultSink = line.substring(8).trim()
-                    } else if (line.indexOf("SINK:") === 0) {
-                        var parts = line.substring(5).split("|")
-                        sinks.push({
-                            name: parts[0],
-                            description: parts[1] || parts[0],
-                            isDefault: parts[0] === root.audioDefaultSink
-                        })
-                    }
-                }
-                // Marquer le default sink en re-passant (au cas où il a été lu après les sinks)
-                for (var j = 0; j < sinks.length; j++) {
-                    sinks[j].isDefault = sinks[j].name === root.audioDefaultSink
-                }
-                root.audioSinks = sinks
-            }
-        }
-    }
-
-    // ── Notifications via IPC vers Notifications.qml (qui possède le bus DBus) ──
-    property bool dndEnabled: false
+    // ── Notifications: the shared history (services/Notifs.qml), in-process ──
+    readonly property bool dndEnabled: Notifs.dndEnabled
     property var notifications: []     // [{id, summary, body, app, ts, key, live}]
     property string expandedNotif: ""  // key of the expanded notification ("" = none)
     property string _notifJson: ""     // last list applied: an unchanged poll leaves the rows alone
@@ -588,54 +547,23 @@ Popup {
     // a row flies out: order = its stagger slot, strength > 0 = it throws the impact
     signal notifLeave(string key, int order, real strength)
 
-    // Poll l'historique des notifs depuis le daemon Notifications.qml via IPC
-    Timer {
-        interval: 1500
-        running: root.isOpen && root.slot === "right"
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            pollNotifsHistory.running = true
-            pollNotifsDnd.running = true
-        }
+    // The list is only reassigned when its content changes (a JSON signature), so
+    // the rows don't rebuild; not while removals are still flying out.
+    function _syncNotifs() {
+        var txt = JSON.stringify(Notifs.snapshot())
+        if (txt === _notifJson || _pendingRm.length > 0 || _flushing) return
+        notifications = JSON.parse(txt)
+        _notifJson = txt
+        _keepNotifFocus()
     }
-    Process {
-        id: pollNotifsHistory
-        command: ["sh","-c","qs ipc call notifs getHistory 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var txt = this.text.trim() || "[]"
-                if (txt === root._notifJson || root._pendingRm.length > 0) return
-                try {
-                    root.notifications = JSON.parse(txt)
-                    root._notifJson = txt
-                } catch(e) {
-                    root.notifications = []; root._notifJson = ""
-                }
-                root._keepNotifFocus()
-            }
-        }
+    Connections {
+        target: Notifs
+        function onHistoryChanged()  { root._syncNotifs() }
+        function onRevisionChanged() { root._syncNotifs() }
     }
-    Process {
-        id: pollNotifsDnd
-        command: ["sh","-c","qs ipc call notifs getDnd 2>/dev/null"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.dndEnabled = this.text.trim() === "true"
-            }
-        }
-    }
-    // Process pour les actions vers le daemon notifs
-    Process {
-        id: notifActProc
-        command: ["sh","-c","true"]
-        running: false
-    }
+    Component.onCompleted: _syncNotifs()
 
-    // Helpers : appellent l'IPC du daemon (by key id@ts — never by index: this copy
-    // of the history can be a poll behind the daemon)
+    // Helpers — by key id@ts, never by index
     function notifIndexOf(key) {
         for (var i = 0; i < notifications.length; i++) if (notifications[i].key === key) return i
         return -1
@@ -695,8 +623,10 @@ Popup {
         notifLeave("*", 0, 1)
         rmTimer.interval = Math.min(n, 8) * 45 + 210; rmTimer.restart()
     }
+    property bool _flushing: false     // removing from the store: its change signals wait
     function _flushRemovals() {
         var rm = _pendingRm; _pendingRm = []
+        _flushing = true
         var list = notifications.slice(), gapAt = -1, gapH = 0, all = false
         for (var j = 0; j < rm.length; j++) {
             if (rm[j].all) { all = true; continue }
@@ -707,12 +637,13 @@ Popup {
             gapH += (row ? row.height : 48) + 8
             if (gapAt < 0 || i < gapAt) gapAt = i
             list.splice(i, 1)
-            Quickshell.execDetached(["qs", "ipc", "call", "notifs", rm[j].invoke ? "invokeKey" : "dismissKey", rm[j].key])
+            Notifs.removeKey(rm[j].key, rm[j].invoke)
         }
         if (all) {
-            Quickshell.execDetached(["qs", "ipc", "call", "notifs", "clearAll"])
+            Notifs.clearAll()
             list = []; gapAt = -1
         }
+        _flushing = false
         _setNotifs(list, gapAt, gapH)
         if (_closeAfterRm) { _closeAfterRm = false; close() }
     }
@@ -721,11 +652,7 @@ Popup {
         kickDir = Qt.point(deeperDir() === "left" ? -1 : 1, 0)
         kickAnim.restart()
     }
-    function setDnd(state) {
-        notifActProc.command = ["sh","-c","qs ipc call notifs setDnd " + (state ? "true" : "false")]
-        notifActProc.running = true
-        dndEnabled = state
-    }
+    function setDnd(state) { Notifs.dndEnabled = state }
 
     // ── Données système : Quickshare (qshare.py) ──
     // Sélection multi-fichiers en attente d'envoi (chemins absolus).
@@ -762,10 +689,6 @@ Popup {
         return qshareTunnel ? "Net: Internet (tunnel)" : "Net: LAN (same wi-fi)"
     }
 
-    Timer {
-        interval: 3000; running: root.isOpen && root.slot === "left"; repeat: true; triggeredOnStart: true
-        onTriggered: qshareEventReader.running = qshareProc.running
-    }
 
     // ── Sélecteur de fichiers ────────────────────────────────────────────
     // Ouvre un vrai navigateur de fichiers (zenity → kdialog → yazi) en
@@ -895,13 +818,13 @@ Popup {
 
         qshareProc.command = args
         qshareProc.running = true
-        qshareEventPoll.running = true
+        qshareWatching = true
     }
 
     function stopQshare() {
         qshareCancelled = true
         qshareProc.running = false   // SIGTERM → le script nettoie ses zips temporaires
-        qshareEventPoll.running = false
+        qshareWatching = false
         qshareUrl = ""
         qshareQrPath = ""
         // La sélection a été partagée : on repart de zéro
@@ -919,7 +842,7 @@ Popup {
             if (!running) {
                 // Process terminé → ferme le modal après un petit délai pour
                 // laisser le temps de voir le tick final
-                qshareEventPoll.running = false
+                qshareWatching = false
                 qshareCloseTimer.restart()
             }
         }
@@ -941,25 +864,20 @@ Popup {
         }
     }
 
-    // Poll l'event-file pour récupérer URL/QR/TICK/DONE
-    Timer {
-        id: qshareEventPoll
-        interval: 250
-        repeat: true
-        running: false
-        onTriggered: qshareEventReader.running = true
+    // qshare.py appends one line per event (URL/QR/TICK/STATUS/…): the file is
+    // watched (inotify) while a transfer runs, and re-read whole on each change —
+    // state is rebuilt from it, not accumulated, so TICKs never double.
+    property bool qshareWatching: false
+    FileView {
+        id: qshareEvents
+        path: root.qshareWatching ? root.qshareEventFile : ""
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: root._parseQshareEvents(text())
     }
-
-    Process {
-        id: qshareEventReader
-        running: false
-        command: ["sh","-c","cat " + root.qshareEventFile + " 2>/dev/null"]
-        stdout: StdioCollector {
-            // Le fichier d'événements est relu en entier à chaque tick : on
-            // reconstruit l'état plutôt que d'accumuler, sinon les TICK
-            // seraient dupliqués à chaque passage.
-            onStreamFinished: {
-                var lines = this.text.split("\n")
+    function _parseQshareEvents(txt) {
+                var lines = txt.split("\n")
                 var ticks = []
                 var status = ""
                 for (var i = 0; i < lines.length; i++) {
@@ -985,8 +903,6 @@ Popup {
                 }
                 root.qshareTicks = ticks
                 root.qshareStatus = status
-            }
-        }
     }
 
 
@@ -995,11 +911,6 @@ Popup {
         if (live) pressAnim.restart()
         cancelWifiPrompt()
         if (slot === "top")    { _wifiSnapshot(); _btSnapshot() }
-        if (slot === "bottom") { pollAudio.running = true }
-        if (slot === "right")  {
-            pollNotifsHistory.running = true
-            pollNotifsDnd.running = true
-        }
     }
     onSubChanged: {
         _seenNotif = ({})
@@ -1085,10 +996,7 @@ Popup {
         }
         // ── Audio Output ──
         else if (slotKey === "bottom" && subKey === "output") {
-            if (actionKey.indexOf("set-sink:") === 0) {
-                var sink = actionKey.substring(9)
-                cmd = "pactl set-default-sink '" + sink + "'"
-            }
+            if (actionKey.indexOf("set-sink:") === 0) { Audio.setDefaultSink(actionKey.substring(9)); return }
         }
         // ── Audio Volume ── (route through shared Audio service → native
         // Pipewire property write; no subprocess, smooth during slider drag)
@@ -1163,13 +1071,7 @@ Popup {
             // detached: each command runs on its own (a shared Process that was still busy
             // silently dropped the next one)
             Quickshell.execDetached(["sh", "-c", cmd])
-            refreshTimer.restart()
         }
-    }
-    Timer {
-        id: refreshTimer
-        interval: 800; repeat: false
-        onTriggered: pollAudio.running = true
     }
 
     function activateCurrent() {

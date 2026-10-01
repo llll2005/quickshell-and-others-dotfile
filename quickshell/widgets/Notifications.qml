@@ -17,6 +17,7 @@ import Quickshell.Io
 import Quickshell.Services.Notifications
 import Quickshell.Wayland
 import "../components"
+import "../services"
 import "../theme"
 import "../settings"
 
@@ -41,18 +42,15 @@ Scope {
         keepOnReload: true
 
         onNotification: (n) => {
-            root._restoreHistory()
+            Notifs.restore()
             // Carried over a reload: it already popped up once — relink its history
             // entry (actions work again) and keep it quiet
             if (n.lastGeneration) {
                 root._quiet[n.id] = true
                 n.tracked = true
-                for (var hi = 0; hi < root.history.length; hi++) {
-                    var he = root.history[hi]
-                    if (he.id === n.id && !he.ref) { root._link(he, n); return }
-                }
+                if (Notifs.relink(n)) return
             } else {
-                if (root.dndEnabled) root._quiet[n.id] = true   // DND: into the history, no popup
+                if (Notifs.dndEnabled) root._quiet[n.id] = true   // DND: into the history, no popup
                 n.tracked = true
             }
 
@@ -91,162 +89,13 @@ Scope {
                 ts: Date.now(),
                 ref: null
             }
-            root._link(entry, n)
-            var list = root.history.slice()
-            list.unshift(entry)
-            // FIFO 50: what falls off is closed for good
-            while (list.length > Settings.notifyHistory) {
-                var old = list.pop()
-                if (old.ref) { try { old.ref.dismiss() } catch (e) {} }
-            }
-            root.history = list
+            Notifs.add(entry, n)    // the shared history (services/Notifs.qml)
         }
     }
 
     readonly property var tracked: notifServer.trackedNotifications
 
-    // ─── Historique persistant en mémoire (max 50, FIFO) ───
-    // A popup that times out only hides: its Notification stays tracked (its sender
-    // still listening) until it's dismissed — from the popup, the ControlCenter
-    // history, or by falling off the end — so its actions can still be run later.
-    property var history: []
-    property bool dndEnabled: false
     property var _quiet: ({})          // ids that arrive without a popup (DND, reload carry-over)
-
-    function _link(entry, n) {
-        entry.ref = n
-        // once it closes (dismissed, expired, its sender) it can't be opened or closed again
-        try { n.closed.connect(function() { entry.ref = null }) } catch (e) {}
-    }
-    // The history (minus the live objects) survives a config reload; entries whose
-    // notifications are still open get relinked as those are carried over.
-    PersistentProperties {
-        id: persist
-        reloadableId: "nierNotifHistory"
-        property string json: "[]"
-        property bool   dnd: false
-        onLoaded: root._restoreHistory()
-    }
-    property bool _restored: false
-    function _restoreHistory() {
-        if (_restored) return
-        _restored = true
-        dndEnabled = persist.dnd
-        if (history.length > 0) return
-        try {
-            var list = JSON.parse(persist.json || "[]")
-            for (var i = 0; i < list.length; i++) list[i].ref = null
-            history = list
-        } catch (e) {}
-    }
-    onHistoryChanged: if (_restored) persist.json = JSON.stringify(history, function(k, v) { return k === "ref" ? undefined : v })
-    onDndEnabledChanged: if (_restored) persist.dnd = dndEnabled
-
-    function keyOf(h) { return h.id + "@" + h.ts }
-    // Its sender still listens (the Notification object is alive) and offers an action
-    function canOpen(h) {
-        try { return !!(h.ref && h.ref.actions && h.ref.actions.length > 0) } catch (e) { return false }
-    }
-    function removeKey(key, invoke) {
-        for (var i = 0; i < history.length; i++) {
-            var h = history[i]
-            if (keyOf(h) !== key) continue
-            if (h.ref) {
-                try {
-                    if (invoke && h.ref.actions && h.ref.actions.length > 0) {
-                        var act = h.ref.actions[0]
-                        for (var k = 0; k < h.ref.actions.length; k++)
-                            if (h.ref.actions[k].identifier === "default") { act = h.ref.actions[k]; break }
-                        var resident = h.ref.resident
-                        act.invoke()                    // closes it unless it's resident…
-                        if (resident && h.ref) h.ref.dismiss()   // …which we close too: it leaves the history
-                    } else {
-                        h.ref.dismiss()
-                    }
-                } catch (e) {}
-            }
-            var list = history.slice()
-            list.splice(i, 1)
-            history = list
-            return
-        }
-    }
-
-    // ─── IPC : exposer l'historique au ControlCenter ───
-    IpcHandler {
-        target: "notifs"
-
-        function getHistory(): string {
-            var out = []
-            for (var i = 0; i < root.history.length; i++) {
-                var h = root.history[i]
-                out.push({
-                    id: h.id,
-                    summary: h.summary,
-                    body: h.body,
-                    app: h.app,
-                    appIcon: h.appIcon || "",
-                    category: h.category || "",
-                    urgency: h.urgency || "normal",
-                    timeout: h.timeout >= 0 ? h.timeout : -1,
-                    desktopEntry: h.desktopEntry || "",
-                    hasImage: h.hasImage || false,
-                    actions: h.actions || [],
-                    ts: h.ts,
-                    key: root.keyOf(h),
-                    live: root.canOpen(h)
-                })
-            }
-            return JSON.stringify(out)
-        }
-
-        // By key (id@ts) rather than index: the ControlCenter's copy of the history
-        // can be a poll behind, and an index would then hit a different entry.
-        function dismissKey(key: string): void { root.removeKey(key, false) }
-        function invokeKey(key: string): void  { root.removeKey(key, true) }
-
-        function getCount(): int {
-            return root.history.length
-        }
-
-        function dismissAt(idx: int): void {
-            if (idx < 0 || idx >= root.history.length) return
-            var h = root.history[idx]
-            if (h.ref) {
-                try {
-                    // Si la notif a des actions, invoke la première (default)
-                    if (h.ref.actions && h.ref.actions.length > 0) {
-                        h.ref.actions[0].invoke()
-                    }
-                    h.ref.dismiss()
-                } catch(e) {}
-            }
-            var list = root.history.slice()
-            list.splice(idx, 1)
-            root.history = list
-        }
-
-        function clearAll(): void {
-            for (var i = 0; i < root.history.length; i++) {
-                var h = root.history[i]
-                if (h.ref) { try { h.ref.dismiss() } catch(e) {} }   // ref is nulled on close
-            }
-            root.history = []
-        }
-
-        function setDnd(state: bool): void {
-            root.dndEnabled = state
-        }
-
-        function getDnd(): bool {
-            return root.dndEnabled
-        }
-
-        function toggleDnd(): bool {
-            root.dndEnabled = !root.dndEnabled
-            return root.dndEnabled
-        }
-    }
 
     Variants {
         model: Quickshell.screens
