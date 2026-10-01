@@ -207,6 +207,20 @@ textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--b
 .c-prev .ph { font-size: 8px; letter-spacing: .2em; color: var(--accent); padding-bottom: 6px; border-bottom: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); }
 .c-prev p { font-size: 11px; line-height: 1.45; color: var(--inkStrong); margin: 8px 0 0; word-break: break-all; }
 
+/* settings panel (switches, a slider, health) */
+.setp .l-body { grid-template-columns: 104px minmax(0, 1fr) 150px; min-height: 220px; }
+.setp .app { grid-template-columns: 22px minmax(0, 1fr) auto; }
+.setp .tab em { white-space: nowrap; }
+.sw2 { position: relative; width: 50px; height: 16px; border: 1px solid currentColor; font-size: 7.5px; letter-spacing: .16em; display: flex; align-items: center; }
+.sw2.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.app.sel .sw2.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.sw2 span { padding-inline: 6px; } .sw2.off span { margin-left: auto; color: var(--inkSoft); }
+.sw2::after { content: ""; position: absolute; top: 4px; width: 7px; height: 7px; transform: rotate(45deg); background: currentColor; }
+.sw2.on::after { right: 5px; } .sw2.off::after { left: 5px; background: var(--ink); }
+.sl { font-size: 10px; text-align: center; } .sl i { display: block; height: 2px; width: 76px; margin-top: 3px; background: color-mix(in srgb, currentColor 20%, transparent); position: relative; }
+.sl i::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 45%; background: var(--accent); }
+.okb { font-size: 8px; letter-spacing: .14em; padding: 2px 7px; border: 1px solid currentColor; }
+
 /* notifications */
 .notes { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #0d0d10; }
 .note { position: relative; background: var(--paper); border: 1px solid var(--ink); padding: 9px 12px 9px 15px; max-width: 360px;
@@ -432,6 +446,29 @@ textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--b
           <div class="c-prev"><div class="ph mono">TEXT · #15010</div><p>YoRHa No.2 Type B — 起動完了</p></div>
         </div>
         <div class="l-foot mono"><span>←→ TYPE</span><span>↑↓ SELECT</span><span>↵ COPY</span><span>DEL DELETE</span></div>
+      </div>
+    </section>
+
+    <section>
+      <p class="cap">SETTINGS · 設定（SUPER+ALT+S）</p>
+      <div class="frame launch setp">
+        <div class="l-head mono"><span>SETTINGS</span><span style="opacity:.5">── 設定</span><span class="sp"></span><span style="font-size:8px">◆ PLUGIN ◆ CLIP ◆ IME</span></div>
+        <div class="l-body">
+          <nav class="l-side mono">
+            <div class="tab"><i></i>STATUS<em>狀態</em></div>
+            <div class="tab on"><i></i>EFFECTS<em>特效</em></div>
+            <div class="tab"><i></i>LOOK<em>外觀</em></div>
+            <div class="tab"><i></i>HUD<em>歌詞</em></div>
+          </nav>
+          <div class="l-list">
+            <div class="app"><span class="no mono">01</span><div><b>點擊爆發</b><small>點擊視窗時的鑽石爆發。</small></div><span class="sw2 on mono"><span>ON</span></span></div>
+            <div class="app"><span class="no mono">02</span><div><b>爆發大小</b><small>點擊、打字、確認時的大小。</small></div><span class="sl mono">‹ 0.70 ›<i></i></span></div>
+            <div class="app sel"><span class="no mono">03</span><div><b>開窗：像素雨</b><small>新視窗的像素由上往下落進位置。</small></div><span class="sw2 on mono"><span>ON</span></span></div>
+            <div class="app"><span class="no mono">04</span><div><b>滑鼠移過也鎖定</b><small>焦點跟著滑鼠換時也顯示準星。</small></div><span class="sw2 off mono"><span>OFF</span></span></div>
+          </div>
+          <div class="c-prev"><div class="ph mono">[effects] windowOpen</div><p>開窗：像素雨</p><p style="font-size:20px;letter-spacing:.1em">ON</p></div>
+        </div>
+        <div class="l-foot mono"><span>←→ PAGE</span><span>↑↓ SELECT</span><span>↵ TOGGLE</span><span>−/+ ADJUST</span></div>
       </div>
     </section>
 
