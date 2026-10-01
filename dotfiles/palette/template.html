@@ -1,0 +1,726 @@
+<title>NieR Shell 調色台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: a workbench — the control rail on the left (themes, colour slots, export),
+   a stage of live component mock-ups on the right. The chrome is a deliberately
+   neutral dark so the previews' own colours read true; it doesn't follow light mode. */
+:root {
+  color-scheme: dark;
+  --bg: #131315;
+  --surface: #1b1b1f;
+  --surface-2: #232328;
+  --line: #303037;
+  --fg: #e8e6df;
+  --muted: #9b998f;
+  --focus: #e9dfc2;
+  --bad: #ff8f7a;
+  --ok: #a5d6a0;
+  --font-ui: "Noto Sans TC", "Noto Sans CJK TC", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", ui-monospace, "SFMono-Regular", monospace;
+  --r: 6px;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--font-ui); font-size: 14px; line-height: 1.55; padding-inline: 16px; padding-block: 0 40px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; padding-block: 18px 14px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.top h1 { margin: 0; font-family: var(--font-mono); font-weight: 400; font-size: 20px; letter-spacing: .14em; }
+.top p { margin: 0; color: var(--muted); font-size: 13px; max-width: 70ch; }
+
+.bench { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── rail ── */
+.rail { display: flex; flex-direction: column; gap: 14px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; padding-right: 4px; }
+@media (max-width: 900px) { .rail { position: static; max-height: none; overflow: visible; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; min-width: 0; }
+.panel h2 { margin: 0 0 10px; font-family: var(--font-mono); font-weight: 400; font-size: 12px; letter-spacing: .16em; color: var(--muted); }
+.chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.chip { display: flex; flex-direction: column; gap: 5px; padding: 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-2); cursor: pointer; text-align: left; min-width: 0; }
+.chip[aria-pressed="true"] { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus) inset; }
+.chip .sw { display: flex; height: 14px; border-radius: 3px; overflow: hidden; }
+.chip .sw i { flex: 1; }
+.chip span { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip small { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+
+.group { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+.group:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+.group h3 { margin: 0 0 6px; font-size: 13px; font-weight: 500; }
+.slot { display: grid; grid-template-columns: 28px minmax(0, 1fr) 92px; gap: 8px; align-items: center; padding-block: 3px; }
+.slot input[type="color"] { width: 28px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
+.slot input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.slot input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 3px; }
+.slot label { font-size: 12.5px; color: var(--fg); min-width: 0; }
+.slot label code { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-right: 4px; }
+.slot input[type="text"] { width: 100%; font-family: var(--font-mono); font-size: 12px; padding: 3px 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
+.slot input[type="text"][aria-invalid="true"] { border-color: var(--bad); }
+.slot.edited label::after { content: " •"; color: var(--focus); }
+.mons { display: flex; gap: 6px; padding-block: 3px 6px; }
+.mons input { width: 28px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; }
+.range { display: grid; grid-template-columns: minmax(0, 1fr) 42px; gap: 8px; align-items: center; font-size: 12.5px; }
+.range output { font-family: var(--font-mono); font-size: 12px; text-align: right; }
+.fontrow { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; align-items: center; padding-block: 3px; font-size: 12.5px; }
+.fontrow input { width: 100%; padding: 3px 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; font-size: 12px; }
+
+.checks { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; }
+.check { display: flex; justify-content: space-between; gap: 8px; }
+.check b { font-family: var(--font-mono); font-weight: 400; }
+.check .pill { font-family: var(--font-mono); font-size: 11px; padding: 0 6px; border-radius: 99px; border: 1px solid currentColor; }
+.pill.ok { color: var(--ok); } .pill.low { color: var(--bad); }
+
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { padding: 6px 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-2); cursor: pointer; font-size: 13px; }
+.btn.primary { background: var(--focus); color: #16150f; border-color: var(--focus); }
+.btn:hover { border-color: var(--muted); }
+.name { flex: 1; min-width: 120px; padding: 6px 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; font-family: var(--font-mono); font-size: 13px; }
+textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 8px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5; }
+.hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+.cmd { display: block; font-family: var(--font-mono); font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; margin-top: 5px; overflow-x: auto; white-space: nowrap; user-select: all; }
+.toast { font-size: 12px; color: var(--ok); min-height: 1.4em; }
+
+/* ── stage (the previews) ── all colours below come from the theme variables set on #stage */
+.stage { display: grid; gap: 16px; min-width: 0; }
+.cap { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; color: var(--muted); margin: 0 0 6px; }
+.frame { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; position: relative; }
+.duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1250px) { .duo { grid-template-columns: minmax(0, 1fr); } }
+
+#stage { font-family: var(--cjk), var(--font-ui); }
+.mono { font-family: var(--mono), var(--font-mono); }
+
+/* desktop + triangles + Control Center */
+.desk { position: relative; aspect-ratio: 16 / 9; min-height: 300px; max-width: 100%; }
+.desk canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cross { position: absolute; inset: 0; display: grid; place-items: center; }
+.crossgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 150px)); grid-template-rows: repeat(3, auto); gap: 22px 18px; align-items: center; }
+.card { position: relative; background: var(--paper); border: 1px solid var(--ink); padding: 9px 12px 9px 34px; min-height: 44px; }
+.card::before { content: ""; position: absolute; inset: 3px; border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent); pointer-events: none; }
+.card .sq { position: absolute; left: 12px; top: 50%; width: 10px; height: 10px; margin-top: -5px; background: var(--ink); opacity: .85; }
+.card b { display: block; font-size: 12px; font-weight: 500; color: var(--ink); }
+.card small { display: block; font-size: 9.5px; color: var(--inkSoft); }
+.card.center { text-align: center; padding-left: 12px; }
+.card.center b { letter-spacing: .4em; }
+.card.center .sq { display: none; }
+.card.focus { transform: translateX(8px); }
+.card.focus .sq { display: none; }
+.card.focus::after { content: ""; position: absolute; right: -22px; top: 50%; width: 8px; height: 8px; margin-top: -4px; transform: rotate(45deg); background: var(--light); border: 1px solid var(--ink); }
+.dia { position: absolute; width: 6px; height: 6px; background: var(--ink); transform: rotate(45deg); }
+.dia.tl { left: -3px; top: -3px; } .dia.tr { right: -3px; top: -3px; } .dia.bl { left: -3px; bottom: -3px; } .dia.br { right: -3px; bottom: -3px; }
+.subs { position: absolute; right: 6%; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; width: 150px; }
+.sub { position: relative; background: var(--paper); border: 1px solid color-mix(in srgb, var(--ink) 55%, transparent); padding: 6px 10px 6px 22px; font-size: 12px; color: var(--ink); text-align: center; }
+.sub.sel { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.sub.sel::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+.sub.sel::after { content: ""; position: absolute; left: 9px; top: 50%; width: 5px; height: 5px; margin-top: -3px; transform: rotate(45deg); background: var(--paper); }
+.navbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 6px 14px; background: color-mix(in srgb, var(--inkStrong) 92%, transparent); border: 1px solid color-mix(in srgb, var(--paper) 30%, transparent); white-space: nowrap; }
+.navbar .d { width: 7px; height: 7px; transform: rotate(45deg); border: 1px solid color-mix(in srgb, var(--light) 70%, transparent); }
+.navbar .d.on { background: var(--light); }
+.navbar span { font-size: 10px; letter-spacing: .14em; color: color-mix(in srgb, var(--paper) 70%, transparent); }
+.navbar span.cur { color: var(--light); }
+.navbar kbd { font-family: var(--mono), var(--font-mono); font-size: 8px; padding: 0 4px; border: 1px solid color-mix(in srgb, var(--paper) 35%, transparent); color: var(--paper); }
+@media (max-width: 700px) { .subs, .navbar { display: none; } .crossgrid { grid-template-columns: repeat(3, minmax(0, 96px)); } .card small { display: none; } }
+
+/* launcher */
+.launch { background: var(--paper); color: var(--ink); position: relative;
+  background-image: linear-gradient(color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1px);
+  background-size: 18px 18px; }
+.l-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); font-size: 11px; letter-spacing: .2em; }
+.l-head .sp { flex: 1; }
+.l-head .gem { width: 7px; height: 7px; transform: rotate(45deg); background: var(--accent); }
+.l-body { display: grid; grid-template-columns: 118px minmax(0, 1fr); min-height: 250px; }
+.l-side { border-right: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); padding-block: 8px; }
+.tab { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 10px; letter-spacing: .16em; color: var(--inkSoft); }
+.tab i { width: 6px; height: 1px; background: var(--inkSoft); }
+.tab.on { background: var(--ink); color: var(--paper); box-shadow: inset 3px 0 0 var(--accent); }
+.tab.on i { width: 6px; height: 6px; transform: rotate(45deg); background: var(--paper); }
+.tab em { margin-left: auto; font-style: normal; font-size: 8px; opacity: .6; }
+.l-list { padding-block: 6px; min-width: 0; }
+.app { display: grid; grid-template-columns: 22px 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 14px; }
+.app .no { font-size: 9px; color: var(--inkSoft); }
+.app .ic { width: 22px; height: 22px; border: 1px solid var(--ink); display: grid; place-items: center; font-size: 10px; }
+.app b { display: block; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app small { display: block; font-size: 9px; color: var(--inkSoft); letter-spacing: .06em; }
+.app .cat { font-size: 8px; letter-spacing: .16em; color: var(--inkSoft); }
+.app.sel { background: var(--ink); color: var(--paper); box-shadow: inset 3px 0 0 var(--accent); }
+.app.sel .no, .app.sel small, .app.sel .cat { color: color-mix(in srgb, var(--paper) 60%, transparent); }
+.app.sel .ic { border-color: color-mix(in srgb, var(--paper) 85%, transparent); transform: rotate(45deg) scale(.86); }
+.app.sel .ic span { transform: rotate(-45deg); }
+.l-foot { display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); font-size: 9px; letter-spacing: .16em; color: var(--inkSoft); }
+
+/* HUD */
+.hudwrap { display: flex; justify-content: center; padding: 14px; background: #0d0d10; }
+.hud { width: 250px; position: relative; border: 1px solid color-mix(in srgb, var(--ptext) 30%, transparent); color: var(--ptext);
+  background: linear-gradient(to bottom, var(--panel) 20%, color-mix(in srgb, var(--month) calc(var(--tint) * 100%), var(--panel))); padding: 8px 12px 10px; }
+.hud .hdia { position: absolute; width: 5px; height: 5px; transform: rotate(45deg); background: var(--ptext); }
+.hud .rim { position: absolute; left: 1px; right: 1px; top: 1px; height: 1px; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--light) 55%, transparent) 35%, transparent); }
+.h-top { display: flex; align-items: baseline; gap: 4px; padding-bottom: 6px; border-bottom: 1px solid color-mix(in srgb, var(--ptext) 28%, transparent); }
+.h-top .clk { font-size: 15px; letter-spacing: .06em; }
+.h-top .sec { font-size: 9px; color: var(--pmuted); }
+.h-top .ws { margin-left: auto; font-size: 11px; }
+.h-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-block: 8px; }
+.h-tabs span { font-size: 7.5px; letter-spacing: .14em; text-align: center; padding: 3px 0; border: 1px solid color-mix(in srgb, var(--ptext) 28%, transparent); color: var(--pmuted); }
+.h-tabs span.on { background: var(--ptext); color: var(--onfill); box-shadow: inset 2px 0 0 var(--accent); }
+.h-sec { font-size: 8px; letter-spacing: .24em; color: color-mix(in srgb, var(--ptext) 72%, transparent); margin: 8px 0 4px; }
+.h-sec::after { content: ""; display: block; width: 18px; height: 1px; margin-top: 2px; background: color-mix(in srgb, var(--ptext) 45%, transparent); }
+.h-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) 44px; gap: 6px; align-items: center; font-size: 9px; padding-block: 2px; }
+.h-row .k { color: var(--pmuted); letter-spacing: .06em; }
+.h-row .v { text-align: right; font-size: 10px; }
+.h-row .bar { height: 5px; border: 1px solid color-mix(in srgb, var(--ptext) 22%, transparent); position: relative; }
+.h-row .bar i { position: absolute; left: 1px; top: 1px; bottom: 1px; background: var(--ptext); }
+.h-row.hot { background: var(--ptext); color: var(--onfill); margin-inline: -4px; padding-inline: 4px; box-shadow: inset 2px 0 0 var(--accent); }
+.h-row.hot .k { color: var(--onfill); }
+.h-row.hot .bar { border-color: color-mix(in srgb, var(--onfill) 60%, transparent); }
+.h-row.hot .bar i { background: var(--onfill); }
+.h-row.warn .v { color: var(--warn); } .h-row.warn .bar i { background: var(--warn); }
+.h-row.good .v { color: var(--good); } .h-row.good .bar i { background: var(--good); }
+.h-info { display: grid; grid-template-columns: 34px minmax(0, 1fr); font-size: 9px; padding-block: 2px; }
+.h-info .k { color: var(--pmuted); } .h-info .v { text-align: right; }
+.wsgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-top: 6px; }
+.wsgrid span { height: 14px; display: grid; place-items: center; font-size: 8px; border: 1px solid color-mix(in srgb, var(--ptext) 12%, transparent); color: var(--pmuted); }
+.wsgrid span.o { border-color: var(--mc); color: var(--mc); }
+.wsgrid span.a { background: var(--mc); color: var(--onfill); }
+.wsgrid span.e::before { content: ""; width: 4px; height: 4px; transform: rotate(45deg); border: 1px solid color-mix(in srgb, var(--ptext) 38%, transparent); }
+
+/* HUD: now playing + synced lyrics, OSD examples */
+.hudwrap { flex-direction: column; align-items: center; gap: 10px; }
+.h-media { padding: 6px 0 7px; border-bottom: 1px solid color-mix(in srgb, var(--ptext) 28%, transparent); }
+.hm-head { display: flex; gap: 6px; align-items: center; font-size: 10px; min-width: 0; }
+.hm-src { background: var(--pactive); color: var(--onfill); font-size: 7.5px; letter-spacing: .14em; padding: 1px 4px; flex: none; }
+.hm-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hm-cur { font-family: var(--cjk), var(--font-ui); font-size: 12.5px; margin-top: 5px; line-height: 1.3; }
+.hm-prog { display: block; height: 1px; width: 62%; background: var(--pactive); margin-top: 3px; }
+.hm-next { font-family: var(--cjk), var(--font-ui); font-size: 10px; color: var(--pmuted); margin-top: 3px; }
+.osds { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.osd { display: flex; align-items: center; gap: 7px; padding: 5px 9px; background: var(--panel); border: 1px solid color-mix(in srgb, var(--ptext) 30%, transparent); color: var(--ptext); }
+.osd .ok { font-size: 9px; letter-spacing: .24em; color: var(--pactive); }
+.ochip { font-size: 9px; padding: 1px 6px; border: 1px solid var(--pactive); color: var(--ptext); }
+.ochip.on { background: var(--pactive); color: var(--onfill); }
+.ochip.cjk { font-family: var(--cjk), var(--font-ui); letter-spacing: 0; }
+
+/* clipboard (built from the launcher's pieces) */
+.clip .l-body { grid-template-columns: 104px minmax(0, 1fr) 150px; min-height: 230px; }
+.clip .thumb { width: 20px; height: 20px; background: linear-gradient(135deg, #6f86a8, #c8a860 60%, #2a2438); }
+.c-prev { border-left: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); padding: 12px; min-width: 0; }
+.c-prev .ph { font-size: 8px; letter-spacing: .2em; color: var(--accent); padding-bottom: 6px; border-bottom: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); }
+.c-prev p { font-size: 11px; line-height: 1.45; color: var(--inkStrong); margin: 8px 0 0; word-break: break-all; }
+
+/* notifications */
+.notes { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #0d0d10; }
+.note { position: relative; background: var(--paper); border: 1px solid var(--ink); padding: 9px 12px 9px 15px; max-width: 360px;
+  background-image: linear-gradient(color-mix(in srgb, var(--ink) 7%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--ink) 7%, transparent) 1px, transparent 1px); background-size: 16px 16px; }
+.note::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--u); }
+.n-head { display: flex; align-items: center; gap: 7px; font-size: 8px; letter-spacing: .16em; color: var(--inkSoft); }
+.n-head .badge { background: var(--u); color: var(--paper); padding: 1px 5px; letter-spacing: .2em; }
+.n-head .x { margin-left: auto; width: 16px; height: 14px; border: 1px solid var(--ink); display: grid; place-items: center; font-size: 8px; color: var(--ink); }
+.note hr { border: 0; height: 1px; background: color-mix(in srgb, var(--ink) 20%, transparent); margin: 6px 0; }
+.note b { display: block; font-size: 12.5px; font-weight: 500; color: var(--inkStrong); }
+.note p { margin: 2px 0 0; font-size: 11px; color: var(--ink); }
+.note .act { display: inline-block; margin-top: 7px; padding: 3px 10px; border: 1px solid var(--ink); font-size: 8.5px; letter-spacing: .16em; color: var(--ink); }
+
+/* IME */
+.imewrap { padding: 18px 14px 22px; background: #0d0d10; position: relative; }
+.imewrap .typed { font-size: 13px; color: #d9d6cc; margin-bottom: 6px; }
+.imewrap .typed u { text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.ime { position: relative; display: inline-block; background: var(--paper); border: 1px solid var(--ink); padding: 8px 10px; max-width: 100%; }
+.ime::before { content: ""; position: absolute; inset: 3px; border: 1px solid color-mix(in srgb, var(--ink) 28%, transparent); pointer-events: none; }
+.ime .pre { font-size: 12px; color: var(--inkStrong); margin-bottom: 5px; }
+.ime .pre i { display: inline-block; width: 1px; height: 13px; background: var(--accent); vertical-align: -2px; }
+.cands { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.cand { display: flex; align-items: baseline; gap: 3px; padding: 3px 7px; font-size: 14px; color: var(--inkStrong); }
+.cand small { font-family: var(--mono), var(--font-mono); font-size: 9px; color: var(--inkSoft); }
+.cand.sel { background: var(--ink); color: var(--paper); box-shadow: inset 2px 0 0 var(--accent); }
+.cand.sel small { color: color-mix(in srgb, var(--paper) 60%, transparent); }
+.pg { width: 8px; height: 8px; transform: rotate(45deg); border: 1px solid var(--ink); margin-left: 8px; }
+.burst { position: absolute; width: 16px; height: 16px; transform: rotate(45deg); border: 2px solid var(--light); opacity: .8; pointer-events: none; }
+.spark { position: absolute; width: 5px; height: 5px; transform: rotate(45deg); border: 1px solid var(--inkStrong); pointer-events: none; }
+
+/* Hyprland window borders */
+.wins { position: relative; height: 128px; background: linear-gradient(135deg, #2a2438, #4b3b2c 55%, #1a1c24); overflow: hidden; }
+.win { position: absolute; top: 14px; bottom: 14px; border-radius: 4px; border: 2px solid transparent; background: #15151a; padding: 10px 12px; }
+.win i { display: block; height: 3px; margin-bottom: 7px; background: #8e8a7f; opacity: .7; }
+.win.act { left: 14px; width: 54%; background: linear-gradient(#15151a, #15151a) padding-box, linear-gradient(var(--bangle), var(--hb1), var(--hb2), var(--hb3)) border-box;
+  box-shadow: 0 0 14px 2px color-mix(in srgb, var(--hsh) 30%, transparent); }
+.win.idle { right: 14px; width: 34%; border-color: color-mix(in srgb, var(--panel) 40%, transparent); }
+.win.idle i { background: #6f86a8; }
+/* the lock-on reticle on the focused window: brackets just outside its border, a centre
+   diamond with a core, crosshair arms with end ticks, a shock ring; a dark under-line
+   keeps it legible on light windows */
+.lock { position: absolute; inset: -8px; pointer-events: none;
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--inkStrong) 85%, transparent)) drop-shadow(0 0 1px color-mix(in srgb, var(--inkStrong) 85%, transparent));
+  animation: lockon 3.2s cubic-bezier(.2, .9, .3, 1.2) infinite; }
+.lock .bk { position: absolute; width: 15px; height: 15px; border: 0 solid var(--light); }
+.lock .tl { left: 0; top: 0; border-left-width: 3px; border-top-width: 3px; }
+.lock .tr { right: 0; top: 0; border-right-width: 3px; border-top-width: 3px; }
+.lock .bl { left: 0; bottom: 0; border-left-width: 3px; border-bottom-width: 3px; }
+.lock .br { right: 0; bottom: 0; border-right-width: 3px; border-bottom-width: 3px; }
+.lock .ctr { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; border: 2px solid var(--light);
+  background: color-mix(in srgb, var(--light) 14%, transparent); transform: translate(-50%, -50%) rotate(45deg); animation: lockspin 3.2s cubic-bezier(.2, .9, .3, 1.3) infinite; }
+.lock .ctr::after { content: ""; position: absolute; inset: 3px; background: var(--light); }
+.lock .ring { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; border: 1.5px solid var(--light); transform: translate(-50%, -50%) rotate(45deg); animation: lockring 3.2s ease-out infinite; }
+.lock .xh { position: absolute; left: 50%; top: 50%; }
+.lock .xh::before { content: ""; position: absolute; left: -40px; top: -1px; width: 80px; height: 2px;
+  background: linear-gradient(90deg, var(--light) 0 30%, transparent 30% 70%, var(--light) 70%); }
+.lock .xh::after { content: ""; position: absolute; top: -40px; left: -1px; height: 80px; width: 2px;
+  background: linear-gradient(180deg, var(--light) 0 30%, transparent 30% 70%, var(--light) 70%); }
+@keyframes lockon { 0% { transform: scale(1.22); opacity: 0; } 10% { transform: scale(.97); opacity: 1; } 17% { transform: scale(1.01); } 22% { transform: scale(1); } 78% { opacity: 1; } 92%, 100% { transform: scale(1); opacity: 0; } }
+@keyframes lockspin { 0% { transform: translate(-50%, -50%) rotate(225deg) scale(2.4); } 14% { transform: translate(-50%, -50%) rotate(45deg) scale(.9); } 20%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(1); } }
+@keyframes lockring { 0%, 6% { transform: translate(-50%, -50%) rotate(45deg) scale(1); opacity: 0; } 8% { opacity: .85; } 30%, 100% { transform: translate(-50%, -50%) rotate(45deg) scale(4.2); opacity: 0; } }
+
+/* player */
+.player { padding: 14px 16px; background: color-mix(in srgb, var(--sbg) 92%, transparent); color: var(--sfg); }
+.p-meta b { display: block; font-size: 13px; letter-spacing: .08em; }
+.p-meta small { color: color-mix(in srgb, var(--sfg) 60%, transparent); font-size: 11px; }
+.p-bars { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin: 10px 0 8px; }
+.p-bars i { flex: 1; background: color-mix(in srgb, var(--sfg) 65%, transparent); }
+.p-prog { height: 2px; background: color-mix(in srgb, var(--sfg) 18%, transparent); position: relative; }
+.p-prog i { position: absolute; left: 0; top: 0; bottom: 0; width: 38%; background: var(--sfg); }
+.p-ctl { display: flex; gap: 18px; margin-top: 10px; font-size: 16px; text-shadow: 2px 2px 0 color-mix(in srgb, var(--sdim) 60%, transparent); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="top">
+  <h1>NIER SHELL 調色台</h1>
+  <p>選一套主題、逐色調整，預覽會即時反映在各元件上。這裡的修改只存在這個網頁，確定後產生 <code>.conf</code> 貼回 Quickshell 才會生效。</p>
+</header>
+
+<main class="bench">
+  <aside class="rail" aria-label="主題與顏色">
+    <section class="panel">
+      <h2>主題</h2>
+      <div class="chips" id="chips"></div>
+    </section>
+
+    <section class="panel">
+      <h2>顏色</h2>
+      <div id="editor"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="resetBtn" type="button">還原成這套主題</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>對比檢查</h2>
+      <div class="checks" id="checks"></div>
+    </section>
+
+    <section class="panel">
+      <h2>匯出</h2>
+      <div class="row">
+        <input class="name" id="themeName" type="text" value="my-theme" aria-label="主題名稱（英數與連字號）" spellcheck="false">
+        <button class="btn primary" id="copyBtn" type="button">複製 .conf</button>
+      </div>
+      <div class="toast" id="toast" role="status"></div>
+      <textarea id="confOut" aria-label="產生的主題設定" spellcheck="false"></textarea>
+      <p class="hint">存成下面的檔案，再用第二行先預覽；要長期使用，把 <code>config/shell.conf</code> 的 <code>theme</code> 改成這個名稱。</p>
+      <code class="cmd" id="pathCmd"></code>
+      <code class="cmd" id="setCmd"></code>
+    </section>
+  </aside>
+
+  <div class="stage" id="stage">
+    <section>
+      <p class="cap">CONTROL CENTER · 背景三角形</p>
+      <div class="frame desk" id="desk">
+        <canvas id="tri" aria-hidden="true"></canvas>
+        <div class="cross">
+          <div class="crossgrid">
+            <span></span>
+            <div class="card"><b>Connexion</b><small>Wi-Fi · Bluetooth</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <span></span>
+            <div class="card"><b>Quickshare</b><small>File transfer</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <div class="card center"><b>MENU</b><small>CONTROL CENTER</small></div>
+            <div class="card focus"><b>Notifications</b><small>History · DND</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <span></span>
+            <div class="card"><b>Audio</b><small>Output · Volume</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <span></span>
+          </div>
+        </div>
+        <div class="subs" aria-hidden="true">
+          <div class="sub sel">History</div>
+          <div class="sub">Do Not Disturb</div>
+        </div>
+        <div class="navbar mono" aria-hidden="true">
+          <i class="d on"></i><i class="d on"></i><i class="d"></i>
+          <span>MENU ▸ Notifications ▸</span><span class="cur">History</span>
+          <kbd>↑↓</kbd><span>SELECT</span><kbd>→ / ↵</kbd><span>ENTER</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="duo">
+      <section>
+        <p class="cap">APP LAUNCHER</p>
+        <div class="frame launch">
+          <div class="l-head mono"><span>SYSTEM</span><span style="opacity:.5">── システム</span><span class="sp"></span><span style="font-size:9px">03:42:17</span><i class="gem"></i><span style="font-size:9px">SESSION 0471</span></div>
+          <div class="l-body">
+            <nav class="l-side mono">
+              <div class="tab on"><i></i>ALL<em>134</em></div>
+              <div class="tab"><i></i>DEVELOP<em>25</em></div>
+              <div class="tab"><i></i>SYSTEM<em>42</em></div>
+              <div class="tab"><i></i>NETWORK<em>13</em></div>
+              <div class="tab"><i></i>GRAPHICS<em>05</em></div>
+              <div class="tab"><i></i>GAMES<em>08</em></div>
+            </nav>
+            <div class="l-list">
+              <div class="app sel"><span class="no mono">01</span><span class="ic"><span>✦</span></span><div><b>Firefox</b><small class="mono">firefox</small></div><span class="cat mono">NETWORK</span></div>
+              <div class="app"><span class="no mono">02</span><span class="ic">▸</span><div><b>kitty</b><small class="mono">kitty</small></div><span class="cat mono">SYSTEM</span></div>
+              <div class="app"><span class="no mono">03</span><span class="ic">▤</span><div><b>Dolphin</b><small class="mono">org.kde.dolphin</small></div><span class="cat mono">SYSTEM</span></div>
+              <div class="app"><span class="no mono">04</span><span class="ic">⌥</span><div><b>Visual Studio Code</b><small class="mono">code</small></div><span class="cat mono">DEVELOP</span></div>
+              <div class="app"><span class="no mono">05</span><span class="ic">♪</span><div><b>Spotify</b><small class="mono">spotify-launcher</small></div><span class="cat mono">MEDIA</span></div>
+            </div>
+          </div>
+          <div class="l-foot mono"><span>TERMINAL</span><span>FILES</span><span>LOCK</span><span style="margin-left:auto">↑↓ NAV · ↵ OPEN · ESC CLOSE</span></div>
+        </div>
+      </section>
+
+      <section>
+        <p class="cap">CORNER HUD</p>
+        <div class="frame hudwrap">
+          <div class="hud mono" id="hud">
+            <i class="rim"></i>
+            <i class="hdia" style="left:-3px;top:-3px"></i><i class="hdia" style="right:-3px;top:-3px"></i><i class="hdia" style="left:-3px;bottom:-3px"></i><i class="hdia" style="right:-3px;bottom:-3px"></i>
+            <div class="h-top"><span class="clk">03:42</span><span class="sec">17</span><span class="ws">◇ ws·2</span></div>
+            <div class="h-media">
+              <div class="hm-head"><span class="hm-src">SPOTIFY</span><span class="hm-title">Weight of the World</span></div>
+              <div class="hm-cur">這裡是正在唱的那一句歌詞</div>
+              <i class="hm-prog"></i>
+              <div class="hm-next">下一句在這裡，淡一點</div>
+            </div>
+            <div class="h-tabs"><span class="on">◆ STATUS</span><span>INFO</span><span>TOOLS</span></div>
+            <div class="h-sec">SYSTEM</div>
+            <div class="h-row warn"><span class="k">CPU</span><span class="bar"><i style="width:86%"></i></span><span class="v">86%</span></div>
+            <div class="h-row"><span class="k">GPU</span><span class="bar"><i style="width:24%"></i></span><span class="v">24%</span></div>
+            <div class="h-row"><span class="k">MEM</span><span class="bar"><i style="width:38%"></i></span><span class="v">38%</span></div>
+            <div class="h-sec">MEDIA</div>
+            <div class="h-row hot"><span class="k">VOL</span><span class="bar"><i style="width:44%"></i></span><span class="v">44%</span></div>
+            <div class="h-row good"><span class="k">BAT</span><span class="bar"><i style="width:80%"></i></span><span class="v">⚡80%</span></div>
+            <div class="h-sec">NETWORK</div>
+            <div class="h-info"><span class="k">WIFI</span><span class="v" style="color:var(--good)">YoRHa-AP · 81%</span></div>
+            <div class="h-info"><span class="k">BT</span><span class="v">Pod 042 · 79%</span></div>
+            <div class="h-sec">WORKSPACE</div>
+            <div class="wsgrid" id="wsgrid"></div>
+          </div>
+          <div class="osds mono" aria-label="OSD examples">
+            <div class="osd"><span class="ok">MIC</span><span class="ochip on">ON</span></div>
+            <div class="osd"><span class="ok">CAPS</span><span class="ochip">OFF</span></div>
+            <div class="osd"><span class="ok">IME</span><span class="ochip on cjk">小麥注音</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section>
+      <p class="cap">CLIPBOARD · 剪貼簿</p>
+      <div class="frame launch clip">
+        <div class="l-head mono"><span>CLIPBOARD</span><span style="opacity:.5">── クリップボード</span><span class="sp"></span><span style="font-size:9px">4 / 750 ENTRIES</span><i class="gem"></i></div>
+        <div class="l-body">
+          <nav class="l-side mono">
+            <div class="tab on"><i></i>ALL<em>750</em></div>
+            <div class="tab"><i></i>TEXT<em>697</em></div>
+            <div class="tab"><i></i>LINK<em>29</em></div>
+            <div class="tab"><i></i>IMAGE<em>24</em></div>
+          </nav>
+          <div class="l-list">
+            <div class="app sel"><span class="no mono">01</span><span class="ic"><span>T</span></span><div><b>YoRHa No.2 Type B — 起動完了</b><small class="mono">22 CHARS</small></div><span class="cat mono"></span></div>
+            <div class="app"><span class="no mono">02</span><span class="ic">↗</span><div><b>https://lrclib.net/docs</b><small class="mono">LRCLIB.NET</small></div><span class="cat mono"></span></div>
+            <div class="app"><span class="no mono">03</span><span class="ic"><i class="thumb"></i></span><div><b>IMAGE</b><small class="mono">1.2 MIB PNG 1920X1200</small></div><span class="cat mono"></span></div>
+            <div class="app"><span class="no mono">04</span><span class="ic">T</span><div><b>systemctl --user restart pipewire</b><small class="mono">33 CHARS</small></div><span class="cat mono"></span></div>
+          </div>
+          <div class="c-prev"><div class="ph mono">TEXT · #15010</div><p>YoRHa No.2 Type B — 起動完了</p></div>
+        </div>
+        <div class="l-foot mono"><span>←→ TYPE</span><span>↑↓ SELECT</span><span>↵ COPY</span><span>DEL DELETE</span></div>
+      </div>
+    </section>
+
+    <div class="duo">
+      <section>
+        <p class="cap">NOTIFICATIONS</p>
+        <div class="frame notes">
+          <div class="note" style="--u: var(--crit)"><div class="n-head mono"><span class="badge">CRITICAL</span><span>緊急</span><span>DISCORD</span><span class="x">✕</span></div><hr><b>Critical: build failed</b><p>The CI pipeline for quickshell failed at step 3.</p><span class="act mono">▸ OPEN</span></div>
+          <div class="note" style="--u: var(--low)"><div class="n-head mono"><span class="badge">INFO</span><span>情報</span><span>FIREFOX</span><span class="x">✕</span></div><hr><b>Download finished</b><p>nier-wallpaper.png (2.4 MB) saved to ~/Downloads</p></div>
+        </div>
+      </section>
+
+      <section>
+        <p class="cap">IME · 選字框</p>
+        <div class="frame imewrap" id="imewrap">
+          <div class="typed">今天要去 <u>你好</u>▏</div>
+          <div class="ime">
+            <div class="pre">你好<i></i></div>
+            <div class="cands">
+              <span class="cand sel"><small>1</small>你好</span><span class="cand"><small>2</small>妳好</span><span class="cand"><small>3</small>好</span><span class="cand"><small>4</small>郝</span><span class="cand"><small>5</small>號</span><i class="pg"></i><i class="pg"></i>
+            </div>
+          </div>
+          <i class="burst" style="left:128px;top:30px"></i>
+          <i class="spark" style="left:92px;top:14px;background:var(--light)"></i>
+          <i class="spark" style="left:104px;top:8px;background:var(--paper)"></i>
+          <i class="spark" style="left:84px;top:6px;background:var(--warn)"></i>
+        </div>
+        <p class="cap" style="margin-top:14px">PLAYER</p>
+        <div class="frame player">
+          <div class="p-meta"><b>Weight of the World</b><small>NieR:Automata Original Soundtrack</small></div>
+          <div class="p-bars" id="bars"></div>
+          <div class="p-prog"><i></i></div>
+          <div class="p-ctl" aria-hidden="true"><span>⏮</span><span>⏸</span><span>⏭</span></div>
+        </div>
+        <p class="cap" style="margin-top:14px">HYPRLAND · 視窗邊框 · 鎖定準星</p>
+        <div class="frame wins" aria-hidden="true">
+          <div class="win act"><span class="lock"><b class="bk tl"></b><b class="bk tr"></b><b class="bk bl"></b><b class="bk br"></b><b class="ring"></b><b class="xh"></b><b class="ctr"></b></span><i style="width:70%"></i><i style="width:45%"></i><i style="width:82%"></i><i style="width:38%"></i><i style="width:60%"></i></div>
+          <div class="win idle"><i style="width:80%"></i><i style="width:52%"></i><i style="width:66%"></i></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+const THEMES = /*__THEMES__*/null;
+const ORDER = ["nier", "lilac", "mono", "crimson", "jirai", "jirai-light", "aha", "matcha", "abyss", "amber", "yorha-noir"];
+const LABELS = { nier: "NieR 紙墨", lilac: "粉紫", mono: "黑灰白", crimson: "紅黑白", jirai: "地雷系", "jirai-light": "淺色地雷系", aha: "阿哈", matcha: "抹茶", abyss: "深海", amber: "琥珀終端", "yorha-noir": "YoRHa Noir" };
+const MONTH = "#6c281a";   // the October artwork's panel tone, for the HUD's month tint
+
+// Same rules as settings/Config.qml
+function parse(text) {
+  const out = {}; let section = "";
+  for (let l of (text || "").split("\n")) {
+    l = l.trim();
+    if (!l || l[0] === "#" || l[0] === ";") continue;
+    const sec = l.match(/^\[([^\]]+)\]\s*([#;].*)?$/);
+    if (sec) { section = sec[1].trim(); continue; }
+    const eq = l.indexOf("="); if (eq < 0) continue;
+    const k = l.slice(0, eq).trim(); let raw = l.slice(eq + 1).trim(); let v;
+    if (raw[0] === '"') { const end = raw.indexOf('"', 1); v = end > 0 ? raw.slice(1, end) : raw.slice(1); }
+    else {
+      raw = raw.replace(/\s+[#;](\s.*)?$/, "");
+      if (/^(true|yes|on)$/i.test(raw)) v = true; else if (/^(false|no|off)$/i.test(raw)) v = false;
+      else if (/^-?\d+(\.\d+)?$/.test(raw)) v = parseFloat(raw); else v = raw;
+    }
+    out[(section ? section + "." : "") + k] = v;
+  }
+  return out;
+}
+const HEX = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+// Same fallbacks as theme/Theme.qml
+function resolve(map) {
+  const c = (k, d) => (typeof map[k] === "string" && HEX.test(map[k])) ? map[k].toLowerCase() : d;
+  const t = {};
+  t.paper = c("palette.paper", "#d6cfb5"); t.ink = c("palette.ink", "#463f2e"); t.inkStrong = c("palette.inkStrong", "#2e2a1f");
+  t.inkSoft = c("palette.inkSoft", "#7a7358"); t.accent = c("palette.accent", "#6e2a2a"); t.light = c("palette.light", "#fff6cf");
+  t.warn = c("palette.warn", "#c8685c"); t.good = c("palette.good", "#9ab58c");
+  t.panel = c("dark.panel", "#221e17"); t.raised = c("dark.raised", "#2e2a1f"); t.text = c("dark.text", t.paper); t.muted = c("dark.muted", "#8f8873");
+  t.pactive = c("dark.active", t.light); t.onfill = c("dark.onFill", t.raised);
+  const mons = typeof map["dark.monitors"] === "string" ? map["dark.monitors"].split(",").map(s => s.trim()).filter(s => HEX.test(s)) : [];
+  t.monitors = mons.length ? mons.map(s => s.toLowerCase()) : [t.light, "#a99bc9", t.good, "#c98a70"];
+  while (t.monitors.length < 4) t.monitors.push(t.monitors[t.monitors.length - 1]);
+  t.monthTint = typeof map["dark.monthTint"] === "number" ? map["dark.monthTint"] : 0.45;
+  t.critical = c("notify.critical", "#cd664d"); t.low = c("notify.low", "#a0c490");
+  t.sfg = c("sepia.fg", "#c8b89a"); t.sbg = c("sepia.bg", "#0b0a09"); t.sdim = c("sepia.dim", "#48463d");
+  t.triangle = c("backdrop.triangle", t.paper); t.glint = c("backdrop.glint", t.light); t.shade = c("backdrop.shade", t.ink);
+  t.mono = typeof map["font.mono"] === "string" ? map["font.mono"] : "Share Tech Mono";
+  t.cjk = typeof map["font.cjk"] === "string" ? map["font.cjk"] : "jf金萱那提2.0";
+  // Same fallbacks as scripts/theme-sync.py
+  const border = typeof map["hyprland.border"] === "string" ? map["hyprland.border"].split(",").map(s => s.trim()).filter(s => HEX.test(s)).map(s => s.toLowerCase()) : [];
+  const b = border.length ? border : [t.light, t.accent];
+  t.hb1 = b[0]; t.hb2 = b[1] || b[0]; t.hb3 = b[2] || t.hb2;
+  t.bangle = typeof map["hyprland.borderAngle"] === "number" ? map["hyprland.borderAngle"] : 45;
+  t.hshadow = c("hyprland.shadow", t.accent);
+  return t;
+}
+
+const SCHEMA = [
+  { sec: "palette", title: "卡片與文字（彈窗、啟動器、截圖、選字框、通知）", keys: [
+    ["paper", "卡片底色"], ["ink", "字、線、選取條"], ["inkStrong", "強調字"], ["inkSoft", "次要文字"],
+    ["accent", "選取條邊緣、標記"], ["light", "高光、深色底上的選中"], ["warn", "警示"], ["good", "正常、充電中"]] },
+  { sec: "dark", title: "HUD 面板", keys: [["panel", "底色"], ["raised", "軌道、凸起元件"], ["text", "文字與線條"], ["muted", "次要文字"], ["pactive", "選中日期、釘選、標記", "active"], ["onfill", "實心色塊上的字", "onFill"]] },
+  { sec: "notify", title: "通知", keys: [["critical", "緊急"], ["low", "資訊"]] },
+  { sec: "sepia", title: "播放器", keys: [["sfg", "文字、頻譜", "fg"], ["sbg", "底色", "bg"], ["sdim", "陰影", "dim"]] },
+  { sec: "backdrop", title: "背景三角形", keys: [["triangle", "亮面"], ["glint", "邊光、星點"], ["shade", "暗面"]] },
+  { sec: "hyprland", title: "視窗邊框（Hyprland，由 theme-sync 套用）", keys: [["hb1", "作用中漸層 1", "border"], ["hb2", "作用中漸層 2", "border"], ["hb3", "作用中漸層 3", "border"], ["hshadow", "作用中光暈", "shadow"]] },
+];
+
+let base = "nier", tokens = resolve(parse(THEMES.nier)), pristine = JSON.stringify(tokens);
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+function lum(hex) {
+  const n = hex.replace("#", ""); const s = n.length === 8 ? n.slice(2) : n;
+  const ch = [0, 2, 4].map(i => parseInt(s.slice(i, i + 2), 16) / 255).map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+function contrast(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+function rgb6(hex) { const n = hex.replace("#", ""); return "#" + (n.length === 8 ? n.slice(2) : n); }
+
+function buildChips() {
+  const box = document.getElementById("chips"); box.innerHTML = "";
+  for (const name of ORDER) {
+    const t = resolve(parse(THEMES[name]));
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.setAttribute("aria-pressed", name === base ? "true" : "false");
+    b.innerHTML = `<div class="sw">${[t.paper, t.ink, t.accent, t.panel, t.text].map(c => `<i style="background:${rgb6(c)}"></i>`).join("")}</div><span>${LABELS[name] || name}</span><small>${name}</small>`;
+    b.addEventListener("click", () => { base = name; tokens = resolve(parse(THEMES[name])); pristine = JSON.stringify(tokens); document.getElementById("themeName").value = name === "nier" ? "my-theme" : name + "-custom"; buildChips(); buildEditor(); apply(); });
+    box.appendChild(b);
+  }
+}
+
+function slot(key, label, confKey) {
+  const row = document.createElement("div"); row.className = "slot"; row.dataset.key = key;
+  const id = "c-" + key;
+  row.innerHTML = `<input type="color" id="${id}" aria-label="${label}"><label for="${id}-hex"><code>${confKey || key}</code>${label}</label><input type="text" id="${id}-hex" spellcheck="false" maxlength="9">`;
+  const pick = row.querySelector('input[type="color"]'), hex = row.querySelector('input[type="text"]');
+  pick.value = rgb6(tokens[key]); hex.value = tokens[key];
+  pick.addEventListener("input", () => { tokens[key] = pick.value; hex.value = pick.value; hex.removeAttribute("aria-invalid"); apply(); });
+  hex.addEventListener("input", () => {
+    const v = hex.value.trim();
+    if (HEX.test(v)) { tokens[key] = v.toLowerCase(); pick.value = rgb6(v); hex.removeAttribute("aria-invalid"); apply(); }
+    else hex.setAttribute("aria-invalid", "true");
+  });
+  return row;
+}
+
+function buildEditor() {
+  const ed = document.getElementById("editor"); ed.innerHTML = "";
+  for (const g of SCHEMA) {
+    const box = document.createElement("div"); box.className = "group";
+    box.innerHTML = `<h3>${g.title}</h3>`;
+    for (const [key, label, conf] of g.keys) box.appendChild(slot(key, label, conf));
+    if (g.sec === "dark") {
+      const mons = document.createElement("div");
+      mons.innerHTML = `<div style="font-size:12.5px;margin-top:4px">各螢幕的工作區標色</div><div class="mons">${tokens.monitors.map((c, i) => `<input type="color" id="mon-${i}" value="${rgb6(c)}" aria-label="螢幕 ${i + 1}">`).join("")}</div>
+        <div class="range"><input type="range" id="tint" min="0" max="1" step="0.05" value="${tokens.monthTint}" aria-label="HUD 融入月曆色調的程度"><output id="tintOut">${tokens.monthTint}</output></div>
+        <div style="font-size:11.5px;color:var(--muted)">HUD 下半部融入月曆原畫色調的程度（0 = 不融入）</div>`;
+      box.appendChild(mons);
+      mons.querySelectorAll('.mons input').forEach((inp, i) => inp.addEventListener("input", () => { tokens.monitors[i] = inp.value; apply(); }));
+      mons.querySelector("#tint").addEventListener("input", e => { tokens.monthTint = parseFloat(e.target.value); document.getElementById("tintOut").textContent = tokens.monthTint; apply(); });
+    }
+    ed.appendChild(box);
+  }
+  const fonts = document.createElement("div"); fonts.className = "group";
+  fonts.innerHTML = `<h3>字型（本機有安裝才會顯示）</h3>
+    <div class="fontrow"><label for="f-mono">等寬</label><input id="f-mono" type="text" value="${tokens.mono}"></div>
+    <div class="fontrow"><label for="f-cjk">中文</label><input id="f-cjk" type="text" value="${tokens.cjk}"></div>`;
+  fonts.querySelector("#f-mono").addEventListener("input", e => { tokens.mono = e.target.value; apply(); });
+  fonts.querySelector("#f-cjk").addEventListener("input", e => { tokens.cjk = e.target.value; apply(); });
+  ed.appendChild(fonts);
+}
+
+function syncEdited() {
+  const p = JSON.parse(pristine);
+  document.querySelectorAll(".slot").forEach(r => r.classList.toggle("edited", tokens[r.dataset.key] !== p[r.dataset.key]));
+}
+
+function apply() {
+  const s = document.getElementById("stage").style;
+  const map = { paper: "paper", ink: "ink", inkStrong: "inkStrong", inkSoft: "inkSoft", accent: "accent", light: "light", warn: "warn", good: "good",
+    panel: "panel", raised: "raised", text: "ptext", muted: "pmuted", critical: "crit", low: "low", sfg: "sfg", sbg: "sbg", sdim: "sdim", pactive: "pactive", onfill: "onfill",
+    hb1: "hb1", hb2: "hb2", hb3: "hb3", hshadow: "hsh" };
+  for (const [k, v] of Object.entries(map)) s.setProperty("--" + v, rgb6(tokens[k]));
+  s.setProperty("--month", MONTH); s.setProperty("--tint", tokens.monthTint);
+  // Hyprland's gradient angle: 0 = left→right, counter-clockwise; CSS's: 0 = bottom→top, clockwise
+  s.setProperty("--bangle", (90 - tokens.bangle) + "deg");
+  s.setProperty("--mono", `"${tokens.mono}"`); s.setProperty("--cjk", `"${tokens.cjk}"`);
+  drawWs(); drawTri(); checks(); syncEdited(); exportConf();
+  store.set("nsp-draft", JSON.stringify({ base, tokens, name: document.getElementById("themeName").value }));
+}
+
+function drawWs() {
+  const g = document.getElementById("wsgrid"); g.innerHTML = "";
+  const open = { 21: 0, 22: 0, 16: 1, 6: 0, 7: 2, 1: 0, 2: 0, 12: 3 };
+  for (let i = 0; i < 25; i++) {
+    const id = (4 - Math.floor(i / 5)) * 5 + (i % 5) + 1; const sp = document.createElement("span");
+    if (id in open) { sp.className = id === 2 ? "o a" : "o"; sp.style.setProperty("--mc", rgb6(tokens.monitors[open[id]])); sp.textContent = id; }
+    else sp.className = "e";
+    g.appendChild(sp);
+  }
+}
+
+// The glass triangles (components/shaders/tri.frag), drawn still: a fake desktop
+// underneath, dimmed; ~2/3 of the panes lean dark, the rest take the triangle colour;
+// 3 px gaps; a few lit rims and vertex stars in the glint colour.
+function hash(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
+function drawTri() {
+  const cv = document.getElementById("tri"), box = document.getElementById("desk");
+  const dpr = Math.min(2, window.devicePixelRatio || 1), W = box.clientWidth, H = box.clientHeight;
+  if (!W || !H) return;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // desktop: wallpaper + two windows
+  const wp = g.createLinearGradient(0, 0, W, H); wp.addColorStop(0, "#2a2438"); wp.addColorStop(.55, "#4b3b2c"); wp.addColorStop(1, "#1a1c24");
+  g.fillStyle = wp; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#15151a"; g.fillRect(W * .04, H * .06, W * .44, H * .82); g.fillRect(W * .52, H * .06, W * .44, H * .5);
+  g.fillStyle = "#8e8a7f"; for (let i = 0; i < 16; i++) g.fillRect(W * .06, H * .1 + i * H * .045, W * (.12 + hash(i, 3) * .26), 3);
+  g.fillStyle = "#6f86a8"; for (let i = 0; i < 8; i++) g.fillRect(W * .54, H * .1 + i * H * .045, W * (.1 + hash(i, 7) * .28), 3);
+  // dim
+  g.fillStyle = rgb6(tokens.shade); g.globalAlpha = .28; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+  const cw = Math.max(70, W / 11), ch = cw * .866, hw = cw / 2, gap = 3;
+  const rows = Math.ceil(H / ch) + 2, cols = Math.ceil(W / hw) + 3;
+  const stars = [];
+  for (let yi = -1; yi < rows; yi++) for (let xi = -1; xi < cols; xi++) {
+    const up = ((xi + yi) % 2 + 2) % 2 === 0;
+    const cx = xi * hw, cy = yi * ch, sy = up ? 1 : -1, gw = cw - gap, gh = ch - gap * .5;
+    const L = [cx - gw / 2, cy + sy * gh / 2], R = [cx + gw / 2, cy + sy * gh / 2], Y = [cx, cy - sy * gh / 2];
+    const tone = hash(xi + 7.7, yi + 7.7), dark = tone < .62, lit = hash(xi + 4.4, yi + 1.3) > .9;
+    g.beginPath(); g.moveTo(...L); g.lineTo(...R); g.lineTo(...Y); g.closePath();
+    if (dark) { g.fillStyle = rgb6(tokens.shade); g.globalAlpha = .62; g.fill(); g.fillStyle = "#000"; g.globalAlpha = .18; g.fill(); }
+    else { g.fillStyle = rgb6(tokens.triangle); g.globalAlpha = .34 + tone * .24; g.fill(); if (lit) { g.fillStyle = rgb6(tokens.glint); g.globalAlpha = .22; g.fill(); } }
+    g.globalAlpha = 1;
+    if (lit) { g.strokeStyle = rgb6(tokens.glint); g.lineWidth = 1.2; g.globalAlpha = .85; g.stroke(); g.globalAlpha = 1; }
+    if (hash(xi + 9.1, yi + 2.2) > .93) stars.push(Y);
+  }
+  g.fillStyle = rgb6(tokens.glint);
+  for (const [x, y] of stars) { g.globalAlpha = .9; g.beginPath(); g.moveTo(x, y - 6); g.lineTo(x + 1.2, y - 1.2); g.lineTo(x + 6, y); g.lineTo(x + 1.2, y + 1.2); g.lineTo(x, y + 6); g.lineTo(x - 1.2, y + 1.2); g.lineTo(x - 6, y); g.lineTo(x - 1.2, y - 1.2); g.closePath(); g.fill(); }
+  g.globalAlpha = 1;
+}
+
+function checks() {
+  const rows = [
+    ["卡片上的字", tokens.ink, tokens.paper], ["選取條上的字", tokens.paper, tokens.ink], ["次要文字", tokens.inkSoft, tokens.paper],
+    ["HUD 文字", tokens.text, tokens.panel], ["HUD 次要文字", tokens.muted, tokens.panel], ["HUD 選中的字", tokens.onfill, tokens.text], ["播放器文字", tokens.sfg, tokens.sbg],
+  ];
+  document.getElementById("checks").innerHTML = rows.map(([n, f, b]) => {
+    const r = contrast(rgb6(f), rgb6(b)); const need = n.includes("次要") ? 3 : 4.5;
+    return `<div class="check"><span>${n}</span><span><b>${r.toFixed(1)}:1</b> <span class="pill ${r >= need ? "ok" : "low"}">${r >= need ? "可讀" : "偏低"}</span></span></div>`;
+  }).join("");
+}
+
+function pad(k) { return k.length >= 10 ? k + " " : (k + "          ").slice(0, 10); }
+function exportConf() {
+  const name = (document.getElementById("themeName").value.trim() || "my-theme").replace(/[^A-Za-z0-9_-]/g, "-");
+  const t = tokens;
+  const lines = [
+    `# ${name} — 用 NieR Shell 調色台產生（以 ${base} 為底）`,
+    `# 存成 ~/.config/quickshell/config/themes/${name}.conf`, "",
+    "[palette]", ...["paper", "ink", "inkStrong", "inkSoft", "accent", "light", "warn", "good"].map(k => `${pad(k)}= ${t[k]}`), "",
+    "[dark]", `${pad("panel")}= ${t.panel}`, `${pad("raised")}= ${t.raised}`, `${pad("text")}= ${t.text}`, `${pad("muted")}= ${t.muted}`, `${pad("active")}= ${t.pactive}`, `${pad("onFill")}= ${t.onfill}`,
+    `${pad("monitors")}= ${t.monitors.join(", ")}`, `${pad("monthTint")}= ${t.monthTint}`, "",
+    "[notify]", `${pad("critical")}= ${t.critical}`, `${pad("low")}= ${t.low}`, "",
+    "[sepia]", `${pad("fg")}= ${t.sfg}`, `${pad("bg")}= ${t.sbg}`, `${pad("dim")}= ${t.sdim}`, "",
+    "[backdrop]", `${pad("triangle")}= ${t.triangle}`, `${pad("glint")}= ${t.glint}`, `${pad("shade")}= ${t.shade}`, "",
+    "[font]", `${pad("mono")}= "${t.mono}"`, `${pad("cjk")}= "${t.cjk}"`, "",
+    "[hyprland]", `${pad("border")}= ${[t.hb1, t.hb2, t.hb3].join(", ")}`, `${pad("borderAngle")}= ${t.bangle}`, `${pad("shadow")}= ${t.hshadow}`, "",
+  ];
+  document.getElementById("confOut").value = lines.join("\n");
+  document.getElementById("pathCmd").textContent = `~/.config/quickshell/config/themes/${name}.conf`;
+  document.getElementById("setCmd").textContent = `qs ipc call theme set ${name}`;
+}
+
+document.getElementById("resetBtn").addEventListener("click", () => { tokens = resolve(parse(THEMES[base])); pristine = JSON.stringify(tokens); buildEditor(); apply(); });
+document.getElementById("themeName").addEventListener("input", () => { exportConf(); store.set("nsp-draft", JSON.stringify({ base, tokens, name: document.getElementById("themeName").value })); });
+document.getElementById("copyBtn").addEventListener("click", () => {
+  const ta = document.getElementById("confOut"), toast = document.getElementById("toast");
+  const done = () => { toast.textContent = "已複製，貼到上面的檔案路徑存檔即可。"; };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, () => { ta.select(); toast.textContent = "無法直接複製：內容已全選，請按 Ctrl+C。"; });
+  else { ta.select(); toast.textContent = "內容已全選，請按 Ctrl+C。"; }
+});
+
+(function init() {
+  const bars = document.getElementById("bars");
+  for (let i = 0; i < 28; i++) { const b = document.createElement("i"); b.style.height = (18 + Math.round(Math.abs(Math.sin(i * .7) * 70 + hash(i, 1) * 20))) + "%"; bars.appendChild(b); }
+  try {
+    const d = JSON.parse(store.get("nsp-draft") || "null");
+    if (d && d.tokens && THEMES[d.base]) { base = d.base; pristine = JSON.stringify(resolve(parse(THEMES[base]))); tokens = Object.assign(resolve(parse(THEMES[base])), d.tokens); if (d.name) document.getElementById("themeName").value = d.name; }
+  } catch (e) {}
+  buildChips(); buildEditor(); apply();
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawTri, 120); });
+})();
+</script>
