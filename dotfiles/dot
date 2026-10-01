@@ -1,0 +1,5 @@
+#!/bin/sh
+# git for these dotfiles: a bare repo (~/.dotfiles.git) whose work tree is ~/.config,
+# so the configs stay where the apps read them. Untracked files are hidden; add new
+# ones explicitly:  dot add quickshell/widgets/New.qml
+exec git --git-dir="$HOME/.dotfiles.git" --work-tree="$HOME/.config" "$@"
