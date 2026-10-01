@@ -1355,7 +1355,7 @@ Popup {
         }
 
         // ── Confirm impact: shards + rings here, a shock ring through the triangles ──
-        HitBurst { id: burst; z: 55; backdrop: backdrop }   // components/HitBurst.qml
+        HitBurst { id: burst; z: 55; backdrop: root.backdrop }   // components/HitBurst.qml
         Connections {
             target: root
             function onImpactAt(win, x, y, s) {
