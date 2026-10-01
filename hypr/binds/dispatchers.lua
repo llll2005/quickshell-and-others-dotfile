@@ -31,6 +31,9 @@ hl.bind(M .. " + SHIFT + grave", hl.dsp.exec_cmd("qs ipc call hud stats"))
 hl.bind(M .. " + CTRL + grave",  hl.dsp.exec_cmd("qs ipc call hud visible"))  -- show/hide whole HUD
 -- Media Player widget (native qs IPC — replaces /tmp/qs-toggle file poll)
 hl.bind(M .. " + P", hl.dsp.exec_cmd("qs ipc call player toggle"))
+-- HUD media: SUPER+SHIFT+L synced lyrics on/off · SUPER+SHIFT+N now-playing card
+hl.bind(M .. " + SHIFT + L", hl.dsp.exec_cmd("qs ipc call hud lyrics"))
+hl.bind(M .. " + SHIFT + N", hl.dsp.exec_cmd("qs ipc call hud nowPlaying"))
 -- Launch quickshell (首次啟動 / 若未在執行)
 hl.bind(M .. " + SHIFT + Q", hl.dsp.exec_cmd("qs -p ~/.config/quickshell/shell.qml"))
 -- Restart shell.qml (kill 後重啟，即使未在執行也能成功)
