@@ -65,6 +65,8 @@ hl.bind("XF86AudioStop", hl.dsp.exec_cmd("playerctl stop"),       { locked = tru
 
 -- ── Brightness ──────────────────────────────────────────────
 -- also flashes the CornerHud BRI osd (volume osd is automatic via Pipewire)
+-- Caps Lock → the HUD's CAPS osd (non-consuming: the key still toggles Caps Lock)
+hl.bind("Caps_Lock", hl.dsp.exec_cmd("qs ipc call hud osd caps"), { non_consuming = true, on_release = true, locked = true })
 hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("sh -c 'brightnessctl s 5%+; qs ipc call hud osd bri'"),
     { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("sh -c 'brightnessctl s 5%-; qs ipc call hud osd bri'"),
