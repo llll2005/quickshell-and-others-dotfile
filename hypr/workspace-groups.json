@@ -5,8 +5,7 @@
       "icon": "💻",
       "workspaces": [
         1,
-        2,
-        3
+        2
       ],
       "color": "#4a9eff"
     },
@@ -24,6 +23,7 @@
       "label": "獨立",
       "icon": "📌",
       "workspaces": [
+        3,
         4,
         7,
         13,
