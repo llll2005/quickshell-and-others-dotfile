@@ -22,6 +22,7 @@ ShellRoot {
     Menu {}             // app launcher          qs ipc call menu toggle
     ScreenCapture {}    // capture panel         qs ipc call capture toggle
     ControlCenter {}    // system controls       qs ipc call ctrl toggle
+    Clipboard {}        // clipboard history     qs ipc call clip toggle
     WsMover {}          // move a workspace      qs ipc call wsmove open
 
     Component.onCompleted: Fx.init()   // shared effects layer (click / typing bursts)
