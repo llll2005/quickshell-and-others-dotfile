@@ -132,7 +132,10 @@ Scope {
                     property real rx; property real ry; property real rw; property real rh
                     property string addr
                     readonly property real drop: Math.min(240, rh * 0.4)
-                    x: rx; y: ry - drop; width: rw; height: rh + drop
+                    // the cells fall from above, but only show inside the window: drawn over
+                    // the space above, they'd land on whatever window sits there
+                    x: rx; y: ry; width: rw; height: rh
+                    clip: true
                     property var  tl: null
                     property bool started: false
                     property bool released: false
@@ -151,6 +154,9 @@ Scope {
                         Quickshell.execDetached(["hyprctl", "winfx", "release", addr])
                     }
 
+                    Item {
+                    id: stage
+                    y: -fx.drop; width: fx.rw; height: fx.rh + fx.drop
                     ScreencopyView {
                         id: cap
                         x: 0; y: fx.drop; width: fx.rw; height: fx.rh
@@ -174,6 +180,7 @@ Scope {
                         property color light: Theme.light
                         property var   source: capSrc
                         fragmentShader: Qt.resolvedUrl("../components/shaders/rain.frag.qsb")
+                    }
                     }
                     SequentialAnimation {
                         id: anim
