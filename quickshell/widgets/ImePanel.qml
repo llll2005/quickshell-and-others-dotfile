@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import "../components"
+import "../services"
 import "../settings"
 import "../theme"
 
@@ -89,6 +90,7 @@ Scope {
         try { m = JSON.parse(line) } catch (e) { return }
         switch (m.t) {
         case "enable":  enabled = m.on; break
+        case "im":      Ime.name = m.name; Ime.label = m.label; if (!m.first) Ime.switched(); break
         case "table":
             tableShown = m.show
             break

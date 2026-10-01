@@ -188,6 +188,29 @@ def on_method(conn, sender, path, iface, method, params, invocation):
     invocation.return_value(None)
 
 
+# ── the current input method ──
+# fcitx5 re-sends "/Fcitx/im:<name>:<icon>:<hint>:menu,label=<short>" on every focus
+# change; only a real switch is passed on (the first one just sets the state).
+last_im = None
+
+
+def im_property(prop):
+    global last_im
+    parts = prop.split(':')
+    if len(parts) < 3 or parts[0] != '/Fcitx/im':
+        return
+    key = parts[2]
+    if key == last_im:
+        return
+    first = last_im is None
+    last_im = key
+    label = ''
+    for kv in parts[-1].split(','):
+        if kv.startswith('label='):
+            label = kv[6:]
+    out(t='im', name=parts[1], key=key, label=label, first=first)
+
+
 # ── IM side: signals fcitx5 broadcasts from /kimpanel ──
 def on_im_signal(conn, sender, path, iface, name, params):
     a = params.unpack()
@@ -211,6 +234,8 @@ def on_im_signal(conn, sender, path, iface, name, params):
         absolute(a[0], a[1], 0, 0)
     elif name == 'Enable':
         out(t='enable', on=bool(a[0]))
+    elif name == 'UpdateProperty':
+        im_property(a[0])
     if name in ('ShowLookupTable', 'UpdateLookupTable', 'UpdateLookupTableCursor', 'ShowAux', 'UpdateAux',
                 'ShowPreedit', 'UpdatePreeditText', 'UpdatePreeditCaret'):
         track()

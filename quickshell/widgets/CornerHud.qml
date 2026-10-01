@@ -119,7 +119,7 @@ Scope {
     }
 
     // ── OSD: header briefly shows VOL/BRI while adjusting, then back to clock ──
-    property string osdMode: ""   // "" | "vol" | "bri"
+    property string osdMode: ""   // "" | vol | bri | mic | caps | ime
     property bool   _osdReady: false   // ignore the initial volume binding at startup
     property Timer _osdT:     Timer { interval: Settings.hudOsdDuration; onTriggered: root.osdMode = "" }
     property Timer _osdInitT: Timer { interval: 1500; running: true; onTriggered: root._osdReady = true }
@@ -127,8 +127,22 @@ Scope {
     // Volume changes (incl. media keys → Pipewire) auto-trigger the VOL osd.
     Connections {
         target: Audio
-        function onVolumeChanged() { if (root._osdReady) root.showOsd("vol") }
-        function onMutedChanged()  { if (root._osdReady) root.showOsd("vol") }
+        function onVolumeChanged()   { if (root._osdReady) root.showOsd("vol") }
+        function onMutedChanged()    { if (root._osdReady) root.showOsd("vol") }
+        function onMicMutedChanged() { if (root._osdReady) root.showOsd("mic") }
+    }
+    // input method switches (fcitx5, via the kimpanel bridge → services/Ime.qml)
+    Connections { target: Ime; function onSwitched() { if (root._osdReady) root.showOsd("ime") } }
+    // Caps Lock: Hyprland pokes `qs ipc call hud osd caps` on the key (non-consuming);
+    // the state is the keyboards' LEDs, read a moment later (sysfs doesn't notify)
+    property bool capsOn: false
+    property Timer _capsT: Timer { interval: 60; onTriggered: { capsP.running = false; capsP.running = true } }
+    property Process _capsP: Process {
+        id: capsP
+        command: ["sh", "-c", "cat /sys/class/leds/*::capslock/brightness 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: { root.capsOn = /[1-9]/.test(this.text); root.showOsd("caps") }
+        }
     }
 
     // ── Stopwatch (shared state) ──
@@ -205,8 +219,9 @@ Scope {
         function close(): void   { root.wspPinned = false; root.wspAuto = false; root._wspHide.stop(); root.statsPinned = false }
         // OSD from media/brightness keys: qs ipc call hud osd bri|vol
         function osd(which: string): void {
+            if (which === "caps") { root._capsT.restart(); return }
             if (which === "bri") Backlight.refresh()
-            root.showOsd(which === "bri" ? "bri" : "vol")
+            root.showOsd(["bri", "mic", "ime"].indexOf(which) >= 0 ? which : "vol")
         }
     }
     property Timer _wspHide: Timer {
@@ -577,14 +592,42 @@ Scope {
                             Behavior on opacity { NumberAnimation { duration: 200 } }
                             property real lvl: root.osdMode === "bri" ? Backlight.value
                                              : Audio.muted ? 0 : Audio.volume/1.5
+                            readonly property bool level: root.osdMode === "vol" || root.osdMode === "bri"
                             Item {
                                 width: 16; height: 14; anchors.verticalCenter: parent.verticalCenter
+                                visible: parent.level
                                 SpeakerIcon { anchors.fill: parent; visible: root.osdMode !== "bri"
                                               color: root.cAccent; muted: Audio.muted }
                                 SunIcon     { anchors.fill: parent; visible: root.osdMode === "bri"
                                               color: root.cAccent }
                             }
+                            // mic / caps / ime: a label and a state chip (filled = on)
+                            Text {
+                                visible: !parent.level
+                                text: ({ mic: "MIC", caps: "CAPS", ime: "IME" })[root.osdMode] || ""
+                                font.pixelSize: 10; font.weight: Font.Medium; font.letterSpacing: 3
+                                color: root.cAccent; anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Rectangle {
+                                visible: !parent.level
+                                readonly property bool on: root.osdMode === "mic" ? !Audio.micMuted
+                                                         : root.osdMode === "caps" ? root.capsOn : true
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: chipT.implicitWidth + 14; height: 15
+                                color: on ? root.cAccent : "transparent"
+                                border.color: root.cAccent; border.width: 1
+                                Behavior on color { ColorAnimation { duration: 140 } }
+                                Text {
+                                    id: chipT; anchors.centerIn: parent
+                                    text: root.osdMode === "ime" ? (Ime.name || Ime.label)
+                                        : parent.on ? "ON" : "OFF"
+                                    font.family: root.osdMode === "ime" ? Theme.cjk : root.mono
+                                    font.pixelSize: 10; font.letterSpacing: root.osdMode === "ime" ? 0.5 : 2
+                                    color: parent.on ? root.cInk : root.cText
+                                }
+                            }
                             Rectangle {   // the ControlCenter volume slider, in small: frame · inner frame · inset fill
+                                visible: parent.level
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 64; height: 10; color: "transparent"
                                 border.color: root.paperA(0.55); border.width: 1
@@ -598,6 +641,7 @@ Scope {
                                 }
                             }
                             Text {
+                                visible: parent.level
                                 text: root.osdMode === "vol" && Audio.muted ? "mute"
                                     : Math.round(parent.lvl*100) + "%"
                                 font.family: root.mono; font.pixelSize: 12; color: root.cText
