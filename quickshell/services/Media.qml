@@ -85,7 +85,16 @@ Singleton {
         // bracketed tags that aren't part of the name
         var junk = /(official|music\s*video|lyric|歌詞|歌词|字幕|中字|中文|mv|pv|4k|hd|hq|1080p|audio|video|live|full|ver\.?|version|完整版|高音質|高音质|翻唱|cover|カバー|歌ってみた|主題歌|主题曲|op|ed|ost|feat\.?)/i
         ti = ti.replace(/[\[【\(（〔][^\]】\)）〕]*[\]】\)）〕]/g, function(m) { return junk.test(m) ? " " : m })
-        ti = ti.replace(/\b(official\s*(music\s*)?video|official\s*audio|music\s*video|lyrics?\s*video|M\/?V)\b/ig, " ")
+        ti = ti.replace(/\b(official\s*(music\s*)?(video|mv)|official\s*audio|music\s*video|lyrics?\s*video|M\/?V|official)\b/ig, " ")
+        // "Artist【Song】": the name in brackets, the artist (≈ the channel) outside
+        var br = ti.match(/^(.*?)[【\[](.+?)[】\]](.*)$/)
+        if (br) {
+            var outside = (br[1] + " " + br[3]).trim(), n = function(x) { return x.toLowerCase().replace(/\s+/g, "") }
+            if (outside === "" || (ar !== "" && (n(outside).indexOf(n(ar)) >= 0 || n(ar).indexOf(n(outside)) >= 0))) {
+                if (outside !== "") ar = outside
+                ti = br[2]
+            }
+        }
         // 「Song」 / 『Song』 hold the name; what's before is usually the artist
         var q = ti.match(/^(.*?)[「『](.+?)[」』]/)
         if (q) { if (q[1].trim() !== "") ar = q[1].trim(); ti = q[2] }

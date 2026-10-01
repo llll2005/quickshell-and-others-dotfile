@@ -24,6 +24,7 @@ QtObject {
     readonly property bool cornerHudEnabled: Config.bool("hud.enabled", true)
     readonly property int  hudHideDelay:     Config.num("hud.hideDelay", 1400)
     readonly property int  hudOsdDuration:   Config.num("hud.osdDuration", 1700)
+    readonly property bool hudTrackToast:   Config.bool("hud.trackToast", true)
 
     // ── glass triangle backdrop (components/TriField.qml) ──
     readonly property real backdropOpacity: Config.num("backdrop.opacity", 0.42)
@@ -38,6 +39,10 @@ QtObject {
     // ── fcitx5 candidate window (widgets/ImePanel.qml) ──
     readonly property bool imePanelEnabled: Config.bool("ime.panel", true)
     readonly property bool imeSparks:       Config.bool("ime.sparks", true)
+
+    // ── lyrics (services/Lyrics.qml, shown in the HUD) ──
+    readonly property bool lyricsEnabled: Config.bool("lyrics.enabled", true)
+    readonly property real lyricsOffset:  Config.num("lyrics.offset", 0)
 
     // ── screen capture ──
     readonly property bool   captureFreeze:    Config.bool("capture.freeze", true)

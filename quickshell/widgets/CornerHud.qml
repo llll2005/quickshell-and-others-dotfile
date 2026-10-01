@@ -145,6 +145,19 @@ Scope {
         }
     }
 
+    // ── media block: a card on track change, the synced lyrics while they play ──
+    property bool trackToast: false
+    property Timer _toastT: Timer { interval: 4200; onTriggered: root.trackToast = false }
+    Connections {
+        target: Media
+        function onTrackChanged() { if (root._osdReady && Settings.hudTrackToast) { root.trackToast = true; root._toastT.restart() } }
+    }
+    readonly property bool lyricShowing: Lyrics.on && Lyrics.ready && Media.playing
+    readonly property bool mediaShow: trackToast || lyricShowing
+    property real lyrSlide: 0
+    property NumberAnimation _lyrAnim: NumberAnimation { target: root; property: "lyrSlide"; from: 1; to: 0; duration: 380; easing.type: Easing.OutCubic }
+    Connections { target: Lyrics; function onIndexChanged() { root._lyrAnim.restart() } }
+
     // ── Stopwatch (shared state) ──
     property bool swGo: false
     property int  swElapsed: 0
@@ -218,6 +231,16 @@ Scope {
         function hide(): void    { root.hudVisible = false }
         function close(): void   { root.wspPinned = false; root.wspAuto = false; root._wspHide.stop(); root.statsPinned = false }
         // OSD from media/brightness keys: qs ipc call hud osd bri|vol
+        // synced lyrics in the HUD on / off
+        function lyrics(): string { Lyrics.on = !Lyrics.on; return Lyrics.on ? "on" : "off" }
+        // show the now-playing card (and the lyrics, if on)
+        function nowPlaying(): void { if (Media.active) { root.trackToast = true; root._toastT.restart() } }
+        // what the lyric lookup found for the playing track
+        function lyricsInfo(): string {
+            return (Lyrics.on ? "on" : "off") + " · " + (Lyrics.status || "idle") + (Lyrics.provider ? " · " + Lyrics.provider : "")
+                 + " · " + Media.source + " · " + Media.songArtist + " — " + Media.songTitle
+                 + (Lyrics.ready ? " · line " + (Lyrics.index + 1) + "/" + Lyrics.lines.length + ": " + Lyrics.current : "")
+        }
         function osd(which: string): void {
             if (which === "caps") { root._capsT.restart(); return }
             if (which === "bri") Backlight.refresh()
@@ -385,7 +408,7 @@ Scope {
             // lets it slide straight back out.
             readonly property bool revealed: peeked || statsExpanded
                                             || root.statsPinned || root.wspMode || root.todoEditing
-                                            || root.osdMode !== ""
+                                            || root.osdMode !== "" || root.mediaShow
             readonly property bool shown: root.hudVisible && revealed
             // opening the HUD always snaps the calendar to today; each reveal plays
             // the paper sweep across the frame (revealT 0 → 1)
@@ -670,6 +693,60 @@ Scope {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.toggleWsp()
                         }
+                    }
+
+                    // ── Media: a card on track change, then (lyrics on) the synced line ──
+                    // services/Media.qml + services/Lyrics.qml; a click toggles lyrics
+                    Item {
+                        id: mediaBlock
+                        width: parent.width
+                        readonly property bool want: root.mediaShow && !win.showWsp
+                        height: want ? mediaCol.implicitHeight + 10 : 0
+                        visible: height > 0.5
+                        clip: true
+                        Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+                        Column {
+                            id: mediaCol
+                            y: 6; width: parent.width; spacing: 3
+                            opacity: mediaBlock.want ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 200 } }
+                            Row {
+                                width: parent.width; spacing: 6
+                                Rectangle {
+                                    width: srcT.implicitWidth + 8; height: 13; color: root.cAccent
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    Text { id: srcT; anchors.centerIn: parent; text: Media.source || "MEDIA"
+                                           font.family: root.mono; font.pixelSize: 8; font.letterSpacing: 1.5; color: root.cInk }
+                                }
+                                Text {
+                                    width: parent.width - srcT.implicitWidth - 14; elide: Text.ElideRight
+                                    text: Media.title; font.pixelSize: 10; color: root.cText
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+                            Text {
+                                visible: !root.lyricShowing; width: parent.width; elide: Text.ElideRight
+                                text: Media.artist + (Lyrics.on && Lyrics.status === "searching" ? "  ·  ♪ …" : "")
+                                font.pixelSize: 9; color: root.cMuted
+                            }
+                            Text {
+                                visible: root.lyricShowing; width: parent.width
+                                wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
+                                text: Lyrics.current !== "" ? Lyrics.current : "♪"
+                                font.family: Theme.cjk; font.pixelSize: 12; color: root.cText
+                                opacity: 1 - root.lyrSlide * 0.8
+                                transform: Translate { y: root.lyrSlide * 8 }
+                            }
+                            Rectangle {   // how far into the line we are
+                                visible: root.lyricShowing; height: 1; color: root.cAccent
+                                width: parent.width * Lyrics.lineProgress
+                            }
+                            Text {
+                                visible: root.lyricShowing && Lyrics.next !== ""; width: parent.width; elide: Text.ElideRight
+                                text: Lyrics.next; font.family: Theme.cjk; font.pixelSize: 10; color: root.cMuted
+                            }
+                        }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Lyrics.on = !Lyrics.on }
                     }
 
                     // divider

@@ -11,3 +11,4 @@ singleton Tasks 1.0 Tasks.qml
 singleton Notifs 1.0 Notifs.qml
 singleton Media 1.0 Media.qml
 singleton Ime 1.0 Ime.qml
+singleton Lyrics 1.0 Lyrics.qml
