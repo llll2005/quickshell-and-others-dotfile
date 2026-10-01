@@ -11,7 +11,7 @@ hl.bind("SUPER + CTRL + Left",  hl.dsp.exec_cmd(wsg .. " prev-in-group"))
 -- ═══ 快速切換分組 ═══
 hl.bind("SUPER + ALT + D", hl.dsp.exec_cmd(wsg .. " switch dev"))       -- 💻 開發
 hl.bind("SUPER + ALT + R", hl.dsp.exec_cmd(wsg .. " switch research"))  -- 📚 研究
-hl.bind("SUPER + ALT + S", hl.dsp.exec_cmd(wsg .. " switch standalone"))-- 📌 獨立
+hl.bind("SUPER + ALT + A", hl.dsp.exec_cmd(wsg .. " switch standalone"))-- 📌 獨立（SUPER+ALT+S 是 Quickshell 設定面板）
 
 -- ═══ 動態管理 ═══
 -- 將當前 workspace 加入特定分組（快速分類）

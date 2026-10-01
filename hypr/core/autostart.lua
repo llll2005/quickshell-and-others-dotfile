@@ -39,8 +39,14 @@ hl.on("hyprland.start", function()
     -- Quickshell candidate window needs (fcitx5 gets no caret from Wayland apps).
     -- Refuses to load after a Hyprland update until rebuilt:
     --   make -C ~/.config/quickshell/hypr-plugin/imecaret
-    -- pcall: a refused load must not stop anything else here.
-    pcall(hl.plugin.load, os.getenv("HOME") .. "/.config/quickshell/hypr-plugin/imecaret/imecaret.so")
+    -- pcall: a refused load must not stop anything else here. It has been seen to fail
+    -- silently at boot, so the shell also loads it when missing (quickshell
+    -- services/Health.qml); a failure here is logged to find out why.
+    local ok, err = pcall(hl.plugin.load, os.getenv("HOME") .. "/.config/quickshell/hypr-plugin/imecaret/imecaret.so")
+    if not ok then
+        local f = io.open(os.getenv("HOME") .. "/.cache/imecaret-load.log", "a")
+        if f then f:write(os.date("%Y-%m-%d %H:%M:%S "), tostring(err), "\n"); f:close() end
+    end
 end)
 
 -- Re-applied on every reload (not exec-once)

@@ -19,6 +19,8 @@ hl.bind(M .. " + SHIFT + X", hl.dsp.exec_cmd("lua5.4 ~/.config/hypr/scripts/move
 -- hl.bind(M .. " + SHIFT + X", hl.dsp.exec_cmd("bash ~/.config/hypr/scripts/move_ws_all.sh"))
 -- ── Quickshell ───────────────────────────────────────────────
 -- ControlCenter (NieR radial menu)
+-- Quickshell settings: every feature switch + the helpers' health (and repair)
+hl.bind(M .. " + ALT + S", hl.dsp.exec_cmd("qs ipc call settings toggle"))
 -- Clipboard history (cliphist; SUPER+V is float toggle)
 hl.bind(M .. " + SHIFT + V", hl.dsp.exec_cmd("qs ipc call clip toggle"))
 hl.bind(M .. " + M",       hl.dsp.exec_cmd("qs ipc call ctrl toggle"))

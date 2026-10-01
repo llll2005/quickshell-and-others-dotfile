@@ -7,6 +7,7 @@ import Quickshell
 import "widgets"
 import "components"
 import "settings"
+import "services"
 
 ShellRoot {
     ThemeManager {}     // theme IPC + fcitx5 / Hyprland colour sync
@@ -25,6 +26,9 @@ ShellRoot {
     ControlCenter {}    // system controls       qs ipc call ctrl toggle
     Clipboard {}        // clipboard history     qs ipc call clip toggle
     WsMover {}          // move a workspace      qs ipc call wsmove open
+    SettingsPanel {}    // every switch + health qs ipc call settings toggle — always on, no option disables it
 
-    Component.onCompleted: Fx.init()   // shared effects layer (click / typing bursts)
+    // the effects layer (click / typing bursts), and the helpers every feature needs
+    // (the Hyprland plugin, the cliphist watchers) checked and started with the shell
+    Component.onCompleted: { Fx.init(); Health.init() }
 }

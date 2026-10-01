@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Io
+import "../services"
 import "../settings"
 import "../theme"
 
@@ -31,6 +32,11 @@ Scope {
     // re-sent now and then: the plugin may load after the shell, or be reloaded
     Timer { id: holdT; interval: 500; running: true; onTriggered: { holdP.running = false; holdP.running = true; interval = 20000; restart() } }
     onOpenOnChanged: holdT.restart()
+    // the plugin was (re)loaded — by services/Health.qml, or a rebuild: it starts at hold 0
+    Connections {
+        target: Health
+        function onPluginChanged() { if (Health.plugin) { holdP.running = false; holdP.running = true } }
+    }
 
     signal play(string kind, string addr, string mon, real x, real y, real w, real h, real mw)
     property var _opening: ({})        // addr → time: no lock-on during its own assembly

@@ -94,6 +94,7 @@ Take these from `hypr/`:
 | `SUPER+M` | Control Center |
 | `Print` / `SUPER+Print` | capture panel / stop recording |
 | `SUPER+SHIFT+V` | clipboard |
+| `SUPER+ALT+S` | settings: every feature switch, plus the helpers' status and repair |
 | ``SUPER+` `` · ``SUPER+SHIFT+` `` · ``SUPER+CTRL+` `` | HUD workspace grid · stats · show / hide |
 | `SUPER+SHIFT+L` · `SUPER+SHIFT+N` | lyrics on / off · now-playing card |
 | `SUPER+P` | media player |
@@ -103,6 +104,9 @@ Everything is also an IPC call: `qs ipc show` lists them, e.g. `qs ipc call them
 
 ## Configure
 
+The **settings panel** (`SUPER+ALT+S`) switches every feature and adjusts the main options,
+and shows whether the helpers the features need are running (the Hyprland plugin, the
+cliphist watchers, fcitx5), with one-key repair. It writes to the same file:
 `quickshell/config/shell.conf` holds every option, with comments; saving it applies at once:
 the theme, HUD timing, backdrop look, effects (click bursts, window open / close / focus),
 IME panel, lyrics, capture, notifications, player.
