@@ -57,7 +57,7 @@ Popup {
     property real   flashV: 0
     property real   hitT:   0     // launch hit-stop: the selector pops and holds
     property bool   _busy:  false
-    property string _launchCmd: ""
+    property var    _entry: null
 
     // Apps
     property var  apps: []
@@ -77,14 +77,136 @@ Popup {
         return catOrder.filter(function(k) { return present[k] })
     }
 
-    readonly property var filteredApps: {
-        var q = searchQuery.toLowerCase().trim()
-        return apps.filter(function(a) {
-            var catOk = listCat === "all" || a.cat === listCat
-            var qOk = !q || a.name.toLowerCase().indexOf(q) >= 0 || a.meta.toLowerCase().indexOf(q) >= 0
-            return catOk && qOk
-        })
+    // ── Search modes ──
+    //   text          apps, ranked by how well they match, then how often you launch them
+    //   = / 12*3 / 5 km to mi   calculator (qalc) on top; ↵ copies the result
+    //   /name         files under ~ (fd); ↵ opens
+    //   :name         emoji & kaomoji (assets/data/emoji.tsv); ↵ copies
+    readonly property string q: searchQuery.trim()
+    readonly property string mode: q.charAt(0) === "=" ? "calc"
+        : q.charAt(0) === "/" ? "file"
+        : q.charAt(0) === ":" ? "emoji"
+        : ((/^[\d\s.,+\-*\/^%()]+$/.test(q) && /\d/.test(q) && /[+\-*\/^%]/.test(q))
+           || /^\d[\d.,]*\s*[^\d\s]+\s+(to|in)\s+\S+/i.test(q)) ? "math" : "apps"
+    readonly property string modeLabel: ({ calc: "CALC", math: "CALC", file: "FILES", emoji: "EMOJI" })[mode] || ""
+
+    // launch counts (Quickshell's state dir), for the ranking
+    property var launchCounts: ({})
+    FileView {
+        id: countsFile
+        path: Quickshell.statePath("launch-counts.json")
+        printErrors: false
+        atomicWrites: true
+        onLoaded: { try { root.launchCounts = JSON.parse(text()) } catch (e) {} }
     }
+    function _bump(id) {
+        var c = Object.assign({}, launchCounts)
+        c[id] = (c[id] || 0) + 1
+        launchCounts = c
+        countsFile.setText(JSON.stringify(c))
+    }
+
+    readonly property var appResults: {
+        var qq = mode === "apps" || mode === "math" ? q.toLowerCase() : ""
+        var list = []
+        for (var i = 0; i < apps.length; i++) {
+            var a = apps[i]
+            if (listCat !== "all" && a.cat !== listCat) continue
+            var score = 0
+            if (qq) {
+                var n = a.name.toLowerCase(), m = a.meta.toLowerCase()
+                if (n.indexOf(qq) === 0) score = 3
+                else if ((" " + n).indexOf(" " + qq) >= 0) score = 2
+                else if (n.indexOf(qq) >= 0 || m.indexOf(qq) >= 0) score = 1
+                else continue
+            }
+            list.push({ a: a, s: score, c: launchCounts[a.meta] || 0 })
+        }
+        list.sort(function(x, y) { return (y.s - x.s) || (y.c - x.c) || x.a.name.localeCompare(y.a.name) })
+        return list.map(function(e) { return e.a })
+    }
+
+    // calculator
+    readonly property string calcExpr: mode === "calc" ? q.substring(1).trim() : mode === "math" ? q : ""
+    property string calcResult: ""
+    onCalcExprChanged: { calcResult = ""; if (calcExpr !== "") calcT.restart() }
+    Timer { id: calcT; interval: 120; onTriggered: { calcP.running = false; calcP.running = true } }
+    Process {
+        id: calcP
+        command: ["qalc", "-t", root.calcExpr]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var lines = this.text.trim().split("\n")
+                root.calcResult = lines.length ? lines[lines.length - 1].trim() : ""
+            }
+        }
+    }
+    readonly property var calcEntry: ({
+        kind: "calc", name: calcResult !== "" ? calcResult : "…", meta: calcExpr + " =",
+        icon: "=", iconSrc: "", cat: "CALC", payload: calcResult
+    })
+
+    // files
+    property var fileResults: []
+    readonly property string filePattern: mode === "file" ? q.substring(1).trim() : ""
+    onFilePatternChanged: { if (filePattern === "") fileResults = []; else fileT.restart() }
+    Timer { id: fileT; interval: 180; onTriggered: { fileP.running = false; fileP.running = true } }
+    Process {
+        id: fileP
+        command: ["fd", "--max-results", "60", "--color", "never", "--absolute-path", root.filePattern, Quickshell.env("HOME")]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var home = Quickshell.env("HOME"), out = []
+                var lines = this.text.split("\n")
+                for (var i = 0; i < lines.length; i++) {
+                    var p = lines[i].trim()
+                    if (!p) continue
+                    var dir = p.charAt(p.length - 1) === "/"
+                    var clean = dir ? p.substring(0, p.length - 1) : p
+                    out.push({ kind: "file", name: clean.split("/").pop(), meta: clean.replace(home, "~"),
+                               icon: dir ? "▤" : "·", iconSrc: "", cat: dir ? "DIR" : "FILE", payload: clean })
+                }
+                root.fileResults = out
+            }
+        }
+    }
+
+    // emoji & kaomoji
+    property var emojiData: []
+    FileView {
+        id: emojiFile
+        path: root.mode === "emoji" || root.emojiData.length > 0 ? Quickshell.shellDir + "/assets/data/emoji.tsv" : ""
+        printErrors: false
+        onLoaded: {
+            var out = [], lines = text().split("\n")
+            for (var i = 0; i < lines.length; i++) {
+                var t = lines[i].indexOf("\t")
+                if (t > 0) out.push({ c: lines[i].substring(0, t), w: lines[i].substring(t + 1) })
+            }
+            root.emojiData = out
+        }
+    }
+    readonly property var emojiResults: {
+        if (mode !== "emoji") return []
+        var words = q.substring(1).trim().toLowerCase().split(/\s+/).filter(function(w) { return w })
+        var out = []
+        for (var i = 0; i < emojiData.length && out.length < 80; i++) {
+            var e = emojiData[i], ok = true
+            for (var k = 0; k < words.length; k++) if (e.w.indexOf(words[k]) < 0) { ok = false; break }
+            if (!ok) continue
+            var kao = e.w.indexOf("kaomoji") === 0
+            out.push({ kind: "emoji", name: kao ? e.c : e.w, meta: kao ? e.w.replace("kaomoji 顏文字 ", "") : "↵ copy",
+                       icon: kao ? "☺" : e.c, iconSrc: "", cat: kao ? "KAOMOJI" : "EMOJI", payload: e.c })
+        }
+        return out
+    }
+
+    // what the list shows
+    readonly property var results: mode === "file" ? fileResults
+        : mode === "emoji" ? emojiResults
+        : mode === "calc" ? [calcEntry]
+        : mode === "math" ? [calcEntry].concat(appResults)
+        : appResults
 
     // The app's own icon: Icon= (a path, or a name in the icon theme — see the
     // IconTheme pragma in shell.qml), else the real binary's name, the desktop id,
@@ -338,7 +460,7 @@ Popup {
                             Column {
                                 anchors { left:parent.left; leftMargin:22; bottom:parent.bottom; bottomMargin:6 }
                                 spacing:4
-                                Text { text:root.filteredApps.length+"/"+root.apps.length+" NODES"; font.pixelSize:8; font.letterSpacing:2; color:root.inkSoft; opacity:0.6 }
+                                Text { text:root.results.length+"/"+root.apps.length+" NODES"; font.pixelSize:8; font.letterSpacing:2; color:root.inkSoft; opacity:0.6 }
                                 Rectangle {
                                     width:72; height:2; color:root.lineSoft
                                     Rectangle {
@@ -387,7 +509,11 @@ Popup {
                                 anchors { left:parent.left; right:parent.right; verticalCenter:parent.verticalCenter
                                           leftMargin:24; rightMargin:24 }
                                 spacing:10
-                                Text { anchors.verticalCenter:parent.verticalCenter; text:"▸"; font.pixelSize:12; color:root.accent }
+                                Text {
+                                    anchors.verticalCenter:parent.verticalCenter
+                                    text: root.modeLabel !== "" ? root.modeLabel : "▸"
+                                    font.pixelSize: root.modeLabel !== "" ? 9 : 12; font.letterSpacing: 2; color:root.accent
+                                }
                                 FocusScope {
                                     id:searchScope; width:parent.width-60; height:30
                                     anchors.verticalCenter:parent.verticalCenter
@@ -412,12 +538,12 @@ Popup {
                                             appList.positionViewAtIndex(root.focusIdx, ListView.Contain)
                                         }
                                         Keys.onDownPressed: {
-                                            root.focusIdx=Math.min(root.filteredApps.length-1,root.focusIdx+1)
+                                            root.focusIdx=Math.min(root.results.length-1,root.focusIdx+1)
                                             appList.positionViewAtIndex(root.focusIdx, ListView.Contain)
                                         }
                                         Keys.onReturnPressed: {
-                                            var a=root.filteredApps[root.focusIdx]
-                                            if(a) root.fireLaunch(a.desktopId)
+                                            var a=root.results[root.focusIdx]
+                                            if(a) root.fireResult(a)
                                         }
                                         Keys.onLeftPressed:  root.stepCat(-1)
                                         Keys.onRightPressed: root.stepCat(1)
@@ -425,7 +551,7 @@ Popup {
                                         Text {
                                             visible:parent.text===""
                                             anchors.verticalCenter:parent.verticalCenter
-                                            text:"search application..."
+                                            text:"search apps ·  = calc ·  / files ·  : emoji"
                                             font.pixelSize:13; font.italic:true; font.weight:Font.Light
                                             color:root.inkSoft; opacity:0.5
                                         }
@@ -438,7 +564,7 @@ Popup {
                         // List
                         ListView {
                             id:appList; width:parent.width; height:parent.parent.height-46
-                            clip:true; model:root.filteredApps; keyNavigationEnabled:false
+                            clip:true; model:root.results; keyNavigationEnabled:false
 
                             SpringSelector {
                                 id: appSel
@@ -446,7 +572,7 @@ Popup {
                                 width: appList.width; rowH: root.rowH
                                 targetY: root.focusIdx * root.rowH
                                 hitT: root.hitT; flashV: root.flashV; pulse: root.pulse
-                                visible: root.filteredApps.length > 0
+                                visible: root.results.length > 0
                                 opacity: 1 - root.listOut
                             }
                             // where the launch burst comes from: the focused row's icon (its target row)
@@ -478,7 +604,7 @@ Popup {
 
                                 Rectangle {
                                     anchors.bottom:parent.bottom
-                                    visible: index<root.filteredApps.length-1
+                                    visible: index<root.results.length-1
                                     x:24; width:parent.width-48; height:1; color:root.lineSoft; opacity:0.5
                                 }
 
@@ -493,7 +619,7 @@ Popup {
 
                                     Text {
                                         anchors.verticalCenter:parent.verticalCenter
-                                        text:modelData.id; width:22; font.pixelSize:9; font.letterSpacing:1.5
+                                        text:String(index + 1).padStart(2, "0"); width:22; font.pixelSize:9; font.letterSpacing:1.5
                                         color: appDelegate.isFocused ? root.paperA(0.5) : root.inkSoft
                                         Behavior on color { ColorAnimation { duration:120 } }
                                     }
@@ -530,7 +656,7 @@ Popup {
                                             Behavior on scale { NumberAnimation { duration: 240; easing.type: Easing.OutBack } }
                                         }
                                         Text {
-                                            anchors.centerIn:parent; text:modelData.icon; font.pixelSize:12
+                                            anchors.centerIn:parent; text:modelData.icon; font.pixelSize: modelData.kind === "emoji" ? 15 : 12
                                             visible: appIcon.status !== Image.Ready
                                             color: appDelegate.isFocused ? root.paperA(0.95) : root.ink
                                             Behavior on color { ColorAnimation { duration:120 } }
@@ -568,12 +694,12 @@ Popup {
                                 MouseArea {
                                     id:appMA; anchors.fill:parent; hoverEnabled:true
                                     onEntered: if (!root._busy) root.focusIdx=index
-                                    onClicked: { root.focusIdx = index; root.fireLaunch(modelData.desktopId) }
+                                    onClicked: { root.focusIdx = index; root.fireResult(modelData) }
                                 }
                             }
 
                             Item {
-                                visible: root.filteredApps.length===0 && root.appsLoaded
+                                visible: root.results.length===0 && root.appsLoaded
                                 width:appList.width; height:60
                                 Text { anchors.centerIn:parent; text:"▸ NO RESULTS"; font.pixelSize:10; font.letterSpacing:3; color:root.inkSoft; opacity:0.5 }
                             }
@@ -695,15 +821,22 @@ Popup {
             SequentialAnimation {
                 NumberAnimation { target: root; property: "hitT"; from: 0; to: 1; duration: 45; easing.type: Easing.OutQuad }
                 PauseAnimation { duration: 65 }
-                ScriptAction { script: root.launchApp(root._launchCmd) }
+                ScriptAction { script: root._run(root._entry) }
                 NumberAnimation { target: root; property: "hitT"; to: 0; duration: 220; easing.type: Easing.OutCubic }
             }
         }
     }
-    function fireLaunch(cmd) {
-        if (!cmd || root._busy || root.phase !== "open") return
-        root._busy = true; root._launchCmd = cmd
+    function fireResult(e) {
+        if (!e || root._busy || root.phase !== "open") return
+        if (e.kind === "calc" && root.calcResult === "") return
+        root._busy = true; root._entry = e
         launchConfirm.restart()
+    }
+    function _run(e) {
+        if (!e.kind) { root._bump(e.meta); root.launchApp(e.cmd); return }   // an app
+        if (e.kind === "file") Quickshell.execDetached(["xdg-open", e.payload])
+        else Quickshell.execDetached(["wl-copy", "--", e.payload])          // calc result / emoji
+        root.close()
     }
 
     // ── Diamond iris (reveal mask, components/shaders/reveal.frag) ──
