@@ -4,7 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A NieR:Automata-themed desktop shell built with [Quickshell](https://quickshell.hyprland.org/) for Hyprland/Wayland. All UI is QML; system data is polled via `Process` spawning shell commands. The `nierlock/` directory is a separate git repo (lockscreen-only Quickshell instance).
+A NieR:Automata-themed desktop shell built with [Quickshell](https://quickshell.hyprland.org/) for Hyprland/Wayland. All UI is QML; system data comes from Quickshell's native modules (Pipewire, MPRIS, UPower, NetworkManager, BlueZ, Hyprland IPC) wherever they exist, and from `Process`/`FileView` otherwise. `nierlock/` is a git submodule (xendak/nierlock, the F4 lockscreen).
+
+**Repository:** this folder is `quickshell/` of the dotfiles repo
+`git@github.com:llll2005/quickshell-and-others-dotfile.git`, together with `~/.config/hypr`
+(`hypr/`), the root `README.md` and `dotfiles/` (screenshots, `install.sh`, the `dot` wrapper).
+It is a **bare repo** (`~/.dotfiles.git`) whose work tree is `~/.config`: there is no `.git`
+here, so use **`dot`** (`~/.local/bin/dot` → `~/.config/dotfiles/dot`) instead of `git`:
+`dot status`, `dot add quickshell/widgets/X.qml`, `dot commit`, `dot push`. Untracked files are
+hidden (`status.showUntrackedFiles no`) — new files need an explicit `dot add`. Never commit
+`secrets/` (Google OAuth for gtasks/gcal), the third-party art in `assets/` (calendar months,
+companion gifs, `nier-arrow.png`; all gitignored and purged from history) or `_attic/`
+(retired code kept locally). The pre-merge local repos are backed up in
+`~/.local/state/dotfiles-migration/`.
 
 ## Running and reloading
 
@@ -15,9 +27,12 @@ qs
 # Reload after editing (Quickshell watches files, but a full restart is sometimes needed)
 pkill qs && qs
 
-# Run the lockscreen standalone
-~/.config/quickshell/lock.sh          # full video reveal (~4s)
-~/.config/quickshell/lock.sh --fast   # static PNG, faster
+# Run the lockscreen standalone (also the launcher's LOCK)
+~/.config/quickshell/scripts/lock.sh          # full video reveal (~4s)
+~/.config/quickshell/scripts/lock.sh --fast   # static PNG, faster
+
+# The Hyprland plugin (hypr-plugin/imecaret): swap a fresh build into the running Hyprland
+make -C ~/.config/quickshell/hypr-plugin/imecaret reload
 
 # Run the nierlock variant directly
 QT_MEDIA_BACKEND=ffmpeg qs -p nierlock/shell.qml
@@ -26,24 +41,26 @@ QT_MEDIA_BACKEND=ffmpeg qs -p nierlock/shell.qml
 ## IPC commands
 
 ```bash
-qs ipc call menu toggle        # open/close app launcher
-qs ipc call ctrl toggle        # open/close ControlCenter
-qs ipc call ctrl hide
-qs ipc call bar toggle         # force-show / hide the auto-hide TopBar
-qs ipc call bar hide
-
-qs ipc call player toggle      # show/hide the media Player
-qs ipc call player hide
-qs ipc call player front       # toggle Player z-order (above/below windows)
+qs ipc call menu toggle        # app launcher (= calc · / files · : emoji)
+qs ipc call capture toggle     # capture panel; capture stop · capture style <wipe|rise|scan|iris|blinds>
+qs ipc call ctrl toggle        # ControlCenter (also hide)
+qs ipc call clip toggle        # clipboard history (cliphist)
+qs ipc call wsmove open        # move every window of this workspace to another
+qs ipc call player toggle      # media player; hide · front (above/below windows)
 
 qs ipc call hud toggle         # CornerHud workspace selector (5×5 grid)
 qs ipc call hud stats          # CornerHud stat cluster (SYSTEM/MEDIA/NET/WEATHER/TODO)
 qs ipc call hud visible        # show/hide the whole CornerHud
 qs ipc call hud close          # collapse selector + stats
+qs ipc call hud osd <vol|bri|mic|caps|ime>
+qs ipc call hud lyrics         # synced lyrics on/off · hud nowPlaying · hud lyricsInfo
+
+qs ipc call theme set <name>   # theme preview; reset · list · current
+qs ipc call notifs getHistory  # dismissKey/invokeKey <id@ts> · clearAll · setDnd/toggleDnd
 ```
 
 > **A function named `show` can't be called from the CLI**: `qs ipc call <target> show`
-> prints the target's function list instead (qs 0.3.1). `ctrl`/`bar`/`player` still declare
+> prints the target's function list instead (qs 0.3.1). `ctrl`/`player`/`hud` still declare
 > `show()`, but reach them with `toggle` (or rename the function).
 
 CornerHud keybinds (hyprland binds/dispatchers.lua): `SUPER+\`` = workspace selector,
@@ -68,11 +85,19 @@ it slides in — anything that should make it appear must be a term in it:
 - `peeked` — pointer on the edge `trigger` strip or the `catcher`, cleared by `peekHideT` (1.4 s)
 - `statsExpanded` — pointer on the frame itself
 - `statsPinned` / `wspMode` / `todoEditing` — IPC or keyboard
-- `osdMode !== ""` — **volume/brightness OSD**; `_osdT` (1.7 s) clears it and the HUD slides back out
+- `osdMode !== ""` — **the OSD** (vol · bri · mic · caps · ime); `_osdT` (1.7 s) clears it and the HUD slides back out
+- `mediaShow` — the **media block** under the header: a now-playing card for 4.2 s on
+  `Media.trackChanged` (`[hud] trackToast`), and the synced lyric line while `Lyrics.on`,
+  lyrics were found and the player plays (current line wrapping to 2 lines, its progress,
+  the next line; a click toggles `Lyrics.on`). It stays on the Top layer (not Overlay).
 
-OSD sources: `Audio` volume/mute signals fire it natively (so the media keys need no
-binding), while brightness keys must call `qs ipc call hud osd bri` — `Backlight` only
-polls every 4 s, and binding on its `value` would also pop the HUD on hypridle dimming.
+OSD sources: `Audio` volume/mute and **mic** mute signals fire it natively (so the media keys
+need no binding); **ime** fires on `Ime.switched` (the kimpanel bridge forwards fcitx5's
+`/Fcitx/im` property only when the input method really changes); **caps** comes from a
+non-consuming Hyprland bind on Caps_Lock (`qs ipc call hud osd caps`) and reads the keyboard
+LEDs (`/sys/class/leds/*::capslock`) 60 ms later — sysfs doesn't notify. Brightness keys must
+call `qs ipc call hud osd bri` — `Backlight` only polls every 4 s, and binding on its `value`
+would also pop the HUD on hypridle dimming.
 
 Two geometry rules the input mask depends on:
 - `trigger.width` must be **≥ the frame's 8 px right inset**, else the pixels between
@@ -82,26 +107,37 @@ Two geometry rules the input mask depends on:
   screen height while the frame is a small box at the top, so without a hold-open region
   the pointer reveals the HUD low down and loses it on the way up.
 
-> The old `/tmp/qs-toggle` / `qs-front` / `qs-menu` file-polling IPC (200 ms `wc -l`
-> loop) was removed — Player visibility/z-order now go through the `player`
-> `IpcHandler` above, matching `menu`/`ctrl`/`bar`/`capture`.
-
 ## Popup windows (layer surfaces)
 
-- Menu / ScreenCapture / WsMover / ControlCenter are **mapped only while open**
-  (`visible:` on the PanelWindow) and live on the **Overlay** layer — Hyprland draws fullscreen
-  windows above the Top layer, so Top-layer popups vanish behind e.g. a fullscreen browser.
-  CornerHud stays on Top for edge-hover and switches to Overlay only for keybind/IPC/OSD reveals.
+- **Every popup is a `components/Popup.qml`** (Menu, ScreenCapture, ControlCenter, WsMover,
+  Clipboard): a PanelWindow subtype that owns one Overlay surface, mapped only while needed and
+  **moved to the focused screen on every `open()`** (`screen = focusedScreen()`; no per-screen
+  Variants), the lifecycle `closed → arming → open → closing → closed`, the glass backdrop
+  (`backdrop` alias), a MapGate, the warm-up render, the rhythm clock (`t`, `beatPhase`,
+  `beatIndex`, `pulse`) and a HitBurst (`burst`). A panel declares its content inside (the
+  `default` property routes it to an inner item) and handles `onOpening` (reset), `onIntro`
+  (reveal), `onOutro` (hide, then `panelGone()` — or `autoPanelGone: true`) and `onFinished`.
+  `introReady` holds the intro (ScreenCapture waits for its freeze PPM), `clickOutCloses`,
+  `grabKeyboard`, `dimAmount` configure it; each panel owns its `IpcHandler`.
+  - Don't redeclare base names in a panel: `phase`, `shown`, `open()`/`close()`, `closed`
+    (that one clashes with the window's own signal — the base uses `finished`).
+  - Inside a panel, **refer to the base's parts as `root.backdrop` / `root.burst`**: a bare
+    `backdrop` inside e.g. `HitBurst { backdrop: backdrop }` resolves to HitBurst's own
+    (null) property — that silently lost ControlCenter's shock ring once.
+  - Shared panel pieces: `PaperCard` (paper, grid, glass rim, diamond corners), `IrisHost`
+    (the diamond-iris / scan / blinds reveal mask: `reveal()`, `conceal()`, `midReveal`),
+    `SpringSelector` (ink selector + two afterimages + sheen + hit-stop pop), `CatTab`.
+- Overlay, not Top: Hyprland draws fullscreen windows above the Top layer, so Top-layer
+  popups vanish behind e.g. a fullscreen browser. CornerHud stays on Top for edge-hover and
+  switches to Overlay only for keybind/IPC/OSD reveals.
 - Keep the default `quickshell` layer namespace. Hyprland's only `no_anim` layer rule
   (`~/.config/hypr/ui/rules.lua`) matches `^quickshell$`; any other namespace gets the jelly
   `slidefade` layer animation on every map — a full-screen panel then visibly lurches.
 - A reveal on a freshly mapped surface must wait for its first frame (`components/MapGate.qml`),
   or the front-loaded OutExpo part of the slide is lost.
 - Such a window also gets its **size** a moment after it is shown, so anything laid out on
-  "open" sees 0×0 first. `NierTriBg` (widgets/ and the region/ copy) defers its grid until
-  the size arrives — otherwise only a 2×2 corner of triangles appears.
-- **One backdrop for every popup: `components/GlassBackdrop.qml`** (ScreenCapture, Menu, ControlCenter,
-  WsMover). It freezes a frame of the popup's screen and draws `TriField` over it; the look — grid,
+  "open" sees 0×0 first: size from `screenW`/`screenH` (the screen), not the window.
+- **One backdrop for every popup: `components/GlassBackdrop.qml`** (inside Popup). It freezes a frame of the popup's screen and draws `TriField` over it; the look — grid,
   palette, contrast, dark-pane share, pane offset/refraction, glare, stars, flicker, unfold/scatter
   timing — lives only in `TriField.qml` + `shaders/tri.frag`, so edit there and all popups follow.
   Popups keep their own content hidden until `frameReady()` (or ~350 ms) and unmap only after
@@ -124,38 +160,56 @@ Two geometry rules the input mask depends on:
 - **A `ListView` does not move declared children into its content item** (a plain `Flickable`
   does). Anything that must scroll with the rows — Menu's selector, its afterimages, the burst
   anchor — needs `parent: appList.contentItem`, or it drifts off once the list scrolls.
-- Close functions must set the "closing" flag **before** clearing the "open" flag: the
-  window's `visible` is `open || closing`, and one false evaluation destroys and re-creates
-  the layer surface (a one-frame flash + ~30 ms stall).
+- `mapped` must never read false mid-close: one false evaluation destroys and re-creates
+  the layer surface (a one-frame flash + ~30 ms stall). Popup's single `phase` goes straight
+  from open to closing, which is why it is one string and not two flags.
+- **Window effects: `widgets/WindowFx.qml`**, driven by the imecaret plugin's
+  `winfx>>open|close|focus,ADDR,X,Y,W,H[,why]` (windows on visible workspaces only):
+  - open: `hyprctl winfx hold 900` (re-sent every 20 s — the plugin may load after the
+    shell) keeps a new window invisible (its LAYOUT alpha at 0). A live ScreencopyView of
+    the window itself (its Toplevel via `Hyprland.toplevels[addr].wayland`; content ~150 ms
+    in, even while held) feeds `shaders/rain.frag`: cells fall from above, bottom row first,
+    land with a flash and sharpen; then `hyprctl winfx release <addr>` shows the real window
+    and the lock-on brackets snap onto it. No content within 300 ms: it rains paper.
+  - close: a **one-shot ScreencopyView of the screen per close** (frozen while Hyprland still
+    draws the closing window; ~50 ms), cut to the window (a ShaderEffectSource with
+    `hideSource` — an invisible source item renders nothing) and melted by
+    `shaders/melt.frag`. Needs Hyprland's close *slide* off: theme-sync writes `windowFx`
+    into `hypr/ui/qs_theme.lua`, and `animations.lua` then uses `popin 100%` for windowsOut
+    (disabling it outright drops the closing window at once, before the frame is taken).
+  - focus: NieR brackets on a spring; not for focus-follows-mouse (`why === "ffm"`) unless
+    `[effects] focusReticleHover`. Focus events wait 60 ms: a new window's focus arrives
+    before its open, and the rain locks on at the end instead.
+  - Over fullscreen workspaces nothing plays (the hold still applies).
 
 ## Architecture
 
-`shell.qml` is the `ShellRoot` entry point. Its first line, `//@ pragma IconTheme breeze`, gives Qt an icon theme (without it only hicolor resolves: ~70 % of app icons, none of the preferences-*/device ones). **Pragmas are read only at startup** — a hot reload ignores changes; restart `qs` with the running one's environment (`/proc/<pid>/environ`: it carries `QT_SCALE_FACTOR` etc.). It holds global playerctl state and spawns widgets as `Variants { model: Quickshell.screens }` so each widget appears on every monitor.
+`shell.qml` is the `ShellRoot` entry point and only lists the parts; each part owns its windows, IPC and data (`ThemeManager`, `CornerHud`, `Notifications`, `ImePanel`, `Player`, `Companions`, `WindowFx`, then the popups). Its first line, `//@ pragma IconTheme breeze`, gives Qt an icon theme (without it only hicolor resolves: ~70 % of app icons, none of the preferences-*/device ones). **Pragmas are read only at startup** — a hot reload ignores changes; restart `qs` with the running one's environment (`/proc/<pid>/environ`: it carries `QT_SCALE_FACTOR` etc.). Resident parts use `Variants { model: Quickshell.screens }`; popups are one window that moves to the focused screen.
 
 ### Widget map
 
 | File | What it does |
 |------|-------------|
-| `widgets/TopBar.qml` | Auto-hide full-width bar (hover top strip / `qs ipc call bar toggle`). Polls CPU/GPU/WiFi/BT/Battery/Brightness via separate `Process` instances (volume now from `Audio` service). Reveal/hide is a vertical curtain wipe (OutQuint; reveal top→bottom, hide bottom→top). Active only when `Settings.cornerHudEnabled` is false — every poll `Timer`, its `nmcli monitor` and the Hyprland `rawEvent` handler are gated on `barActive`, so new pollers must be too. |
-| `widgets/CornerHud.qml` | Alternative compact NieR bracket HUD, top-right, floating (no exclusion zone). Parks off the right edge; hovering the edge strip slides it in, hovering the frame expands to CPU/GPU/volume/battery. Doubles as the **volume/brightness OSD** — see below. Data from `Sys`/`Audio`/`Battery` services + native `Hyprland`. Active when `Settings.cornerHudEnabled` is true (default). |
-| `widgets/ScreenCapture.qml` | Capture panel (`qs ipc call capture toggle`, Print). Categories 複製 (default page on every open) / 截圖 / 錄影 / OCR / 色彩; number keys fire rows, ←/→ or a two-finger horizontal swipe change category (sidebar fill, marker spin and list slide all move in that direction), F toggles the freeze frame, S replays the next open/close style (`Settings.captureOpenStyle`: wipe/rise/scan/iris/blinds, or `qs ipc call capture style <id>`). Open = map transparent ("arming") → `grim -t ppm` freeze frame of this monitor → intro. Region selection runs **in the same window** (phase `selecting`): the panel steps aside and the backdrop becomes the selection layer (exact spotlight via TriField `selection`, crosshair, magnifier fed by `scripts/pixel-probe.py`, W×H/ratio tag). `NIER_CROP` commands crop the freeze PPM immediately; `NIER_GEOM` ones (live grim, wf-recorder) run after the window unmaps, with layout coords from `Hyprland.monitorFor()`. `region/` (the old standalone `qs -p` overlay) is no longer used. Save/copy notifications go through `scripts/shot-notify.sh` (thumbnail + action buttons, run with `setsid -f`). Backdrop is the shared `GlassBackdrop`; a 0.7 s invisible click-through warm-up at start pre-builds its shaders. |
-| `widgets/Menu.qml` | App launcher (780×540). Same backdrop and open/close as ScreenCapture: glass TriField over a ScreencopyView frame, diamond-iris reveal, warm-up at start. Reads `.desktop` files via `list-apps.sh`. Keyboard: ↑↓ navigate, ↵ launch, ESC close, ←→ change category. |
-| `widgets/WorkspaceSwitcher.qml` | 5-card carousel shown for 2.8s on workspace change. Currently **disabled** in `shell.qml` (workspace state lives in TopBar). Still references `scripts/hypr-events.py` if re-enabled. |
-| `widgets/ControlCenter.qml` | System controls panel, toggled via `qs ipc call ctrl`. Cross layout: `top` = Wi-Fi/Bluetooth, `bottom` = audio, `left` = qshare send/receive, `right` = notifications. Three depths (`depth`): 1 = the cross, 2 = a section's sub-list, 3 = the detail panel's actions. Everything is spatial: a focused section steps out along its own direction with its ◆› marker on the outer side; ↵ or the direction toward the detail panel (left for the left section, right otherwise) goes deeper; back is Esc or the way to the cross centre (→/← for the side sections, ↓ past the last sub for the top section, ↑ past the first for the bottom one, ←/→ out of the detail panel); lists otherwise clamp. Hovering a list makes it the active one. The inactive list is dimmed; a nav bar at the bottom shows depth ◆◆◇, the path and the keys for that depth. **Wi-Fi and Bluetooth use Quickshell's native modules** (`Quickshell.Networking`, `Quickshell.Bluetooth`): event-driven, with no nmcli/bluetoothctl polling. Known (saved) or open networks `connect()` directly; only new secured ones prompt, and `connectWithPsk()`. `connectionFailed(NoSecrets)` reopens the prompt, marked "Wrong password" if a password had just been sent. Bluetooth writes `enabled` / `discovering` / `trusted` and calls `pair()` / `connect()` / `forget()`; a pair is followed by a connect once `paired` flips. Discovery goes through `btSetScan()`: it keeps the requested state (the adapter's `discovering` only updates when BlueZ answers), retries once when StartDiscovery bounces with InProgress, and stops after 30 s or when the panel closes. The rows are rebuilt only when their visible content changes (a JSON signature; Wi-Fi signal as 0–3 bars). Shell commands run through `Quickshell.execDetached`: the old shared `actProc` silently dropped a command while a previous one, like a slow `bluetoothctl connect`, was still running. That was the "Enable Bluetooth does nothing" bug. Same glass TriField backdrop and shared palette as ScreenCapture/Menu; the cross stays hidden until the backdrop frame is captured (`ready`). **Hit feel** (all driven from root state, so every path — keys, clicks, the direction that goes deeper — gets it): every confirm goes through `activateCurrent()` → hit-stop (`hitT`: the focused item pops and flashes for ~0.1 s) → `confirmPulse` → the focused item answers with `impactAt(window, x, y)` from its marker → that window's `HitBurst` (rings + shards) and `backdrop.impact()` → then `_afterHit()` does the real action. Focus moves squash-and-spring the new item (`press`, via `focusScale(depth)`); sub and action lists use one sliding `SlideSel` (ink selector on a spring + two afterimages) instead of per-row fills — sub rows are split into `part: "card"` (under it) and `"face"` (over it); pressing past a list end bumps the selector (`bump`); depth changes kick the sub list and detail panel along the way you went (`kick`/`kickDir`) and pop the nav bar's depth diamond; ↵ / → with nothing to enter nudges that way instead (`blocked()`). **Notifications** (`right.history`): rows are keyed `id@ts` (never by index — the copy is a 1.5 s poll behind the daemon) and the list is only reassigned when the polled JSON changes, so rows don't rebuild; a rebuilt list skips entrances (`_seenNotif`) and rows below a removed one slide up into the gap (`_gapAt`/`_gapH`). ↵ opens a notification whose sender still listens (`live`: ◆ marker; invokes its "default" action, then closes the panel), else toggles its details; → / ← expand / collapse; DEL·X·Backspace or × dismisses (row flies out); TAB or CLEAR ALL cascades them out. |
+| `widgets/CornerHud.qml` | The compact NieR bracket HUD, top-right, floating (no exclusion zone). Parks off the right edge; hovering the edge strip slides it in, hovering the frame expands the stats. Doubles as the **OSD** and shows the **now-playing card / synced lyrics** — see above. Data from the services + native `Hyprland`. `[hud] enabled` (default true). |
+| `widgets/ScreenCapture.qml` | Capture panel (`qs ipc call capture toggle`, Print). Categories 複製 (default page on every open) / 截圖 / 錄影 / OCR / 色彩; number keys fire rows, ←/→ or a two-finger horizontal swipe change category (sidebar fill, marker spin and list slide all move in that direction), F toggles the freeze frame, S replays the next open/close style (`Settings.captureOpenStyle`: wipe/rise/scan/iris/blinds, or `qs ipc call capture style <id>`). Open = map transparent ("arming") → `grim -t ppm` freeze frame of this monitor → intro. Region selection runs **in the same window** (phase `selecting`): the panel steps aside and the backdrop becomes the selection layer (exact spotlight via TriField `selection`, crosshair, magnifier fed by `scripts/pixel-probe.py`, W×H/ratio tag). `NIER_CROP` commands crop the freeze PPM immediately; `NIER_GEOM` ones (live grim, wf-recorder) run after the window unmaps, with layout coords from `Hyprland.monitorFor()`. Region selection is a mode of the open phase (`selecting`), not a phase. Save/copy notifications go through `scripts/shot-notify.sh` (thumbnail + action buttons, run with `setsid -f`). A Popup; its IPC (`toggle`/`stop`/`style`) is in the file. |
+| `widgets/Menu.qml` | App launcher (780×540), a Popup with an `IrisHost` reveal. Reads `.desktop` files with `scripts/list-apps.py` (`name\|id\|categories\|icon\|binary\|exec`, ~30 ms) and resolves icons with `Quickshell.iconPath()` (Icon=, the binary, the desktop id, `-symbolic`; a glyph otherwise). **Modes** by the query: text → apps ranked by match (prefix > word start > substring), then launch count (`Quickshell.statePath("launch-counts.json")`), then name in code-point order (`localeCompare` put CJK first); `=…`, plain arithmetic or `N unit to unit` → a qalc row on top (↵ copies); `/name` → `fd` under ~ (↵ `xdg-open`); `:name` → `assets/data/emoji.tsv` (emoji names from Python's unicodedata + tagged kaomoji, `scripts/gen-emoji.py`; ↵ copies). Keyboard: ↑↓ navigate, ↵ run, ESC close, ←→ change category. |
+| `widgets/Clipboard.qml` | Clipboard history (`qs ipc call clip toggle`, SUPER+SHIFT+V), a Popup built from PaperCard / IrisHost / SpringSelector / CatTab. `cliphist list` on open; ALL / TEXT / LINK / IMAGE tabs (←→), filter as you type, ↵ copies back (`cliphist decode \| wl-copy`) with the hit-stop, DEL deletes. Image thumbnails are decoded one at a time into `/tmp/qs-clip/<id>.png`; the preview pane shows the full text (decoded on focus) or the image. The watchers (`wl-paste --watch cliphist store`) run from Hyprland's autostart. |
+| `widgets/WindowFx.qml` | Window open / close / focus effects — see "Window effects" above. |
+| `widgets/ControlCenter.qml` | System controls panel, toggled via `qs ipc call ctrl`. Cross layout: `top` = Wi-Fi/Bluetooth, `bottom` = audio, `left` = qshare send/receive, `right` = notifications. Three depths (`depth`): 1 = the cross, 2 = a section's sub-list, 3 = the detail panel's actions. Everything is spatial: a focused section steps out along its own direction with its ◆› marker on the outer side; ↵ or the direction toward the detail panel (left for the left section, right otherwise) goes deeper; back is Esc or the way to the cross centre (→/← for the side sections, ↓ past the last sub for the top section, ↑ past the first for the bottom one, ←/→ out of the detail panel); lists otherwise clamp. Hovering a list makes it the active one. The inactive list is dimmed; a nav bar at the bottom shows depth ◆◆◇, the path and the keys for that depth. **Wi-Fi and Bluetooth use Quickshell's native modules** (`Quickshell.Networking`, `Quickshell.Bluetooth`): event-driven, with no nmcli/bluetoothctl polling. Known (saved) or open networks `connect()` directly; only new secured ones prompt, and `connectWithPsk()`. `connectionFailed(NoSecrets)` reopens the prompt, marked "Wrong password" if a password had just been sent. Bluetooth writes `enabled` / `discovering` / `trusted` and calls `pair()` / `connect()` / `forget()`; a pair is followed by a connect once `paired` flips. Discovery goes through `btSetScan()`: it keeps the requested state (the adapter's `discovering` only updates when BlueZ answers), retries once when StartDiscovery bounces with InProgress, and stops after 30 s or when the panel closes. The rows are rebuilt only when their visible content changes (a JSON signature; Wi-Fi signal as 0–3 bars). Shell commands run through `Quickshell.execDetached`: the old shared `actProc` silently dropped a command while a previous one, like a slow `bluetoothctl connect`, was still running. That was the "Enable Bluetooth does nothing" bug. Same glass TriField backdrop and shared palette as ScreenCapture/Menu; the cross stays hidden until the backdrop frame is captured (`ready`). **Hit feel** (all driven from root state, so every path — keys, clicks, the direction that goes deeper — gets it): every confirm goes through `activateCurrent()` → hit-stop (`hitT`: the focused item pops and flashes for ~0.1 s) → `confirmPulse` → the focused item answers with `impactAt(window, x, y)` from its marker → that window's `HitBurst` (rings + shards) and `backdrop.impact()` → then `_afterHit()` does the real action. Focus moves squash-and-spring the new item (`press`, via `focusScale(depth)`); sub and action lists use one sliding `SlideSel` (ink selector on a spring + two afterimages) instead of per-row fills — sub rows are split into `part: "card"` (under it) and `"face"` (over it); pressing past a list end bumps the selector (`bump`); depth changes kick the sub list and detail panel along the way you went (`kick`/`kickDir`) and pop the nav bar's depth diamond; ↵ / → with nothing to enter nudges that way instead (`blocked()`). **Notifications** (`right.history`) come from `services/Notifs.qml` in-process (it used to spawn `qs ipc call notifs getHistory` every 1.5 s): rows are keyed `id@ts` and the list is only reassigned when `Notifs.snapshot()`'s JSON changes (on `historyChanged` / `revisionChanged`, not while removals fly out — `_flushing`), so rows don't rebuild; a rebuilt list skips entrances (`_seenNotif`) and rows below a removed one slide up into the gap (`_gapAt`/`_gapH`). ↵ opens a notification whose sender still listens (`live`: ◆ marker; invokes its "default" action, then closes the panel), else toggles its details; → / ← expand / collapse; DEL·X·Backspace or × dismisses (row flies out); TAB or CLEAR ALL cascades them out. |
 | `widgets/ImePanel.qml` | **Caret position comes from the compositor.** On Hyprland, apps that type through `input-method-v2` (kitty, Chromium/Electron with the Wayland IME flag, GTK4…) never give fcitx5 their caret: its waylandim frontend sets no cursor rect, and only fcitx5's own popup surface gets placed there, by Hyprland. So the **`imecaret` Hyprland plugin** (`hypr-plugin/imecaret`, loaded from `~/.config/hypr/core/autostart.lua`) answers `hyprctl caret` with the focused text input's cursor box in global coords. It uses the same math as Hyprland's `CInputPopup::updateBox`: the owner surface's global box plus `cursorBox()`. The plugin also posts IPC events:
   - `imecommit>>x,y,w,h,n` when text lands in the app (Enter on the phrase, a pick), from each input method's `onCommit`;
   - `imepreedit>>…` when the preedit changes;
   - `imeenter>>…` for Enter in any text input with a caret (English too), from `Event::bus()->m_events.input.keyboard.key`, one per press within 80 ms. The bridge holds an Enter 70 ms so the commit that follows it, if any, replaces it.
 
-  Burst positions scale by the *screen* width (`modelData.width / mw`), not the window's: a window that has just been mapped is 0×0 for a moment, and a burst placed then lands in the corner. That caused the intermittent missing Enter effect. The bridge reads them from `.socket2.sock` and forwards them as `commit` messages (a HitBurst on the phrase: caret − n·h/2, skipped if a candidate pick burst < 250 ms ago) and `spark` messages (re-queried 45 ms later, once the app has moved its caret). Replacing a loaded plugin: build to another file, `hyprctl plugin unload` the old one, `load` the new one, then `mv` it over `imecaret.so`. Never rebuild a `.so` in place while it's loaded. The bridge re-reads the caret on every panel update, and again 40 / 140 ms later (apps report the new box only after drawing the preedit), falling back to fcitx5's rect when the plugin has none (XWayland / D-Bus-module apps). **Rebuild the plugin (`make` in its folder) after every Hyprland update.** It checks the version hash and refuses to load otherwise, and without it the panel sits at the last rect it knew. With `imePanelEnabled: false`, fcitx5 uses its classic window, styled by the generated `quickshell` theme (see Theme sync below), or the static `nier` one in `~/.local/share/fcitx5/themes/nier/` with `[sync] fcitx5 = false`. **fcitx5 candidate window** drawn by the shell (`Settings.imePanelEnabled`). `scripts/imepanel.py` owns the D-Bus name `org.kde.impanel` and speaks the kimpanel protocol: fcitx5 prefers kimpanel (UIPriority 50) over its classic window while the name is owned, and falls back to it the moment the bridge exits, so a dead bridge never blocks typing. The bridge streams JSON lines (table / cands / cursor / aux / preedit / spot) and takes `select N` / `prev` / `next` on stdin. Relative spot rects (Wayland clients) are made absolute with the focused window's `at` from Hyprland's socket, then made monitor-local; QML scales layout px by `width / mw` (QT_SCALE_FACTOR). The panel is a full-screen Overlay surface, mapped only while there's a panel or sparks/burst in flight, with an input mask on the card alone. Look: a paper card, an ink selector springing between candidates, pages sliding in the flip direction, a HitBurst on a pick (detected when fcitx5 empties the list, since it clears the table *before* hiding it), and diamond sparks when the caret steps along a line (`Settings.imeSparks`). **Test without a keyboard:** make a private fcitx5 input context over D-Bus (`org.fcitx.Fcitx.InputMethod1.CreateInputContext` → `FocusIn`, `SetCursorRect`, `Controller1.SetCurrentIM mcbopomofo`, `ProcessKeyEvent`). `ShareInputState=No`, so it doesn't touch the user's apps. |
-| `widgets/Player.qml` | Floating media player; toggled via `qs ipc call player toggle`. Controls + metadata use native `Quickshell.Services.Mpris` (event-driven, no `playerctl` subprocess). Cava bars stream from cava's stdout via `SplitParser`. |
+  Burst positions scale by the *screen* width (`modelData.width / mw`), not the window's: a window that has just been mapped is 0×0 for a moment, and a burst placed then lands in the corner. That caused the intermittent missing Enter effect. The bridge reads them from `.socket2.sock` and forwards them as `commit` messages (a HitBurst on the phrase: caret − n·h/2, skipped if a candidate pick burst < 250 ms ago) and `spark` messages (re-queried 45 ms later, once the app has moved its caret). Replacing a loaded plugin: `make reload` (`reload.sh`: builds a new file, unloads the old copy by its recorded load path, loads the new one). Never rebuild a `.so` in place while it's loaded. The bridge re-reads the caret on every panel update, and again 40 / 140 ms later (apps report the new box only after drawing the preedit), falling back to fcitx5's rect when the plugin has none (XWayland / D-Bus-module apps). **Rebuild the plugin (`make` in its folder) after every Hyprland update.** It checks the version hash and refuses to load otherwise, and without it the panel sits at the last rect it knew. With `imePanelEnabled: false`, fcitx5 uses its classic window, styled by the generated `quickshell` theme (see Theme sync below), or the static `nier` one in `~/.local/share/fcitx5/themes/nier/` with `[sync] fcitx5 = false`. **fcitx5 candidate window** drawn by the shell (`Settings.imePanelEnabled`). `scripts/imepanel.py` owns the D-Bus name `org.kde.impanel` and speaks the kimpanel protocol: fcitx5 prefers kimpanel (UIPriority 50) over its classic window while the name is owned, and falls back to it the moment the bridge exits, so a dead bridge never blocks typing. The bridge streams JSON lines (table / cands / cursor / aux / preedit / spot) and takes `select N` / `prev` / `next` on stdin. Relative spot rects (Wayland clients) are made absolute with the focused window's `at` from Hyprland's socket, then made monitor-local; QML scales layout px by `width / mw` (QT_SCALE_FACTOR). The panel is a full-screen Overlay surface, mapped only while there's a panel or sparks/burst in flight, with an input mask on the card alone. Look: a paper card, an ink selector springing between candidates, pages sliding in the flip direction, a HitBurst on a pick (detected when fcitx5 empties the list, since it clears the table *before* hiding it), and diamond sparks when the caret steps along a line (`Settings.imeSparks`). **Test without a keyboard:** make a private fcitx5 input context over D-Bus (`org.fcitx.Fcitx.InputMethod1.CreateInputContext` → `FocusIn`, `SetCursorRect`, `Controller1.SetCurrentIM mcbopomofo`, `ProcessKeyEvent`). `ShareInputState=No`, so it doesn't touch the user's apps. |
+| `widgets/Player.qml` / `PlayerCard.qml` | Floating media player on every screen (`qs ipc call player toggle`), fed by `services/Media.qml`. The windows are mapped only while the card is shown or sliding out (`card.mapped`); the reveal waits for MapGate. Cava bars stream from cava's stdout via `SplitParser`. |
 | `widgets/Notifications.qml` | Notification daemon + popups (top-left, `leftMargin` 24, 6 % from the top). **A popup that times out is only shelved** (hidden, out of the stack/mask) — its Notification stays tracked so the ControlCenter history can still run its actions; transient ones still close, and entries falling off the 50-item history are dismissed. DND and notifications carried over a reload (`lastGeneration`) arrive shelved (`_quiet`), with no popup. The history (minus live objects) survives config reloads via `PersistentProperties`, and carried-over notifications are relinked by id. Clicks get the shared hit feel (`HitBurst`): an action button or a body click (the default action, else close) pops the card, and ✕, a swipe or a middle/right click throw a lighter burst. **Quickshell closes a non-resident notification the instant an action is invoked, destroying its row**, so the card cuts out first and `invoke()` is the row's last act. |
-| `widgets/Companions.qml` | Animated sprites (disabled by default in Settings). |
-| `widgets/lockscreen.qml` | Standalone lockscreen, not loaded by main `shell.qml`. |
+| `widgets/Companions.qml` / `CompanionsCard.qml` | Animated sprites (`[companions] enabled`, off by default; the gifs aren't in the repo). |
+| `widgets/lockscreen.qml` | Standalone lockscreen (`scripts/lock.sh`, the launcher's LOCK), not loaded by `shell.qml`. |
 
 ### Configuration and themes (user-editable, live)
 
-- **`config/shell.conf`**: every option (`[general] theme`, `scale`, `[hud]`, `[backdrop]` opacity/dim/cellSize/flicker, `[effects]`, `[ime]`, `[sync]`, `[capture]`, `[notifications]`, `[player]`, `[companions]`).
+- **`config/shell.conf`**: every option (`[general] theme`, `scale`, `[hud]`, `[backdrop]` opacity/dim/cellSize/flicker, `[effects]` (click bursts, window open/close/focus), `[ime]`, `[lyrics]`, `[sync]`, `[capture]`, `[notifications]`, `[player]`, `[companions]`).
 - **`config/themes/<name>.conf`**: palettes. Shipped themes:
   - `nier` (default), `yorha-noir`;
   - requested: `lilac` 粉紫, `mono` 黑灰白, `crimson` 紅黑白, `jirai` 地雷系, `jirai-light` 淺色地雷系 (the only light HUD), `aha` 阿哈 (crimson/ivory/gold, from the Honkai: Star Rail card);
@@ -177,12 +231,12 @@ Two geometry rules the input mask depends on:
 
   All active widgets and components draw from these tokens. Exceptions: the HUD's month-artwork tones, the date numerals on the artwork, masks, and pure black/transparent.
   **Never name a QML property `on` + Capital** (`onPanel` was one): QML treats it as a signal handler, and the binding silently evaluates to black.
-- **Theme sync — fcitx5 and Hyprland follow the theme:** `scripts/theme-sync.py [theme]`, run by shell.qml (400 ms debounce) at start and whenever `Config.themeName`, the theme file or shell.conf changes (so `theme set` previews sync too). `[sync] fcitx5` / `hyprland` in shell.conf turn each off.
+- **Theme sync — fcitx5 and Hyprland follow the theme:** `scripts/theme-sync.py [theme]`, run by `settings/ThemeManager.qml` (400 ms debounce) at start and whenever `Config.themeName`, the theme file or shell.conf changes (so `theme set` previews sync too). `[sync] fcitx5` / `hyprland` in shell.conf turn each off.
   - fcitx5: writes the classicui theme `~/.local/share/fcitx5/themes/quickshell/` (the nier SVGs recoloured: paper, ink, accent edge, light rim), points `classicui.conf` `Theme`/`DarkTheme` at it and calls `Controller1.ReloadAddonConfig classicui`. Off → back to the static `nier` theme. It only shows when the kimpanel bridge isn't running (`[ime] panel = false`, or the bridge died).
   - Hyprland: writes `~/.config/hypr/ui/qs_theme.lua` (from the theme's `[hyprland]` section: `border` = 2–3 colours, `borderAngle`, `shadow`, optional `inactive`; defaults `light, accent` / panel at 40 % / accent) and applies it live with `hyprctl eval 'hl.config({...})'`. `ui/theme.lua` `pcall(dofile)`s it on every config load, so it survives `hyprctl reload`; off → `{ enabled = false }` + `hyprctl reload config-only`, and theme.lua falls back to its own Holographic Y2K palette.
   - Idempotent: nothing is reloaded unless a generated file changed. Its parser and fallbacks mirror Config/Theme.
 - **Theme workshop (web):** https://claude.ai/artifact/77qs2XJC3BrySY1pjNJZsW. It previews the themes on mock components, edits every token live (web only) and copies a ready `.conf`. Its parser and fallbacks mirror Config/Theme (and theme-sync.py for `[hyprland]`); keep them in step when tokens change. The page isn't kept in this folder: to change it, read it back with the Artifact tool (`action: read`), edit it, replace the `const THEMES = {…}` JSON with every `config/themes/*.conf` (name → file text), and republish to the same URL.
-- Popups pick their screen from `Hyprland.focusedMonitor` (shell.qml `focusedMonitor()`, ControlCenter `toggle()`). Before this, each open spawned `active-monitor.sh`, or hyprctl plus python.
+- Popups pick their screen from `Hyprland.focusedMonitor` (`Popup.focusedScreen()`).
 
 ### Singletons
 
@@ -193,59 +247,66 @@ Two geometry rules the input mask depends on:
 
 Shared, reactive data sources that decouple hardware state from the UI so multiple widgets stay in sync without each polling. `qmldir` declares `module Services`.
 
-- **`widgets/Notifications.qml` IPC** (`notifs`): `getHistory` (JSON, each with `key` = `id@ts` and `live`), `dismissKey`/`invokeKey <key>`, `clearAll`, `get/set/toggleDnd`. A history entry's `ref` is nulled when its Notification closes (sender, dismiss, invoke), so `live` and dismissals never touch a closed one; `invokeKey` doesn't dismiss after invoking (the invoke already closed it) except for resident ones.
-- **`services/Audio.qml`** — Volume/mute via native `Quickshell.Services.Pipewire` (`volume`, `muted`, `ready`, `setVolume()`, `toggleMute()`). Used by both TopBar and ControlCenter. Volume scale is Pipewire raw (1.0 == 100%, up to ~1.5).
-- **`services/Sys.qml`** — CPU (`/proc/stat`, jiffies delta between 2 s ticks) and RAM (`/proc/meminfo`, 3 s) read in-process via `FileView` (no fork); GPU from one long-lived `nvidia-smi -lms 2000` stream. `cpuPct`, `memPct`, `gpuPct`, `gpuMem`, `gpuTemp`, `gpuAvailable`. (TopBar binds cpu/gpu to this; only its process-lists self-poll.)
+- **`services/Notifs.qml`** — the notification history, DND and their persistence (`PersistentProperties`, survives config reloads), shared by the popups (`Notifications.qml` owns the NotificationServer and calls `Notifs.add/relink`) and the Control Center. `snapshot()` gives plain entries with `key` = `id@ts` and `live`; `removeKey(key, invoke)`, `clearAll()`; `revision` bumps when an entry's Notification closes (its `ref` is nulled then, so `live` and dismissals never touch a closed one). Also the `notifs` IPC: `getHistory`, `dismissKey`/`invokeKey <key>`, `clearAll`, `get/set/toggleDnd`.
+- **`services/Audio.qml`** — native `Quickshell.Services.Pipewire`: `volume`, `muted`, `ready`, `setVolume()`, `toggleMute()`; the mic (`source`, `micMuted`, `toggleMic()`); output devices (`sinks`, `setDefaultSink(name)` via `Pipewire.preferredDefaultAudioSink`). Volume scale is Pipewire raw (1.0 == 100%, up to ~1.5).
+- **`services/Media.qml`** — the current MPRIS player for everyone: the playing one (the last to start if several), else the last that played. `source` (SPOTIFY · YOUTUBE · BILIBILI · FIREFOX · EDGE · CHROME · the player's name, from the bus name, identity and `xesam:url`), `songTitle`/`songArtist` (video titles cleaned: 【MV】, 「Song」, `Artist【Song】`, `Artist - Song` on video sites, `- Topic`…), a debounced `trackChanged()`, and `position` ticking every 250 ms while `wantPosition > 0`.
+- **`services/Lyrics.qml`** — synced lyrics for `Media`: lrclib exact (`/api/get`), lrclib search, then NetEase search + `/api/song/lyric`; a hit must contain the title and match the artist, or the length within 2 s; a second pass with only the CJK part of mixed names; results (and misses) cached in `Quickshell.cachePath("lyrics-cache.json")` (400 newest). `on` (from `[lyrics] enabled`), `ready`, `index`, `current`, `next`, `lineProgress`; `[lyrics] offset` shifts the timing.
+- **`services/Ime.qml`** — the current fcitx5 input method (`name`, `label`) and `switched()`, written by ImePanel from the bridge.
+- **`services/Sys.qml`** — CPU (`/proc/stat`, jiffies delta between 2 s ticks) and RAM (`/proc/meminfo`, 3 s) read in-process via `FileView` (no fork); GPU from one long-lived `nvidia-smi -lms 2000` stream. `cpuPct`, `memPct`, `gpuPct`, `gpuMem`, `gpuTemp`, `gpuAvailable`.
 - **`services/Battery.qml`** — native `Quickshell.Services.UPower`. `available` (false on desktops), `percent` (0–100), `charging`. Note: Quickshell's `UPowerDevice.percentage` is a 0–1 fraction.
-- **`services/Net.qml`** — Wi-Fi/Ethernet/Bluetooth from **Quickshell's native `Networking` + `Bluetooth` modules**: bindings on NetworkManager/BlueZ D-Bus signals, no polling. Only NM's wired devices count as Ethernet, so docker/veth/bridges don't show. The IP (not exposed natively) is one `ip -j -4 addr` when the link changes, plus once a minute. `wifiOn/wifiSSID/wifiSig/wifiIP`, `ethOn/ethName/ethIP`, `btOn/btDev/btBat`. It replaced `scripts/netinfo.sh` every 5 s, a busctl BT script every 8 s, an upower pipeline and a resident `nmcli monitor`: about 250 processes a minute. Measured A/B over 40 s: 3.1–4.1 % of a core became ≈1 %. (The scripts are still used by the inactive TopBar. `nmcli dev wifi` polling there must pass `--rescan no`, or nmcli forces a scan whenever the AP list is >30 s old.)
+- **`services/Net.qml`** — Wi-Fi/Ethernet/Bluetooth from **Quickshell's native `Networking` + `Bluetooth` modules**: bindings on NetworkManager/BlueZ D-Bus signals, no polling. Only NM's wired devices count as Ethernet, so docker/veth/bridges don't show. The IP (not exposed natively) is one `ip -j -4 addr` when the link changes, plus once a minute. `wifiOn/wifiSSID/wifiSig/wifiIP`, `ethOn/ethName/ethIP`, `btOn/btDev/btBat`. It replaced `scripts/netinfo.sh` every 5 s, a busctl BT script every 8 s, an upower pipeline and a resident `nmcli monitor`: about 250 processes a minute. Measured A/B over 40 s: 3.1–4.1 % of a core became ≈1 %.
 - **`services/Backlight.qml`** — brightness via brightnessctl. `value` (0–1), `available`, `set()`.
 - **`services/Weather.qml`** — wttr.in, 20-min poll. `temp`, `desc`, `icon`, `forecast[]` (3-day), `ready`.
 - **`services/Cal.qml`** — gcalcli upcoming events (`events[]`).
 - **`services/ClaudeUsage.qml`** — scripts/claude-usage.py cost/token totals (today/week/month).
 
-`CornerHud` reaches full TopBar feature parity from these: SYSTEM (cpu/gpu/mem/top-proc) · MEDIA (vol/bri scroll-to-adjust, vol click=mute, bat) · NETWORK · WEATHER (+forecast) · CALENDAR (month + gcal) · TODO · STOPWATCH · CLAUDE. TopBar/ControlCenter still self-poll network/sys — migrate onto these services later to finish the dedup.
+CornerHud draws all of its pages from these: SYSTEM (cpu/gpu/mem/top-proc) · MEDIA (vol/bri scroll-to-adjust, vol click=mute, bat) · NETWORK · WEATHER (+forecast) · CALENDAR (month + gcal) · TODO · STOPWATCH · CLAUDE. The Control Center polls nothing on its own any more (notifications, outputs, volume from the services; the qshare event file is watched with FileView).
 
-### Color palettes (each widget uses its own)
+### Colours
 
-- **Main NieR sepia** (Settings/Theme): `fg:#c8b89a`, `bg:#0b0a09`, accents in `a1–a4`
-- **TopBar** (dark purple/pink): `cBg:#0e0914`, `cAccent:#d44090`, `cGlow:#8f1060`
-- **Menu** (warm paper): `paper:#d6cfb5`, `ink:#463f2e`, `accent:#6e2a2a`
-- **WorkspaceSwitcher** (Y2K dark): `cBg:#07040f`, `cHot:#e8246a`, `cPink:#ff6eb4`
-- **Lockscreen** (YoRHa): configured in `nierlock/Config.qml`
+Every active part draws from `theme/Theme.qml` tokens (see above); the lockscreen keeps its
+own palette in `nierlock/Config.qml`.
 
 ### Python helpers
 
-- **`scripts/hypr-events.py`** — Streams Hyprland `socket2` events to stdout, auto-reconnects. Only used by the (disabled) WorkspaceSwitcher. TopBar now uses the native `Quickshell.Hyprland` `rawEvent` signal instead.
+- **`scripts/theme-sync.py`** — the fcitx5 / Hyprland side of the theme (see Theme sync), plus the `windowFx` flag.
+- **`scripts/imepanel.py`** — the kimpanel bridge for ImePanel (see its row).
+- **`scripts/list-apps.py`**, **`scripts/gen-emoji.py`** — launcher data.
+- **`scripts/pixel-probe.py`** — the capture panel's colour-under-pointer helper.
 - **`scripts/qshare.py`** — LAN/tunnel file sharing (HTTP + QR code), driven from ControlCenter `left.send` / `left.receive`. Requires `python-qrcode`.
   - `send` takes **several paths**: the phone gets an index page listing every item (per-item download + "download all .zip"); directories are zipped on demand.
   - `recv` serves an upload page (multi-file, drag & drop, per-file progress) writing into `-o DIR`.
   - The server **stays up until stopped** (Ctrl-C, or SIGTERM from Quickshell) so one QR handles several transfers. `--once` restores the old shut-down-after-first-transfer behaviour.
   - `--tunnel` routes through a Cloudflare quick tunnel (works on mobile data); without it the URL is LAN-only.
-  - Quickshell IPC is the `--event-file`, appended one line at a time: `COUNT`/`SIZE`/`STATUS`/`URL`/`QR`/`READY`/`TICK <name>`/`DONE`/`CANCELLED`/`ERROR`. ControlCenter re-reads the whole file every 250 ms and **rebuilds** state from it, so handlers must stay idempotent.
+  - Quickshell IPC is the `--event-file`, appended one line at a time: `COUNT`/`SIZE`/`STATUS`/`URL`/`QR`/`READY`/`TICK <name>`/`DONE`/`CANCELLED`/`ERROR`. ControlCenter watches the file (FileView `watchChanges`) while a transfer runs, re-reads it whole on each change and **rebuilds** state from it, so handlers must stay idempotent.
 
 ### Shell scripts
 
-- `list-apps.sh` — wrapper for `scripts/list-apps.py`, which enumerates the `.desktop` files for Menu.qml as `name|id|categories|icon|binary|exec` (one Python process, ~30 ms; the old grep loop took ~2.6 s). Menu resolves the icon with `Quickshell.iconPath()` — Icon=, then the real binary's name, the desktop id, then `-symbolic` — and falls back to a glyph.
-- `active-monitor.sh` — Prints the focused monitor name (`hyprctl monitors` + awk).
-- `wallpaper.sh` / `setwallpaper.sh` — Wallpaper management.
-- `wave-check.sh` / `pixel_wave.py` / `pixel-wave-close-video.py` / `ext_last_fr.py` — Pixel-wave wallpaper transition helpers.
-- `nier-welcome.sh` — Welcome animation on shell start.
+- `scripts/lock.sh` — the standalone lockscreen (`widgets/lockscreen.qml`).
+- `scripts/shot-notify.sh`, `scripts/move-ws.sh` — capture notifications, the workspace mover.
+- `scripts/nier-welcome.sh` — a terminal welcome banner.
+- `hypr-plugin/imecaret/reload.sh` (`make reload`) — build and swap the plugin into the running
+  Hyprland. **Hyprland tracks a loaded plugin by the path it was loaded from**: unloading by
+  another path ("plugin not loaded") leaves the old copy running, and two copies post every
+  event twice. The script records the path in `.loaded` and unloads exactly that.
+
+The wallpaper picker / pixel-wave helpers, TopBar, VolumeBar, WorkspaceSwitcher, the old
+`region/` overlay and unused components are retired to `_attic/` (local, not in the repo).
 
 ## External dependencies
 
 The shell calls these tools directly — they must be on PATH:
 
-`hyprctl`, `playerctl`, `nvidia-smi`, `nmcli`, `bluetoothctl`, `wpctl` (PipeWire), `brightnessctl`, `pw-play` (lockscreen audio), `curl` (weather via wttr.in), `kitty`, `yazi`, `zenity` (qshare file picker)
+`hyprctl`, `python3` (+ `python-gobject` for the IME bridge), `grim`, `wl-copy`, `magick`, `cliphist`, `fd`, `qalc`, `wf-recorder`, `tesseract`, `hyprpicker`, `swappy`, `cava`, `nvidia-smi`, `brightnessctl`, `rfkill`, `curl` (weather via wttr.in), `gcalcli`, `kitty`, `yazi`, `zenity` (qshare file picker), `pw-play` (lockscreen audio). Building the plugin needs Hyprland's headers (`pkg-config hyprland`).
 
-Optional: `cloudflared` (for `qshare --tunnel`), `xdg-open` (qshare "Open that folder")
+Optional: `cloudflared` (for `qshare --tunnel`), `xdg-open` (qshare "Open that folder", launcher files)
 
 The qshare file picker falls back `zenity` → `kdialog` → `yazi` in a terminal; all three
 print the chosen paths one per line on stdout, which `ControlCenter.pickerProc` reads directly.
 
 ## Key customization points
 
-- **Global scale / player position**: `settings/Settings.qml` — `scale`, `playerPositionY`, `playerWidth`, `companionsEnabled`
+- **Every option**: `config/shell.conf` (live); typed defaults in `settings/Settings.qml`.
 - **Lockscreen TODO path**: `nierlock/Config.qml` — `todoPath` (default: `~/Documents/Notes/TODO.md`)
 - **Lockscreen sounds**: place files in `nierlock/sounds/` (see `nierlock/README.md` for filenames)
-- **TopBar todo file**: hardcoded in `widgets/TopBar.qml` as `~/todo_list.md`
-- **Hyprland keybindings**: bind `qs ipc call menu toggle` and the `/tmp/qs-*` echo commands in `hyprland.conf`
+- **Hyprland keybindings**: `~/.config/hypr/binds/dispatchers.lua` (`qs ipc call …`).
