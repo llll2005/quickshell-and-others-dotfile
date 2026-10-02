@@ -206,7 +206,7 @@ Popup {
         hibernate: { h3:"Hibernate", zh:"休眠 · 存到磁碟後斷電", exit:"HIBERNATING", ask:"休眠？",
                      cmd:["systemctl", "hibernate"],
                      hint:"把目前的工作狀態寫進 swap 後完全斷電，下次開機原樣還原。",
-                     warn:"工作狀態會寫入磁碟後斷電。第一次使用前先存好工作。" }
+                     warn:"工作狀態會寫入 swap 後斷電。第一次使用前先存好工作。" }
     })
 
     function detailKey() { return slot + "." + sub }
@@ -977,6 +977,7 @@ Popup {
         if (slot === "top" && !power) { _wifiSnapshot(); _btSnapshot() }
     }
     onSubChanged: {
+        if (power && sub === "hibernate") hibCheck()    // its readiness line in the detail panel
         _seenNotif = ({})
         if (live && sub !== "") pressAnim.restart()
         cancelWifiPrompt()
@@ -1141,6 +1142,7 @@ Popup {
     function activateCurrent() {
         if (_hitting || folded) return
         if (depth === 2 && !power && actList().length === 0) { blocked(); return }
+        if (depth === 2 && power && sub === "hibernate" && hib && !hib.ok) { blocked(); hibDenied(); hibCheck(); return }   // no confirm burst for a refusal
         _hitting = true
         hitDepth = depth
         confirmPulse(depth === 3 || (power && depth === 2) ? 1.0 : 0.6)
@@ -1180,8 +1182,36 @@ Popup {
     function powerRun(key) {
         var a = powerActs[key]
         if (!a) return
+        if (key === "hibernate") { _hibAsk = true; hibCheck(); return }   // only once it can fit
         if (a.ask) { confirmYes = false; _cardAt = Date.now(); confirmKey = key; return }
         _powerGo(key)
+    }
+
+    // Hibernate is refused up front when the image can't fit in the disk swap
+    // (scripts/hibernate-check.sh): that hibernation fails half-way ("Image saving failed:
+    // -28"), and coming back from the failure has left the NVIDIA display dead.
+    property var  hib: null                 // {ok, swap, image, need} in GiB
+    property bool _hibAsk: false            // ↵ is waiting for the check
+    function hibCheck() { if (!hibProc.running) hibProc.running = true }
+    Process {
+        id: hibProc
+        command: ["sh", Quickshell.shellDir + "/scripts/hibernate-check.sh"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.hib = JSON.parse(text) } catch (e) { root.hib = null }
+                if (!root._hibAsk) return
+                root._hibAsk = false
+                if (root.hib && root.hib.ok) { root.confirmYes = false; root._cardAt = Date.now(); root.confirmKey = "hibernate" }
+                else { root.blocked(); root.hibDenied() }
+            }
+        }
+    }
+    signal hibDenied()                      // the readiness line shakes
+    function hibLine() {
+        if (!hib) return ""
+        return hib.ok ? "可以休眠 · swap " + hib.swap.toFixed(1) + " GiB，映像約 " + hib.image.toFixed(1) + " GiB"
+                      : "無法休眠：swap 只有 " + hib.swap.toFixed(1) + " GiB，映像約 " + hib.image.toFixed(1)
+                        + " GiB，至少要 " + hib.need.toFixed(1) + " GiB"
     }
     // the YES / NO card: the chosen button pops and throws its burst, then the answer lands
     property real cHitT: 0
@@ -1207,9 +1237,11 @@ Popup {
     }
 
     // Exit: the triangles collapse and the arms tuck in while the screen fades to black,
-    // then the command runs. A failure (an inhibitor, no swap for hibernation…) shows
-    // its message and brings the menu back; after Sleep / Hibernate (both return as soon
-    // as they're queued) the screen clears again and the panel closes.
+    // then the command runs. A failure (an inhibitor…) shows its message and brings the
+    // menu back. Sleep / Hibernate return as soon as logind has queued them, so the dark
+    // holds until logind says the system is back (PrepareForSleep false, watched with
+    // gdbus), and the unit's Result then tells a resume from a failed attempt.
+    readonly property bool _sleepKind: exitKey === "sleep" || exitKey === "hibernate"
     function _powerGo(key) {
         var a = powerActs[key]
         if (!a.exit) { Quickshell.execDetached(a.cmd); close(); return }    // Lock
@@ -1217,6 +1249,7 @@ Popup {
         exitKey = key
         collapse = true
         folded = true
+        if (_sleepKind) { _slept = false; _sleepSince = Math.floor(Date.now() / 1000); sleepWatch.running = true }
         exitAnim.restart()
     }
     SequentialAnimation {
@@ -1246,13 +1279,53 @@ Popup {
                 var err = (powerErr.text || "").trim().split("\n")[0]
                 root.exitError = err !== "" ? err : "exit code " + root._exitCode
                 exitFailT.restart()
-            } else if (root.exitKey === "sleep" || root.exitKey === "hibernate") exitResumeT.restart()
+            } else if (root._sleepKind) { if (!root._slept) sleepStartT.restart() }
             else exitStuckT.restart()
         }
     }
-    Timer { id: exitFailT;   interval: 2800;  onTriggered: root._exitBack(false) }
-    Timer { id: exitResumeT; interval: 5000;  onTriggered: root._exitBack(true) }
+    Timer { id: exitFailT;   interval: 3600;  onTriggered: root._exitBack(false) }
     Timer { id: exitStuckT;  interval: 20000; onTriggered: root._exitBack(true) }   // still here: don't stay dark
+
+    // ── Sleep / Hibernate: wait for the system to come back ──
+    property bool _slept: false
+    property int  _sleepSince: 0
+    Process {
+        id: sleepWatch
+        command: ["gdbus", "monitor", "--system", "--dest", "org.freedesktop.login1", "--object-path", "/org/freedesktop/login1"]
+        stdout: SplitParser {
+            onRead: (line) => {
+                if (line.indexOf("PrepareForSleep") < 0 || root.exitKey === "") return
+                if (line.indexOf("true") >= 0) { root._slept = true; sleepStartT.stop(); sleepBackT.restart() }
+                else if (root._slept) root._sleepOver()
+            }
+        }
+    }
+    // these timers don't run while the system sleeps: they only count time awake
+    Timer { id: sleepStartT; interval: 30000;  onTriggered: root._sleepOver() }    // logind never started it
+    Timer { id: sleepBackT;  interval: 180000; onTriggered: root._sleepOver() }    // hibernate entry alone took 47 s once
+    function _sleepOver() {
+        sleepStartT.stop(); sleepBackT.stop()
+        sleepWatch.running = false
+        if (exitKey === "" || sleepResult.running) return
+        var unit = exitKey === "hibernate" ? "systemd-hibernate.service" : "systemd-suspend.service"
+        sleepResult.command = ["sh", "-c",
+            "systemctl show -p Result --value " + unit + "; " +
+            "journalctl -b -u " + unit + " --since @" + _sleepSince + " -o cat --no-pager | grep -iE 'fail|error' | tail -n 1"]
+        sleepResult.running = true
+    }
+    Process {
+        id: sleepResult
+        stdout: StdioCollector { onStreamFinished: root._sleepResultIs(text) }
+    }
+    // the unit's Result, then the last failure line it logged since the command
+    function _sleepResultIs(text) {
+        if (exitKey === "") return
+        var l = text.split("\n"), result = (l[0] || "").trim(), why = (l[1] || "").trim()
+        if (result === "success" && why === "") { _exitBack(true); return }      // it slept and came back
+        if (why.indexOf("No space left") >= 0) why = "swap 空間不足，休眠映像寫不下（" + why + "）"
+        exitError = why !== "" ? why : (_slept ? "沒有成功（" + result + "）" : "系統沒有開始睡眠")
+        exitFailT.restart()
+    }
     property bool _exitThenClose: false
     function _exitBack(thenClose) {
         _exitThenClose = thenClose
@@ -1271,7 +1344,8 @@ Popup {
     }
     function _resetPower() {
         morphT.stop(); cHitAnim.stop(); exitAnim.stop(); exitBackAnim.stop()
-        exitCheckT.stop(); exitFailT.stop(); exitResumeT.stop(); exitStuckT.stop()
+        exitCheckT.stop(); exitFailT.stop(); exitStuckT.stop(); sleepStartT.stop(); sleepBackT.stop()
+        sleepWatch.running = false; _hibAsk = false
         mode = "main"; folded = false; confirmKey = ""; confirmYes = false
         exitKey = ""; exitError = ""; exitFade = 0; cHitT = 0
     }
@@ -2051,6 +2125,7 @@ Popup {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: Math.min(implicitWidth, 640)
+                wrapMode: Text.Wrap; maximumLineCount: 3
                 horizontalAlignment: Text.AlignHCenter
                 text: root.exitError !== "" ? root.exitError
                     : root.exitKey !== "" ? "$ " + (root.powerActs[root.exitKey] || {cmd: []}).cmd.join(" ") : ""
@@ -2625,6 +2700,32 @@ Popup {
                     color: root.colInkSoft
                     lineHeight: 1.25
                     wrapMode: Text.WordWrap
+                }
+                // ── Hibernate: can the image fit in the swap? ──
+                Item { width: 1; height: hibRow.visible ? 10 : 0 }
+                Row {
+                    id: hibRow
+                    visible: root.power && root.sub === "hibernate" && root.hib !== null
+                    width: detailsCol.width
+                    spacing: 8
+                    readonly property bool ok: root.hib !== null && root.hib.ok
+                    property real shake: 0
+                    transform: Translate { x: 6 * Math.sin(hibRow.shake * Math.PI * 4) * (1 - hibRow.shake) }
+                    NumberAnimation { id: hibShake; target: hibRow; property: "shake"; from: 0; to: 1; duration: 420 }
+                    Connections { target: root; function onHibDenied() { hibShake.restart() } }
+                    Rectangle {
+                        width: 6; height: 6; rotation: 45
+                        anchors.verticalCenter: hibTxt.verticalCenter
+                        color: hibRow.ok ? root.colInk : Theme.warn
+                    }
+                    Text {
+                        id: hibTxt
+                        width: parent.width - 14
+                        text: root.hibLine()
+                        font.pixelSize: 11; lineHeight: 1.2
+                        wrapMode: Text.WordWrap
+                        color: hibRow.ok ? root.colInk : Theme.warn
+                    }
                 }
                 // ── Power: what runs, and whether it asks first ──
                 Item { width: 1; height: root.power ? 12 : 0 }
