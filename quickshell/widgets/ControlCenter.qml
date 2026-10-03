@@ -1448,6 +1448,8 @@ Popup {
         function power(): void  { root.openPower() }
         // a section (top · bottom · left · right) and optionally one of its items (wifi, bluetooth, …)
         function open(section: string, item: string): void { root.openAt(section, item) }
+        // move the focus to a section of the cross on screen, in either menu
+        function focus(section: string): void { if (root.isOpen && root.level === 1) root.slot = section }
         function exitPreview(key: string): void { root.previewExit(key) }
         function show(): void   { root.open() }
         function hide(): void   { root.close() }
@@ -2345,11 +2347,13 @@ Popup {
               (slotKey === "right"  && root.slot === "left"))
         readonly property bool isInL3: isFocus && root.level === 3
         // the two crosses are each other's negative: the main menu has a paper centre and ink
-        // arms, the power menu (turned over) an ink centre and paper arms. A focused ink arm
-        // is wiped to paper (the curtain) and its ink comes back: `lit`.
+        // arms, the power menu (turned over) an ink centre and paper arms. A focused arm is
+        // wiped (the curtain) to the other material, in either menu: `lit`; `dark` is what
+        // its face shows now.
         readonly property bool inverted: isCenter ? root.power : !root.power
-        readonly property bool lit: inverted && isFocus && !isCenter
-        readonly property color onFace: inverted && !lit ? root.colCard : root.colInk
+        readonly property bool lit: isFocus && !isCenter
+        readonly property bool dark: inverted !== lit
+        readonly property color onFace: dark ? root.colCard : root.colInk
 
         width: 280; height: 56
         z: isFocus ? 5 : 2
@@ -2452,7 +2456,7 @@ Popup {
                     y: sl.slotKey === "top" ? parent.height - 4 : 0
                     width:  vert ? parent.width : 4
                     height: vert ? 4 : parent.height
-                    color: sl.inverted ? (sl.isFocus ? root.colInk : root.colCard) : (sl.isFocus ? root.colHi : root.colInk)
+                    color: sl.isCenter ? root.colInk : sl.dark ? root.colCard : root.colInk
                     Behavior on color { ColorAnimation { duration: 220 } }
                     z: 2
                 }
@@ -2496,7 +2500,7 @@ Popup {
                 Rectangle {
                     id: curtain
                     anchors.fill: parent
-                    color: root.colCard
+                    color: sl.inverted ? root.colCard : root.colHi
                     transform: Scale {
                         readonly property bool vert: sl.slotKey === "top" || sl.slotKey === "bottom"
                         origin.x: sl.slotKey === "left" ? box.width : 0
@@ -2562,7 +2566,7 @@ Popup {
                     Text {
                         text: sl.subtitle
                         font.pixelSize: Theme.fs(sl.isCenter ? 9 : 10)
-                        color: sl.inverted && !sl.lit ? Theme.alpha(root.colCard, 0.7) : root.colInkSoft
+                        color: sl.dark ? Theme.alpha(root.colCard, 0.7) : root.colInkSoft
                         Behavior on color { ColorAnimation { duration: 260 } }
                         font.letterSpacing: sl.isCenter ? 1 : 0.2
                         horizontalAlignment: sl.isCenter ? Text.AlignHCenter : Text.AlignLeft
