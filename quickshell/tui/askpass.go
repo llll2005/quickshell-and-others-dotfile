@@ -144,7 +144,7 @@ func (m askModel) View() string {
 	lines := []string{
 		mark.Render(l.hollow),
 		"",
-		l.bold.Render(spaced(scramble(title, t, l.pal.ascii))),
+		l.bold.Render(spaced(title)),
 		"",
 		l.rule(36, k, mark),
 		"",

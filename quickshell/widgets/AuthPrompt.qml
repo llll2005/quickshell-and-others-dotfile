@@ -97,7 +97,7 @@ Popup {
     SequentialAnimation {
         id: voidIn
         PauseAnimation { duration: 260 }
-        ScriptAction { script: { root.collapse = true; title.play() } }
+        ScriptAction { script: root.collapse = true }
         ParallelAnimation {
             NumberAnimation { target: root; property: "underlay"; to: 1; duration: 300; easing.type: Easing.OutQuad }
             NumberAnimation { target: root; property: "inT"; to: 1; duration: 520; easing.type: Easing.OutCubic }
@@ -159,13 +159,10 @@ Popup {
                 }
             }
             Item { width: 1; height: 22 * root.u }
-            ScrambleText {
+            Text {      // no typing: phase changes just switch the words
                 id: title
                 anchors.horizontalCenter: parent.horizontalCenter
-                playOnChange: true
-                target: ({ idle: "AUTHORIZATION REQUIRED", verifying: "VERIFYING", failed: "FAILED", authorized: "AUTHORIZED" })[root.authPhase] || ""
-                duration: 360
-                glyphs: Theme.voidGlyphs
+                text: ({ idle: "AUTHORIZATION REQUIRED", verifying: "VERIFYING", failed: "FAILED", authorized: "AUTHORIZED" })[root.authPhase] || ""
                 font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s1); font.letterSpacing: 0.32 * root.s1
                 color: root.authPhase === "failed" ? Theme.voidWarn : Theme.voidLight
             }

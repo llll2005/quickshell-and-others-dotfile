@@ -73,7 +73,7 @@ QtObject {
     // from a fallback font — that's part of the decoding look)
     readonly property string voidGlyphs: "▸◆▪▫░▒▓█/\\|-_=+*"
     // the Void's ink is its own, not the theme's ([void] in shell.conf): 月白 and a muted red
-    readonly property color voidLight: _hex(Config.str("void.light", ""), "#d6ecf0")
+    readonly property color voidLight: _hex(Config.str("void.light", ""), "#ffffff")
     readonly property color voidWarn:  _hex(Config.str("void.warn", ""), "#b8403c")
     function _hex(v, d) { return /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v) ? v : d }
 

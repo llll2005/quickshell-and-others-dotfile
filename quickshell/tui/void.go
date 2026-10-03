@@ -88,7 +88,7 @@ func loadPalette() palette {
 	// the Void's ink is its own, not the theme's: [void] in shell.conf (月白, a muted red)
 	_ = name
 	return palette{
-		light: hexOr(shell["void.light"], "#d6ecf0"),
+		light: hexOr(shell["void.light"], "#ffffff"),
 		warn:  hexOr(shell["void.warn"], "#b8403c"),
 		ascii: os.Getenv("TERM") == "linux",
 	}

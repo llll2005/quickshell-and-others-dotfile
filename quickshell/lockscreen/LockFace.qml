@@ -65,15 +65,18 @@ Item {
     property real inT: 0          // the face scrambling in
     SequentialAnimation {
         id: introT
+        // with the frozen desktop: it shows under the glass, then shatters into the dark (the
+        // power exit's move) and the face fades in; without it, the glass unfolds over black
         PauseAnimation { duration: 60 }
         ScriptAction { script: glass.active = true }
-        PauseAnimation { duration: 640 }
-        ScriptAction { script: { prompt.play(); clock.play() } }
+        PauseAnimation { duration: face.hasFrame ? 420 : 640 }
+        ScriptAction { script: if (face.hasFrame) glass.active = false }
+        PauseAnimation { duration: face.hasFrame ? 380 : 0 }
         ParallelAnimation {
             NumberAnimation { target: face; property: "inT"; from: 0; to: 1; duration: 620; easing.type: Easing.OutCubic }
             SequentialAnimation {
                 PauseAnimation { duration: 200 }
-                ScriptAction { script: glass.active = false }      // shatters as the face comes in
+                ScriptAction { script: glass.active = false }      // (no frame) shatters as the face comes in
             }
         }
     }
@@ -126,15 +129,8 @@ Item {
         Row {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: face.s0 * 0.35
-            ScrambleText {      // drives the clock's scramble-in; FixedDigits draws it
-                id: clock
-                visible: false
-                playOnChange: false
-                glyphs: "0123456789"
-                target: face.pad(face.now.getHours()) + ":" + face.pad(face.now.getMinutes())
-            }
             FixedDigits {
-                text: clock.text
+                text: face.pad(face.now.getHours()) + ":" + face.pad(face.now.getMinutes())
                 font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.sClock); font.letterSpacing: 0.02 * face.sClock
                 color: face.fg
             }
@@ -172,13 +168,11 @@ Item {
 
         Item { width: 1; height: face.s2 }
 
-        ScrambleText {
+        Text {      // no typing: phase changes just switch the words
             id: prompt
             anchors.horizontalCenter: parent.horizontalCenter
-            target: ({ idle: "AUTHORIZATION REQUIRED", verifying: "VERIFYING", failed: "FAILED",
-                       authorized: "AUTHORIZED" })[face.st.phase] || ""
-            duration: 360
-            glyphs: Theme.voidGlyphs
+            text: ({ idle: "AUTHORIZATION REQUIRED", verifying: "VERIFYING", failed: "FAILED",
+                     authorized: "AUTHORIZED" })[face.st.phase] || ""
             font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s1); font.letterSpacing: 0.32 * face.s1
             color: face.st.phase === "failed" ? face.warn : face.fg
         }
@@ -234,11 +228,27 @@ Item {
     }
 
     // ── the glass: unfolds over the black and shatters (lock), closes over the face (unlock) ──
+    // the desktop as it was (scripts/lock.sh: $XDG_RUNTIME_DIR/qs-lock-<screen>.ppm), only
+    // as the glass's frame: drawn through the panes, gone with them
+    readonly property string framePath: scr && scr.name ? (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/qs-lock-" + scr.name + ".ppm" : ""
+    readonly property bool hasFrame: frozen.status === Image.Ready
+    Image {
+        id: frozen
+        anchors.fill: parent
+        source: face.framePath !== "" ? "file://" + face.framePath : ""
+        cache: false
+        asynchronous: false
+        fillMode: Image.Stretch
+    }
+    ShaderEffectSource { id: frozenTex; sourceItem: frozen; hideSource: true; visible: false }
+
     TriField {
         id: glass
         anchors.fill: parent
-        dimAmount: 0
-        targetOpacity: Math.max(0.5, Settings.backdropOpacity)
+        sourceTex: face.hasFrame ? frozenTex : null
+        hasSource: face.hasFrame
+        dimAmount: face.hasFrame ? Settings.backdropDim : 0
+        targetOpacity: face.hasFrame ? Settings.backdropOpacity : Math.max(0.5, Settings.backdropOpacity)
         flickerAmount: 0.5
         originPx: Qt.point(width / 2, height / 2)
         glarePx: Qt.point(width / 2, height / 2)

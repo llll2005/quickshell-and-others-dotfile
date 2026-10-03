@@ -46,6 +46,7 @@ ShellRoot {
 
     // ── preview (see the header) ──
     PanelWindow {
+        id: previewWin
         visible: shell.preview
         screen: Quickshell.screens.find(function(x) { return Hyprland.focusedMonitor && x.name === Hyprland.focusedMonitor.name }) || null
         anchors { top: true; bottom: true; left: true; right: true }
@@ -53,7 +54,7 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         color: "black"
-        LockFace { anchors.fill: parent; st: st; scr: null }
+        LockFace { anchors.fill: parent; st: st; scr: previewWin.screen }
         MouseArea { anchors.fill: parent; onClicked: Qt.quit() }   // a click closes the preview
     }
     IpcHandler {

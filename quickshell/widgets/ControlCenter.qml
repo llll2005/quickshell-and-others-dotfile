@@ -2141,14 +2141,11 @@ Popup {
             Text {
                 id: exitTitle
                 anchors.horizontalCenter: parent.horizontalCenter
-                property string targetText: root.exitError !== "" ? "FAILED" : exitLayer.line
-                text: targetText
-                onTargetTextChanged: if (targetText !== "") exitScramble.start()
+                text: root.exitError !== "" ? "FAILED" : exitLayer.line   // no typing: it fades in with the dark
                 font.family: Theme.voidFont
                 font.pixelSize: Theme.voidStep(2); font.letterSpacing: 0.26 * Theme.voidStep(2)
                 font.weight: Theme.voidWeight
                 color: root.exitError !== "" ? Theme.voidWarn : Theme.voidLight
-                ScrambleAnim { id: exitScramble; target: exitTitle; duration: 520; chars: Theme.voidGlyphs }
             }
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter

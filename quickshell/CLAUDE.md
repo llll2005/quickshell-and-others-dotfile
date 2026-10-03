@@ -120,10 +120,12 @@ Two geometry rules the input mask depends on:
     ink panel, paper text.
   - **Void** — the system *changing state or asking for authority*: boot, login, lock,
     password prompts, sleep, shutdown. Pure black, its own fixed ink — `Theme.voidLight` /
-    `voidWarn` from `[void] light / warn` in shell.conf (月白 #d6ecf0, a muted red), never the
-    theme's colours (also in the fallback hyprlock and voidbox) — a diamond,
-    words scrambling in (`components/ScrambleText.qml`), one hairline, glass that
-    collapses into the dark. The CC's power exit and `lock.qml` are the reference.
+    `voidWarn` from `[void] light / warn` in shell.conf (white, a muted red), never the
+    theme's colours (also in the fallback hyprlock and voidbox) — a diamond, one hairline,
+    and **the desktop shattering into the dark**: the frozen screen under the glass, the
+    panes scatter, the frame fades to black, then the words fade in — **no typing / scramble**
+    (the user asked for none; `components/ScrambleText.qml` is unused). The CC's power exit
+    is the reference; the lock and the polkit prompt open the same way.
 - **One confirm**: hit-stop (~0.1 s pop + flash) → HitBurst (+ backdrop shock ring) → the
   action. **One exit**: collapse into black.
 - **Keys**: arrows only (no WASD). ↑↓ select · ←→ the panel's tabs/sections (the CC: its
@@ -141,13 +143,13 @@ Two geometry rules the input mask depends on:
   prompt/dates/seconds, 2 titles and the big gaps, `voidClockStep` the lock's clock; every
   Void size comes from it (×`u` = screen height / 1080). Caps take tracking by size (0.3 em
   labels → 0.02 em the clock); the lock's block sits at the optical centre (46 %).
-  `Theme.voidGlyphs` is the scramble's noise — block glyphs (▸◆▪░▒▓█…) whatever the face,
   `components/FixedDigits.qml` sets clock digits in fixed cells (proportional figures).
   Never ask a display face for a weight it lacks (Norse had no Medium → Qt fell back to
   another family). A font installed while `qs` runs isn't seen until it restarts. The
   settings panel's LOOK page has rows for all five `[font]` keys.
-- **Previews** (nothing locks, nothing runs): `QS_LOCK_PREVIEW=1 qs -p lock.qml` (click to
-  close; `QS_VOID_FONT=… QS_VOID_WEIGHT=…` try a face without touching shell.conf) · `qs ipc call ctrl exitPreview <poweroff|reboot|firmware|hibernate|sleep|logout>`
+- **Previews** (nothing locks, nothing runs): `scripts/lock.sh --preview` (the real opening,
+  frozen frames included; click to close) or `QS_LOCK_PREVIEW=1 qs -p lock.qml`
+  (`QS_VOID_FONT=… QS_VOID_WEIGHT=…` try a face without touching shell.conf) · `qs ipc call ctrl exitPreview <poweroff|reboot|firmware|hibernate|sleep|logout>`
   · the polkit prompt: `pkcheck --action-id org.freedesktop.policykit.exec --process $$ -u`
   · `voidbox render <askpass|yesno|choice|auth>` or
   `VOIDBOX_TEST_CMD=tui/fake-pacman.sh voidbox pacman -S x` (password "secret").
@@ -256,7 +258,7 @@ Two geometry rules the input mask depends on:
 | `widgets/Player.qml` / `PlayerCard.qml` | Floating media player on every screen (`qs ipc call player toggle`), fed by `services/Media.qml`. The windows are mapped only while the card is shown or sliding out (`card.mapped`); the reveal waits for MapGate. Cava bars stream from cava's stdout via `SplitParser`. |
 | `widgets/Notifications.qml` | Notification daemon + popups (top-left, `leftMargin` 24, 6 % from the top). **A popup that times out is only shelved** (hidden, out of the stack/mask) — its Notification stays tracked so the ControlCenter history can still run its actions; transient ones still close, and entries falling off the 50-item history are dismissed. DND and notifications carried over a reload (`lastGeneration`) arrive shelved (`_quiet`), with no popup. The history (minus live objects) survives config reloads via `PersistentProperties`, and carried-over notifications are relinked by id. Clicks get the shared hit feel (`HitBurst`): an action button or a body click (the default action, else close) pops the card, and ✕, a swipe or a middle/right click throw a lighter burst. **Quickshell closes a non-resident notification the instant an action is invoked, destroying its row**, so the card cuts out first and `invoke()` is the row's last act. |
 | `widgets/Companions.qml` / `CompanionsCard.qml` | Animated sprites (`[companions] enabled`, off by default; the gifs aren't in the repo). |
-| `lock.qml` + `lockscreen/` | **The session lock**, in its own qs process (`scripts/lock.sh`): `WlSessionLock` + `PamContext` (`pam/lock.conf`: pam_unix only, no faillock — `LockState` slows retries after the third failure). The Void look (`LockFace`): black, the theme's light, a big mono clock, a rule with a diamond, "AUTHORIZATION REQUIRED" scrambling in (`components/ScrambleText.qml`), the password as a diamond per character on a hairline (typed from key events, never a TextInput, so fcitx5 never sees it), FAILED in warn with a shake and a burst, AUTHORIZED with the glass closing over the face. Glass (TriField, no frame) only for those moments — it unfolds over the black and shatters as the face comes in — and the caret/seconds tick in steps, so a locked machine idles. Writes `$XDG_RUNTIME_DIR/qs-lock.ready` once `secure` and `.unlocked` before quitting; **`lock.sh` falls back to hyprlock** if `.ready` doesn't appear in 4 s or the process exits without `.unlocked` (Hyprland's `misc:allow_session_lock_restore` lets hyprlock take over a dead lock; its Void-styled config is generated by theme-sync). hypridle: `lock_cmd = lock.sh`, `inhibit_sleep = 3` (sleep waits until the session is really locked). If the lock ever traps you: Ctrl+Alt+F3, log in, `pkill -f lock.qml` — hyprlock takes over. |
+| `lock.qml` + `lockscreen/` | **The session lock**, in its own qs process (`scripts/lock.sh`): `WlSessionLock` + `PamContext` (`pam/lock.conf`: pam_unix only, no faillock — `LockState` slows retries after the third failure). The Void look (`LockFace`): black, the theme's light, a big mono clock, a rule with a diamond, "AUTHORIZATION REQUIRED" scrambling in (`components/ScrambleText.qml`), the password as a diamond per character on a hairline (typed from key events, never a TextInput, so fcitx5 never sees it), FAILED in warn with a shake and a burst, AUTHORIZED with the glass closing over the face. **It opens like the power exit**: `lock.sh` grabs each screen (`grim -t ppm` → `$XDG_RUNTIME_DIR/qs-lock-<screen>.ppm`, removed 3 s after the lock is up), `LockFace` runs that frame through the glass (TriField with the image as its source), the panes scatter and the desktop fades into black, then the face fades in (no frame → the glass unfolds over black instead). The glass is only for those moments, and the caret/seconds tick in steps, so a locked machine idles. Writes `$XDG_RUNTIME_DIR/qs-lock.ready` once `secure` and `.unlocked` before quitting; **`lock.sh` falls back to hyprlock** if `.ready` doesn't appear in 4 s or the process exits without `.unlocked` (Hyprland's `misc:allow_session_lock_restore` lets hyprlock take over a dead lock; its Void-styled config is generated by theme-sync). hypridle: `lock_cmd = lock.sh`, `inhibit_sleep = 3` (sleep waits until the session is really locked). If the lock ever traps you: Ctrl+Alt+F3, log in, `pkill -f lock.qml` — hyprlock takes over. |
 
 ### Configuration and themes (user-editable, live)
 
