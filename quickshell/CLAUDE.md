@@ -142,7 +142,8 @@ Two geometry rules the input mask depends on:
   `ALT 1–9`/`1–9 RUN`, `←→ <tab noun>`, `↑↓ SELECT`, `↵ <verb>`, `ESC CLOSE`.
 - **Words**: titles and labels in English caps (the system's voice), explanations in
   Chinese. **Size**: every Paper / Ink text size goes through `Theme.fs(px)` — `[font] size`
-  steps of ×1.09 (the settings panel's 全域字級; kitty keeps its own `font_size`); never a bare
+  steps of ×1.09 (the settings panel's 全域字級; kitty keeps its own `font_size` but follows the
+  face and the CJK font); never a bare
   `font.pixelSize: N`. The Void keeps `voidStep()`. **Type**: one pair for the whole system, kitty included: `Theme.mono`
   (`[font] mono` = Operator Mono) for system labels, numbers and body text, `Theme.cjk`
   (`[font] cjk` = jf金萱那提2.0) for Chinese; a 5-step size scale (still to be settled).
@@ -458,9 +459,10 @@ zinit turbo after the first prompt (completions → compinit → fzf-tab → aut
 fast-syntax-highlighting → autosuggestions → history-substring-search, whose ↑↓ binds are
 in its atload), conda's hook on the first `conda`: startup ≈ 0.03 s (was 0.39). Colours:
 `qs-theme.zsh` (theme-sync, never edited by hand, not committed). kitty.conf (not in the
-repo) includes `qs-theme.conf` and `qs-font.conf` last (the latter is `[terminal] fontSize`,
-the settings panel's kitty 字級 — kitty's size, apart from the shell's `[font] size`; a
-SIGUSR1 reload applies it to open windows), uses `scrollbar scrolled`, `palette_generate legacy`,
+repo) includes `qs-theme.conf` and `qs-font.conf` last (the latter is the system's pair —
+`[font] mono` as `font_family`, `[font] cjk` as the CJK `symbol_map` — plus `[terminal]
+fontSize`, the settings panel's kitty 字級, kitty's size apart from the shell's `[font] size`;
+a SIGUSR1 reload applies face and size to open windows), uses `scrollbar scrolled`, `palette_generate legacy`,
 `copy_last_command_output`, and leaves long-command notices to the HUD
 (`notify_on_cmd_finish never`).
 
