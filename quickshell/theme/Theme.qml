@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+import Quickshell
 import "../settings"
 
 // Theme — the palette every widget draws with. Values come from
@@ -58,8 +59,9 @@ QtObject {
     // choice, any theme), else the theme's, else mono. A display face like Norse lacks
     // ◆ ▸ ░ …: the scramble then uses its own letters (voidGlyphs), and the clock sets its
     // digits in fixed cells (components/FixedDigits.qml) since its figures aren't tabular.
-    readonly property string voidFont: Config.str("font.void", "") || Config.tstr("font.void", mono)
-    readonly property int    voidWeight: Config.num("font.voidWeight", 400)
+    // QS_VOID_FONT / QS_VOID_WEIGHT override both, for trying a face in the lock preview
+    readonly property string voidFont: Quickshell.env("QS_VOID_FONT") || Config.str("font.void", "") || Config.tstr("font.void", mono)
+    readonly property int    voidWeight: Number(Quickshell.env("QS_VOID_WEIGHT")) || Config.num("font.voidWeight", 400)
     // the Void's sizes: a modular scale, px at 1080 p — step k = voidBase × voidRatio^k.
     // Golden (1.618) suits the Void: few levels, a dramatic drop (12 → 19 → 31 → 51 → 82 → 133).
     //   0 labels, corners, key hints · 1 prompts, dates · 2 titles · clockStep the lock's clock

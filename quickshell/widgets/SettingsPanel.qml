@@ -32,8 +32,9 @@ Popup {
     // when this qs started before it was installed: fonts are read at startup)
     readonly property var voidFonts: {
         var have = Qt.fontFamilies()
-        var want = ["Josefin Sans", "Jost", "Cinzel", "Cormorant Garamond", "Michroma", "Syncopate",
-                    "Rajdhani", "Chakra Petch", "Norse", Theme.mono]
+        var want = ["Josefin Sans", "Jost", "League Spartan", "Raleway", "Outfit", "Urbanist", "Figtree",
+                    "Novecento sans wide", "Michroma", "Bender", "Rajdhani", "BigNoodleTitling",
+                    "Barlow Condensed", "D-DIN", "Cinzel", "Norse", Theme.mono]
         var out = want.filter(function(f) { return have.indexOf(f) >= 0 })
         var cur = Config.str("font.void", "")
         if (cur !== "" && out.indexOf(cur) < 0) out.unshift(cur)

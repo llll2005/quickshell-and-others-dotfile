@@ -145,7 +145,7 @@ Two geometry rules the input mask depends on:
   another family). A font installed while `qs` runs isn't seen until it restarts. The
   settings panel's LOOK page has rows for all five `[font]` keys.
 - **Previews** (nothing locks, nothing runs): `QS_LOCK_PREVIEW=1 qs -p lock.qml` (click to
-  close) · `qs ipc call ctrl exitPreview <poweroff|reboot|firmware|hibernate|sleep|logout>`
+  close; `QS_VOID_FONT=… QS_VOID_WEIGHT=…` try a face without touching shell.conf) · `qs ipc call ctrl exitPreview <poweroff|reboot|firmware|hibernate|sleep|logout>`
   · the polkit prompt: `pkcheck --action-id org.freedesktop.policykit.exec --process $$ -u`
   · `voidbox render <askpass|yesno|choice|auth>` or
   `VOIDBOX_TEST_CMD=tui/fake-pacman.sh voidbox pacman -S x` (password "secret").
