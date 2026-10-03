@@ -10,6 +10,8 @@
 #   sudo sh boot-void.sh --art     redraw the pictures only (after changing [void] or fonts)
 #   sudo sh boot-void.sh --label NAME  what the firmware's boot menu calls Limine (default
 #                                  "Limine"; the entry is recreated under the new name)
+#   sudo sh boot-void.sh --make-room   free the ESP for snapshot entries: GRUB's leftovers out,
+#                                  no fallback initramfs, harder compression (zstd -19)
 #   sudo sh boot-void.sh --drop-grub   take GRUB out of the firmware's boot menu (its kernels
 #                                  go stale with the first update after the switch)
 #   sudo sh boot-void.sh --undo    GRUB first again, the initramfs as it was, no splash
@@ -17,8 +19,9 @@
 # In order:
 #   1. a snapper snapshot, and copies of what it changes in /var/backups/boot-void-<time>/
 #      (mkinitcpio.conf, /boot/EFI, /boot/limine.conf, `efibootmgr -v`)
-#   2. /etc/default/limine: this kernel command line + splash; a fallback initramfs for
-#      linux-cachyos; Limine also as the firmware's fallback loader (\EFI\BOOT\BOOTX64.EFI on
+#   2. /etc/default/limine: this kernel command line + splash; no fallback initramfs (the ESP
+#      is small; linux-zen and the snapshots are the spares); Limine also as the firmware's
+#      fallback loader (\EFI\BOOT\BOOTX64.EFI on
 #      this ESP — what a firmware that lost its boot entries starts)
 #   3. pacman: limine, limine-mkinitcpio-hook (Limine's entries on every kernel update; it
 #      registers Limine first in the UEFI boot order), limine-snapper-sync (snapshots in the
@@ -126,6 +129,41 @@ if [ "$1" = "--label" ]; then
     exit 0
 fi
 
+# The ESP is 1.3 GB and limine-snapper-sync copies a kernel set per snapshot kernel, up to
+# 85 % of it (LIMIT_USAGE_PERCENT): with GRUB's old copies and a 200 MB fallback initramfs
+# there was no room for a single snapshot entry.
+size_dropin() {
+    install -d /etc/mkinitcpio.conf.d
+    printf '# boot-void: the ESP is small and holds a kernel set per snapshot: compress harder\nCOMPRESSION_OPTIONS=(-19 -T0)\n' \
+        > /etc/mkinitcpio.conf.d/boot-void-size.conf
+}
+
+if [ "$1" = "--make-room" ]; then
+    before=$(df -m --output=used "$ESP" | tail -1 | tr -d ' ')
+    mid=$(cat /etc/machine-id)
+    # 1. GRUB's leftovers: its tree, its EFI binaries, the kernels it booted (Limine keeps its
+    #    own under $ESP/<machine-id>)
+    rm -rf "$ESP/grub" "$ESP/EFI/ARCH" "$ESP/EFI/Arch_Linux"
+    rm -f "$ESP"/vmlinuz-linux* "$ESP"/initramfs-linux*.img
+    # 2. no fallback initramfs: Recovery boots the regular one, linux-zen is the second
+    #    kernel. The fallback entry shares linux-cachyos's vmlinuz: remove the entry only.
+    sed -i 's/^MKINITCPIO_FALLBACK=/#MKINITCPIO_FALLBACK=/' /etc/default/limine
+    limine-entry-tool --remove-kernel linux-cachyos-fallback --keep-files >/dev/null 2>&1 || true
+    rm -f "$ESP/$mid"/*/initramfs-fallback
+    # 3. compress harder, rebuild, then let the snapshots in
+    size_dropin
+    limine-mkinitcpio
+    for k in "$ESP/$mid"/*/; do
+        [ -f "$k/vmlinuz" ] && [ -f "$k/initramfs" ] || { echo "!! $k lacks its kernel or initramfs: run limine-mkinitcpio again before rebooting"; exit 1; }
+    done
+    limine-snapper-sync || true
+    /usr/local/lib/boot-void/limine-look
+    after=$(df -m --output=used "$ESP" | tail -1 | tr -d ' ')
+    say "ESP: ${before} MiB → ${after} MiB of $(df -m --output=size "$ESP" | tail -1 | tr -d ' ') MiB"
+    grep -c '^ *///' "$ESP/limine.conf" | xargs -I{} echo "  snapshot entries in the menu: {}"
+    exit 0
+fi
+
 if [ "$1" = "--drop-grub" ]; then
     for n in $(efibootmgr | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\{0,1\} Arch Linux[[:space:]].*grubx64\.efi.*/\1/p'); do
         efibootmgr -b "$n" -B >/dev/null && say "removed Boot$n (GRUB) from the firmware's boot menu"
@@ -206,7 +244,6 @@ cat > /etc/default/limine <<EOF
 # The command line is copied as it was under GRUB, plus splash (Plymouth).
 ESP_PATH="$ESP"
 KERNEL_CMDLINE[default]=$cmdline splash
-MKINITCPIO_FALLBACK=linux-cachyos
 ENABLE_LIMINE_FALLBACK=yes
 FIND_BOOTLOADERS=no
 BOOT_ORDER="*, *fallback, Snapshots"
@@ -236,6 +273,7 @@ plymouth-set-default-theme void
 touch "$ESP/limine.conf"
 look                       # the block now, and the hook that puts it back after every write
 rescue
+size_dropin
 limine-mkinitcpio
 limine-snapper-sync || true
 if [ -n "$win" ] && ! grep -q '^/Windows' "$ESP/limine.conf"; then

@@ -175,7 +175,11 @@ Two geometry rules the input mask depends on:
   `sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/void`.
 - **The boot chain** (`dotfiles/system/boot-void.sh` + `boot-void/`, run with sudo; `--update`
   brings an install up to date with the folder, `--art` redraws the pictures, `--drop-grub`
-  takes GRUB out of the firmware menu, `--undo` goes back to GRUB while it's still there).
+  takes GRUB out of the firmware menu, `--make-room` frees the ESP, `--undo` goes back to GRUB
+  while it's still there). **The ESP is 1.3 GB** and limine-snapper-sync copies a kernel set
+  per snapshot kernel only up to 85 % of it: no fallback initramfs (Recovery boots the
+  regular one; the fallback entry shares linux-cachyos's vmlinuz, so it's removed with
+  `--keep-files`), zstd -19 (`/etc/mkinitcpio.conf.d/boot-void-size.conf`), GRUB's old copies gone.
   **limine-entry-tool rewrites limine.conf's global section from its own template on every
   write**, so the look is a marked block (`limine-head.conf`) that `limine-look` puts back —
   as `/etc/boot/hooks/post.d/80-boot-void-look` after each tool write, and at boot from the
