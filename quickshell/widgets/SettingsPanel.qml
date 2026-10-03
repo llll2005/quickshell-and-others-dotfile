@@ -141,6 +141,7 @@ Popup {
         look: [
             { type: "choice", key: "general.theme", def: "nier", options: root.themeNames, preview: "theme", label: "主題", desc: "整個 shell 的配色；fcitx5、視窗邊框、終端機也會跟著換（見下方）。↵ 打開時，選到哪個主題整個桌面就先換成那樣。" },
             { type: "num", key: "font.size", def: 0, min: -2, max: 6, step: 1, preview: "size", signed: true, label: "全域字級", desc: "虛空以外所有文字的大小，一級 ×1.09（11 px 大約多 1 px）。虛空（鎖屏、授權、關機）有自己的字級。" },
+            { type: "num", key: "terminal.fontSize", def: 13, min: 8, max: 24, step: 0.5, unit: "pt", preview: "kitty", label: "kitty 字級", desc: "kitty 自己的字級，不跟全域字級連動。開著的終端機會即時重排；Ctrl+Backspace 回到這個大小。" },
             { type: "choice", key: "font.mono", def: "Operator Mono", options: root.monoFonts, fonts: "mono", preview: "font", label: "系統字型", desc: "標籤、數字與內文的等寬字（只列已安裝的）；kitty 用同一套時要另外改 kitty.conf。" },
             { type: "choice", key: "font.cjk", def: "jf金萱那提2.0", options: root.cjkFonts, fonts: "cjk", preview: "font", label: "中文字型", desc: "中文說明與通知的字；任何字缺的中文都會落到這裡（fontconfig 規則只認金萱，換別的要改 60-quickshell.conf）。" },
             { type: "choice", key: "font.void", def: "", options: root.voidFonts, fonts: "void", preview: "void", label: "虛空字型", desc: "鎖屏、授權、關機過場的字（只列已安裝的）。新裝的字要重啟 qs 才看得到。" },
@@ -890,6 +891,21 @@ Popup {
                     Text {
                         text: pane.r.type === "num" ? "預設 " + pane.r.def + (String(root.editOrig) !== String(root.value(pane.r)) ? "   ·   打開時 " + root.editOrig : "") : ""
                         font.family: Theme.cjk; font.pixelSize: Theme.fs(10); color: Theme.inkSoft
+                    }
+                    // kitty's size: a terminal's lines at it (pt → px at 96 dpi, as kitty sets it)
+                    Rectangle {
+                        visible: pane.kind === "kitty"
+                        width: parent.width; height: kittyCol.implicitHeight + 24
+                        color: Theme.panel; border.color: Theme.alpha(Theme.ink, 0.35); border.width: 1
+                        clip: true
+                        readonly property real px: (pane.r.type === "num" ? Number(root.value(pane.r)) : 13) * 96 / 72
+                        Column {
+                            id: kittyCol
+                            x: 12; y: 12; width: parent.width - 24; spacing: 2
+                            Text { text: "╭─◆ ~/.config ── main ─╮"; font.family: Theme.mono; font.pixelSize: parent.parent.px; color: Theme.panelText }
+                            Text { text: "╰─▸ ls -la  0O1lI"; font.family: Theme.mono; font.pixelSize: parent.parent.px; color: Theme.light }
+                            Text { text: "中文落到金萱 · 13:52"; font.family: Theme.mono; font.pixelSize: parent.parent.px; color: Theme.panelMuted }
+                        }
                     }
                     // the global text size: the shell's lines at that size
                     Rectangle {

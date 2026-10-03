@@ -72,7 +72,7 @@
 | `Ctrl+Shift+E` | 用鍵盤選畫面上的網址打開 |
 | `Ctrl+Shift+P` 再按 `F` | 把畫面上的某個路徑插入命令列 |
 | `Ctrl+Shift+F3` | 指令面板：kitty 所有動作 |
-| `Ctrl+=` / `Ctrl+-` / `Ctrl+Backspace` | 字放大 / 縮小 / 還原 |
+| `Ctrl+=` / `Ctrl+-` / `Ctrl+Backspace` | 字放大 / 縮小 / 還原（還原到設定面板 LOOK 頁的「kitty 字級」） |
 
 往回捲時右邊會出現細捲軸，可以拖。
 

@@ -439,7 +439,9 @@ zinit turbo after the first prompt (completions → compinit → fzf-tab → aut
 fast-syntax-highlighting → autosuggestions → history-substring-search, whose ↑↓ binds are
 in its atload), conda's hook on the first `conda`: startup ≈ 0.03 s (was 0.39). Colours:
 `qs-theme.zsh` (theme-sync, never edited by hand, not committed). kitty.conf (not in the
-repo) includes `qs-theme.conf` last, uses `scrollbar scrolled`, `palette_generate legacy`,
+repo) includes `qs-theme.conf` and `qs-font.conf` last (the latter is `[terminal] fontSize`,
+the settings panel's kitty 字級 — kitty's size, apart from the shell's `[font] size`; a
+SIGUSR1 reload applies it to open windows), uses `scrollbar scrolled`, `palette_generate legacy`,
 `copy_last_command_output`, and leaves long-command notices to the HUD
 (`notify_on_cmd_finish never`).
 
