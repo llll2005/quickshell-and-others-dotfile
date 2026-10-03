@@ -494,7 +494,7 @@ func (m pacModel) card(w int) []string {
 	key := func(k, v string) string { return l.faint.Render(k+" ") + l.dim.Render(spaced(v)) }
 	button := func(label string, on bool) string {
 		if on {
-			return l.r.NewStyle().Background(lipgloss.Color(l.pal.light)).Foreground(lipgloss.Color("#000000")).Bold(true).Render("  " + spaced(label) + "  ")
+			return l.r.NewStyle().Background(lipgloss.Color(l.pal.light)).Foreground(lipgloss.Color(voidBlack)).Bold(true).Render("  " + spaced(label) + "  ")
 		}
 		return l.dim.Render("[ " + spaced(label) + " ]")
 	}
@@ -775,10 +775,26 @@ func runPacman(args []string) int {
 		fmt.Println(ln)
 	}
 	fmt.Println()
+	cmd := l.dim.Render("pacman " + strings.Join(args, " "))
+	if kittyBig() && !l.pal.ascii { // kitty: the result at twice the size, the command under it
+		word, col := "COMPLETED", l.pal.light
+		if mm.code != 0 {
+			word, col = fmt.Sprintf("FAILED  %d", mm.code), l.pal.warn
+		}
+		fmt.Print(bigTitle(word, sgrFG(col)) + "\n\n")
+		fmt.Println(cmd)
+		if mm.code == 0 {
+			return 0
+		}
+		for _, e := range mm.errs {
+			fmt.Println("   " + l.warn.Render(e))
+		}
+		return mm.code
+	}
 	if mm.code == 0 {
-		fmt.Println(l.fg.Render(l.dia) + "  " + l.bold.Render(spaced("COMPLETED")) + "   " + l.dim.Render("pacman "+strings.Join(args, " ")))
+		fmt.Println(l.fg.Render(l.dia) + "  " + l.bold.Render(spaced("COMPLETED")) + "   " + cmd)
 	} else {
-		fmt.Println(l.warn.Render(l.dia) + "  " + l.warn.Bold(true).Render(spaced(fmt.Sprintf("FAILED · EXIT %d", mm.code))) + "   " + l.dim.Render("pacman "+strings.Join(args, " ")))
+		fmt.Println(l.warn.Render(l.dia) + "  " + l.warn.Bold(true).Render(spaced(fmt.Sprintf("FAILED · EXIT %d", mm.code))) + "   " + cmd)
 		for _, e := range mm.errs {
 			fmt.Println("   " + l.warn.Render(e))
 		}

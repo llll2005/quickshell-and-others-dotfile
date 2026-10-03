@@ -152,6 +152,20 @@ Scope {
         target: Media
         function onTrackChanged() { if (root._osdReady && Settings.hudTrackToast) { root.trackToast = true; root._toastT.restart() } }
     }
+    // ── a long command finished in a terminal you'd left (~/.config/zsh/prompt.zsh calls
+    //    `hud cmdDone`): DONE / FAILED, the command, how long; a click goes back to it ──
+    property var task: ({ code: 0, secs: 0, cmd: "", pid: 0 })
+    property bool taskShow: false
+    property Timer _taskT: Timer { interval: 6500; onTriggered: root.taskShow = false }
+    function cmdDone(code, secs, cmd, pid) {
+        task = { code: code, secs: secs, cmd: cmd, pid: pid }
+        taskShow = true
+        _taskT.restart()
+    }
+    function took(s) {
+        return s >= 3600 ? Math.floor(s / 3600) + "h" + String(Math.floor(s % 3600 / 60)).padStart(2, "0") + "m"
+             : s >= 60 ? Math.floor(s / 60) + "m" + String(s % 60).padStart(2, "0") + "s" : s + "s"
+    }
     readonly property bool lyricShowing: Lyrics.on && Lyrics.ready && Media.playing
     readonly property bool mediaShow: trackToast || lyricShowing
     property real lyrSlide: 0
@@ -235,6 +249,8 @@ Scope {
         function lyrics(): string { Lyrics.on = !Lyrics.on; return Lyrics.on ? "on" : "off" }
         // show the now-playing card (and the lyrics, if on)
         function nowPlaying(): void { if (Media.active) { root.trackToast = true; root._toastT.restart() } }
+        // a terminal command finished while its window was in the background
+        function cmdDone(code: int, secs: int, cmd: string, pid: int): void { root.cmdDone(code, secs, cmd, pid) }
         // what the lyric lookup found for the playing track
         function lyricsInfo(): string {
             return (Lyrics.on ? "on" : "off") + " · " + (Lyrics.status || "idle") + (Lyrics.provider ? " · " + Lyrics.provider : "")
@@ -408,7 +424,7 @@ Scope {
             // lets it slide straight back out.
             readonly property bool revealed: peeked || statsExpanded
                                             || root.statsPinned || root.wspMode || root.todoEditing
-                                            || root.osdMode !== "" || root.mediaShow
+                                            || root.osdMode !== "" || root.mediaShow || root.taskShow
             readonly property bool shown: root.hudVisible && revealed
             // opening the HUD always snaps the calendar to today; each reveal plays
             // the paper sweep across the frame (revealT 0 → 1)
@@ -747,6 +763,54 @@ Scope {
                             }
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Lyrics.on = !Lyrics.on }
+                    }
+
+                    // ── Task: a long command finished (root.cmdDone) ──
+                    Item {
+                        id: taskBlock
+                        width: parent.width
+                        readonly property bool want: root.taskShow && !win.showWsp
+                        readonly property bool failed: root.task.code !== 0
+                        height: want ? taskCol.implicitHeight + 10 : 0
+                        visible: height > 0.5
+                        clip: true
+                        Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+                        Column {
+                            id: taskCol
+                            y: 6; width: parent.width; spacing: 3
+                            opacity: taskBlock.want ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 200 } }
+                            Row {
+                                width: parent.width; spacing: 6
+                                Rectangle {
+                                    width: stT.implicitWidth + 8; height: 13
+                                    color: taskBlock.failed ? root.cWarn : root.cAccent
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    Text { id: stT; anchors.centerIn: parent
+                                           text: taskBlock.failed ? "FAILED · " + root.task.code : "DONE"
+                                           font.family: root.mono; font.pixelSize: 8; font.letterSpacing: 1.5; color: root.cInk }
+                                }
+                                Text {
+                                    width: parent.width - stT.implicitWidth - 14; elide: Text.ElideRight
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: root.took(root.task.secs)
+                                    font.family: root.mono; font.pixelSize: 9; font.letterSpacing: 1.5; color: root.cMuted
+                                }
+                            }
+                            Text {
+                                width: parent.width; elide: Text.ElideMiddle
+                                text: root.task.cmd
+                                font.family: root.mono; font.pixelSize: 11; color: root.cText
+                            }
+                        }
+                        MouseArea {
+                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.hit(taskBlock, 0.5)
+                                if (root.task.pid > 0) Hyprland.dispatch('hl.dsp.focus({ window = "pid:' + root.task.pid + '" })')
+                                root.taskShow = false
+                            }
+                        }
                     }
 
                     // divider

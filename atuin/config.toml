@@ -1,0 +1,20 @@
+# atuin — the shell history behind Ctrl+R (~/.config/zsh/tools.zsh). Local only: no
+# account, nothing synced. Colours: themes/qs.toml, from the shell's theme-sync.py.
+auto_sync = false
+update_check = false
+
+search_mode = "fuzzy"
+filter_mode = "global"
+# Ctrl+R again inside the search cycles global → host → session → directory
+style = "compact"
+inline_height = 18
+show_preview = true
+show_help = false
+show_tabs = false
+# ↵ puts the command on the line to edit (Tab too); it doesn't run it
+enter_accept = false
+# keep what looks like a password or token out of the history
+secrets_filter = true
+
+[theme]
+name = "qs"

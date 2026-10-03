@@ -9,16 +9,25 @@
             through `hyprctl eval`
   hyprlock  ~/.config/hypr/hyprlock.conf — the fallback lock (scripts/lock.sh runs it when
             the shell's lock.qml can't), laid out like lock.qml: the Void, the theme's light
+  terminal  a 16-colour palette derived from the theme (term_palette) for
+              kitty  ~/.config/kitty/qs-theme.conf (included by kitty.conf; SIGUSR1 reloads)
+              zsh    ~/.config/zsh/qs-theme.zsh (prompt, LS_COLORS, fzf, syntax highlighting;
+                     open shells re-read it at their next prompt)
+              bat    ~/.config/bat/themes/qs.tmTheme (+ `bat cache --build`), which delta uses
+              delta  ~/.config/git/qs-delta.gitconfig (included by ~/.gitconfig)
+              atuin  ~/.config/atuin/themes/qs.toml
 
     theme-sync.py [theme]        default: `[general] theme` from config/shell.conf
 
-`[sync] fcitx5 = false` / `hyprland = false` in shell.conf hand each back to its own
-look (fcitx5's `nier` theme; Hyprland's palette in ui/theme.lua). Idempotent: nothing
+`[sync] fcitx5 = false` / `hyprland = false` / `terminal = false` in shell.conf hand each
+back to its own look (fcitx5's `nier` theme; Hyprland's palette in ui/theme.lua; kitty.conf's
+own colours, with the tools on the nier palette). Idempotent: nothing
 is reloaded unless a generated file actually changed. Quickshell runs this whenever
 the theme (its name or its file) changes.
 
 The parser and fallbacks mirror settings/Config.qml and theme/Theme.qml.
 """
+import math
 import os
 import re
 import subprocess
@@ -30,6 +39,11 @@ FCITX_THEMES = os.path.expanduser('~/.local/share/fcitx5/themes')
 FCITX_UI_CONF = os.path.expanduser('~/.config/fcitx5/conf/classicui.conf')
 HYPR_QS = os.path.expanduser('~/.config/hypr/ui/qs_theme.lua')
 HYPRLOCK = os.path.expanduser('~/.config/hypr/hyprlock.conf')
+KITTY_QS = os.path.expanduser('~/.config/kitty/qs-theme.conf')
+ZSH_QS = os.path.expanduser('~/.config/zsh/qs-theme.zsh')
+BAT_QS = os.path.expanduser('~/.config/bat/themes/qs.tmTheme')
+DELTA_QS = os.path.expanduser('~/.config/git/qs-delta.gitconfig')
+ATUIN_QS = os.path.expanduser('~/.config/atuin/themes/qs.toml')
 HEX = re.compile(r'^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$')
 
 
@@ -86,6 +100,14 @@ def resolve(t):
     r['light'] = c('palette.light', '#fff6cf')
     r['panel'] = c('dark.panel', '#221e17')
     r['warn'] = c('palette.warn', '#c8685c')
+    r['good'] = c('palette.good', '#9ab58c')
+    r['raised'] = c('dark.raised', '#2e2a1f')
+    r['text'] = c('dark.text', r['paper'])
+    r['muted'] = c('dark.muted', '#8f8873')
+    r['active'] = c('dark.active', r['light'])
+    r['urgent'] = c('notify.critical', '#cd664d')
+    r['calm'] = c('notify.low', '#a0c490')
+    r['monitors'] = [m.strip().lower() for m in str(t.get('dark.monitors', '')).split(',') if HEX.match(m.strip())]
     r['mono'] = str(t.get('font.mono') or 'Share Tech Mono')
     # Hyprland: [hyprland] border = c1, c2[, c3] · borderAngle · inactive · shadow
     border = [s.strip().lower() for s in str(t.get('hyprland.border', '')).split(',') if HEX.match(s.strip())]
@@ -378,6 +400,279 @@ input-field {{
     return write_if_changed(HYPRLOCK, conf)
 
 
+
+# ── the terminal ──
+# One palette for kitty and the tools, derived from the theme in OKLCH: the HUD's panel and
+# text as background and foreground, and for each ANSI hue the theme's own colour nearest
+# to it (its warn for red, good for green, light for yellow…) — or the plain hue nudged
+# toward the accent — set to one lightness for the normal colours and one for the bright,
+# picked for the background, so every theme reads the same in a terminal.
+
+def _lin(v):
+    v /= 255
+    return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+
+
+def _delin(x):
+    x = min(1.0, max(0.0, x))
+    return 255 * (12.92 * x if x <= 0.0031308 else 1.055 * x ** (1 / 2.4) - 0.055)
+
+
+def oklch(hexc):
+    r, g, b = (_lin(int(hexc[i:i + 2], 16)) for i in (1, 3, 5))
+    l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1 / 3)
+    m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3)
+    s = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3)
+    L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s
+    A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
+    B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+    return L, math.hypot(A, B), math.degrees(math.atan2(B, A)) % 360
+
+
+def from_oklch(L, C, H):
+    while True:     # shed chroma until it fits in sRGB
+        A, B = C * math.cos(math.radians(H)), C * math.sin(math.radians(H))
+        l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3
+        m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3
+        s = (L - 0.0894841775 * A - 1.2914855480 * B) ** 3
+        out = (4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+               -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+               -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s)
+        if all(-0.001 <= v <= 1.001 for v in out) or C < 0.005:
+            return '#%02x%02x%02x' % tuple(round(_delin(v)) for v in out)
+        C *= 0.94
+
+
+def mix(a, b, t):       # t of b over a
+    pa = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
+    pb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    return '#%02x%02x%02x' % tuple(round(x + (y - x) * t) for x, y in zip(pa, pb))
+
+
+def _hue_gap(a, b):
+    d = abs(a - b) % 360
+    return min(d, 360 - d)
+
+
+def term_palette(r):
+    bg, fg = r['panel'], r['text']
+    dark = oklch(bg)[0] < 0.5
+    Ln, Lb = (0.74, 0.84) if dark else (0.50, 0.42)
+    acc_h = oklch(r['accent'])[2]
+    cands = [oklch(c) for c in [r['warn'], r['urgent'], r['good'], r['calm'], r['light'], r['accent'],
+                                r['active']] + r['monitors']]
+
+    def role(h0):
+        near = [(_hue_gap(H, h0), H, C) for (L, C, H) in cands if C > 0.045 and _hue_gap(H, h0) <= 32]
+        if near:
+            _, H, C = min(near)
+        else:
+            gap = ((acc_h - h0 + 180) % 360) - 180
+            H, C = (h0 + 0.15 * gap) % 360, 0.12
+        C = min(max(C, 0.085), 0.16)
+        return from_oklch(Ln, C, H), from_oklch(Lb, min(C + 0.02, 0.18), H)
+
+    p = {'bg': bg, 'fg': fg, 'raised': r['raised'], 'muted': r['muted'], 'light': r['light'],
+         'accent': r['accent'], 'dark': dark}
+    for name, h0 in (('red', 27), ('green', 145), ('yellow', 88), ('blue', 255), ('magenta', 335), ('cyan', 200)):
+        p[name], p['br_' + name] = role(h0)
+    if dark:
+        p['black'], p['br_black'] = r['raised'], r['muted']
+        p['white'], p['br_white'] = mix(fg, bg, 0.18), fg
+    else:
+        p['black'], p['br_black'] = fg, r['muted']
+        p['white'], p['br_white'] = mix(fg, bg, 0.35), fg
+    p['sel'] = mix(bg, r['light'] if dark else r['accent'], 0.28)
+    p['suggest'] = mix(r['muted'], bg, 0.35)
+    return p
+
+
+ANSI = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']
+
+
+def kitty_conf(p, name):
+    lines = ['# Generated by ~/.config/quickshell/scripts/theme-sync.py (theme: %s) — included by' % name,
+             '# kitty.conf after its own colours; `[sync] terminal = false` empties it.',
+             'foreground %s' % p['fg'], 'background %s' % p['bg'],
+             'selection_foreground %s' % p['fg'], 'selection_background %s' % p['sel'],
+             'cursor %s' % p['light'], 'cursor_text_color %s' % p['bg'], 'cursor_trail_color %s' % p['light'],
+             'url_color %s' % p['yellow'],
+             'scrollbar_handle_color %s' % p['light'], 'scrollbar_track_color %s' % p['muted']]
+    for i, n in enumerate(ANSI):
+        lines.append('color%d %s' % (i, p[n]))
+        lines.append('color%d %s' % (i + 8, p['br_' + n]))
+    return '\n'.join(lines) + '\n'
+
+
+def sgr(hexc, bold=False):
+    r_, g, b = (int(hexc[i:i + 2], 16) for i in (1, 3, 5))
+    return ('1;' if bold else '') + '38;2;%d;%d;%d' % (r_, g, b)
+
+
+def ls_colors(p):
+    out = ['di=' + sgr(p['br_blue'], True), 'ln=' + sgr(p['cyan']), 'or=' + sgr(p['red']), 'mi=' + sgr(p['red']),
+           'ex=' + sgr(p['br_green'], True), 'so=' + sgr(p['magenta']), 'pi=' + sgr(p['yellow']),
+           'bd=' + sgr(p['yellow'], True), 'cd=' + sgr(p['yellow'], True), 'su=' + sgr(p['red'], True),
+           'sg=' + sgr(p['red'], True), 'tw=' + sgr(p['blue'], True), 'ow=' + sgr(p['blue'], True)]
+    groups = (('red', 'tar gz tgz zip zst xz 7z rar bz2 lz4 deb rpm iso img'),
+              ('magenta', 'png jpg jpeg gif webp svg ico bmp avif heic tiff psd kra xcf'),
+              ('br_magenta', 'mp3 flac ogg opus wav m4a mp4 mkv webm mov avi'),
+              ('yellow', 'pdf epub md txt rst tex docx odt pptx xlsx csv'),
+              ('white', 'conf toml yaml yml json ini cfg lock'),
+              ('br_black', 'bak old orig tmp swp log'))
+    for role, exts in groups:
+        out += ['*.%s=%s' % (e, sgr(p[role])) for e in exts.split()]
+    return ':'.join(out)
+
+
+def _q(s):              # a single-quoted shell word
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def zsh_conf(p, name):
+    keys = ['bg', 'fg', 'raised', 'muted', 'light', 'accent', 'sel', 'suggest'] + ANSI[1:7] + ['br_' + a for a in ANSI[1:7]]
+    fzf = ('--color=fg:%s,fg+:%s,bg:-1,bg+:%s,hl:%s,hl+:%s,info:%s,prompt:%s,pointer:%s,marker:%s,'
+           'spinner:%s,header:%s,border:%s,label:%s,query:%s,gutter:-1,separator:%s,scrollbar:%s'
+           % (p['white'], p['fg'], p['raised'], p['yellow'], p['br_yellow'], p['muted'], p['light'], p['light'],
+              p['light'], p['light'], p['muted'], p['raised'], p['light'], p['fg'], p['raised'], p['muted']))
+    fg = lambda k, extra='': 'fg=' + p[k] + extra
+    fsh = {'default': 'none', 'unknown-token': fg('red'), 'reserved-word': fg('magenta'),
+           'alias': fg('br_green'), 'suffix-alias': fg('br_green'), 'global-alias': fg('cyan'),
+           'builtin': fg('br_green'), 'function': fg('br_green'), 'command': fg('br_green'),
+           'precommand': fg('green', ',italic'), 'hashed-command': fg('br_green'),
+           'subcommand': fg('magenta'), 'commandseparator': fg('muted'),
+           'single-hyphen-option': fg('cyan'), 'double-hyphen-option': fg('cyan'),
+           'single-quoted-argument': fg('yellow'), 'double-quoted-argument': fg('yellow'),
+           'dollar-quoted-argument': fg('yellow'), 'back-quoted-argument': fg('magenta'),
+           'back-or-dollar-double-quoted-argument': fg('cyan'), 'variable': fg('cyan'),
+           'assign': fg('cyan'), 'redirection': fg('magenta'), 'comment': fg('muted', ',italic'),
+           'path': fg('fg', ',underline'), 'path-to-dir': fg('fg', ',underline'),
+           'path_pathseparator': fg('muted', ',underline'), 'globbing': fg('br_magenta'),
+           'globbing-ext': fg('br_magenta'), 'history-expansion': fg('br_blue'),
+           'mathvar': fg('cyan'), 'mathnum': fg('yellow'), 'matherr': fg('red'),
+           'paired-bracket': 'bg=' + p['raised'], 'bracket-level-1': fg('light'),
+           'bracket-level-2': fg('br_magenta'), 'bracket-level-3': fg('br_cyan'),
+           'here-string-text': fg('yellow'), 'here-string-var': fg('cyan'),
+           'correct-subtle': fg('muted'), 'incorrect-subtle': fg('red'),
+           'subtle-separator': fg('muted'), 'secondary': fg('muted')}
+    grep = 'ms=%s:mc=%s:sl=:cx=:fn=%s:ln=%s:bn=%s:se=%s' % (
+        sgr(p['br_yellow'], True), sgr(p['br_red'], True), sgr(p['magenta']), sgr(p['green']),
+        sgr(p['green']), sgr(p['muted']))
+    out = ['# Generated by ~/.config/quickshell/scripts/theme-sync.py (theme: %s) — read by' % name,
+           '# ~/.config/zsh/prompt.zsh and tools.zsh; open shells re-read it at their next prompt.',
+           'typeset -gA QS',
+           'QS=(' + ' '.join('%s %s' % (k, _q(p[k])) for k in keys) + ')',
+           'export LS_COLORS=' + _q(ls_colors(p)),
+           'export GREP_COLORS=' + _q(grep),
+           'export BAT_THEME=qs',
+           'QS_FZF_COLORS=' + _q(fzf),
+           'ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE=' + _q('fg=' + p['suggest']),
+           'typeset -gA QS_FSH',
+           'QS_FSH=(' + ' '.join('%s %s' % (k, _q(v)) for k, v in fsh.items()) + ')']
+    return '\n'.join(out) + '\n'
+
+
+def bat_theme(p, name):
+    def entry(scope, fg=None, style=None):
+        d = ''.join('<key>%s</key><string>%s</string>' % kv for kv in
+                    (('foreground', fg), ('fontStyle', style)) if kv[1])
+        return '\t\t<dict><key>scope</key><string>%s</string><key>settings</key><dict>%s</dict></dict>' % (scope, d)
+    rules = [
+        entry('comment, punctuation.definition.comment', p['muted'], 'italic'),
+        entry('string, punctuation.definition.string', p['green']),
+        entry('string.regexp, constant.character.escape', p['cyan']),
+        entry('constant.numeric, constant.language, constant.character, constant.other, variable.other.constant', p['yellow']),
+        entry('keyword, storage, storage.type, storage.modifier, keyword.operator.word', p['magenta']),
+        entry('keyword.operator, punctuation, meta.brace', p['white']),
+        entry('entity.name.function, support.function, meta.function-call variable.function', p['br_blue']),
+        entry('entity.name.type, entity.name.class, support.type, support.class, entity.other.inherited-class', p['cyan']),
+        entry('variable.parameter', p['fg'], 'italic'),
+        entry('variable.language, support.variable', p['red']),
+        entry('entity.name.tag', p['magenta']),
+        entry('entity.other.attribute-name', p['yellow']),
+        entry('markup.heading, entity.name.section', p['light'], 'bold'),
+        entry('markup.bold', None, 'bold'),
+        entry('markup.italic', None, 'italic'),
+        entry('markup.underline.link, string.other.link', p['br_blue'], 'underline'),
+        entry('markup.quote', p['muted'], 'italic'),
+        entry('markup.raw, markup.inline.raw', p['green']),
+        entry('markup.inserted', p['green']),
+        entry('markup.deleted', p['red']),
+        entry('markup.changed', p['yellow']),
+        entry('meta.diff.header, meta.diff.range, meta.diff.index', p['br_blue']),
+        entry('invalid', p['br_red'], 'underline'),
+    ]
+    head = '\t\t<dict><key>settings</key><dict>' + ''.join(
+        '<key>%s</key><string>%s</string>' % kv for kv in (
+            ('background', p['bg']), ('foreground', p['fg']), ('caret', p['light']),
+            ('lineHighlight', p['raised']), ('selection', p['sel']), ('gutter', p['bg']),
+            ('gutterForeground', p['muted']), ('invisibles', p['raised']),
+            ('findHighlight', p['yellow']))) + '</dict></dict>'
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<!-- Generated by ~/.config/quickshell/scripts/theme-sync.py (theme: %s) -->\n'
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+            '<plist version="1.0"><dict><key>name</key><string>qs</string><key>settings</key><array>\n' % name
+            + '\n'.join([head] + rules) + '\n</array></dict></plist>\n')
+
+
+def delta_conf(p, name):
+    rows = [
+        ('syntax-theme', 'qs'), ('navigate', 'true'), ('line-numbers', 'true'), ('hyperlinks', 'true'),
+        ('minus-style', 'syntax "%s"' % mix(p['bg'], p['red'], 0.20)),
+        ('minus-emph-style', 'syntax "%s"' % mix(p['bg'], p['red'], 0.38)),
+        ('plus-style', 'syntax "%s"' % mix(p['bg'], p['green'], 0.18)),
+        ('plus-emph-style', 'syntax "%s"' % mix(p['bg'], p['green'], 0.34)),
+        ('line-numbers-minus-style', '"%s"' % p['red']),
+        ('line-numbers-plus-style', '"%s"' % p['green']),
+        ('line-numbers-zero-style', '"%s"' % p['muted']),
+        ('line-numbers-left-style', '"%s"' % p['raised']),
+        ('line-numbers-right-style', '"%s"' % p['raised']),
+        ('file-style', 'bold "%s"' % p['light']),
+        ('file-decoration-style', '"%s" ul' % p['accent']),
+        ('hunk-header-style', 'file line-number syntax'),
+        ('hunk-header-decoration-style', '"%s" box' % p['muted']),
+        ('hunk-header-file-style', '"%s"' % p['light']),
+        ('hunk-header-line-number-style', '"%s"' % p['yellow']),
+        ('commit-decoration-style', '"%s" box' % p['accent']),
+    ]
+    return ('# Generated by ~/.config/quickshell/scripts/theme-sync.py (theme: %s) — included by\n'
+            '# ~/.gitconfig; delta pages git\'s diffs when installed (GIT_PAGER, ~/.config/zsh/tools.zsh)\n'
+            '[delta]\n' % name + ''.join('    %s = %s\n' % kv for kv in rows))
+
+
+def atuin_theme(p, name):
+    rows = [('AlertInfo', p['green']), ('AlertWarn', p['yellow']), ('AlertError', p['red']),
+            ('Annotation', p['muted']), ('Base', p['fg']), ('Guidance', p['muted']),
+            ('Important', p['light']), ('Title', p['light']), ('Muted', p['muted'])]
+    return ('# Generated by ~/.config/quickshell/scripts/theme-sync.py (theme: %s)\n'
+            '[theme]\nname = "qs"\n\n[colors]\n' % name + ''.join('%s = "%s"\n' % kv for kv in rows))
+
+
+def sync_terminal(r, on, name):
+    """kitty follows the theme only while [sync] terminal is on; the tools always get a palette
+    (the theme's, or nier's when off) so the prompt and colours never go missing."""
+    changed = []
+    p = term_palette(r if on else resolve({}))
+    tag = name if on else 'nier (sync off)'
+    kitty = kitty_conf(p, name) if on else '# [sync] terminal = false: kitty keeps the colours in kitty.conf\n'
+    if write_if_changed(KITTY_QS, kitty):
+        changed.append('kitty')
+        subprocess.run(['pkill', '-USR1', '-x', 'kitty'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if write_if_changed(ZSH_QS, zsh_conf(p, tag)):
+        changed.append('zsh')
+    if write_if_changed(BAT_QS, bat_theme(p, tag)):
+        changed.append('bat')
+        try:
+            subprocess.run(['bat', 'cache', '--build'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    if write_if_changed(DELTA_QS, delta_conf(p, tag)):
+        changed.append('delta')
+    if write_if_changed(ATUIN_QS, atuin_theme(p, tag)):
+        changed.append('atuin')
+    return changed
+
+
 def main():
     shell = parse(read(os.path.join(CONF, 'shell.conf')))
     name = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1] else str(shell.get('general.theme') or 'nier')
@@ -390,6 +685,7 @@ def main():
         done.append('hyprland')
     if sync_hyprlock(r, name, shell):
         done.append('hyprlock')
+    done += sync_terminal(r, shell.get('sync.terminal', True) is not False, name)
     print('theme-sync %s: %s' % (name, ', '.join(done) if done else 'up to date'))
 
 

@@ -93,7 +93,8 @@ Popup {
             { type: "num",  key: "backdrop.flicker",  def: 0.6,  min: 0, max: 1, step: 0.1, label: "閃動強度", desc: "三角形隨機閃動的強度，0 = 靜止。" },
             { type: "num",  key: "backdrop.cellSize", def: 180,  min: 100, max: 320, step: 10, unit: "px", label: "三角形大小", desc: "背景三角形的邊長。" },
             { type: "bool", key: "sync.fcitx5",   def: true, label: "fcitx5 跟著主題", desc: "fcitx5 自己的選字框用主題配色；關掉回到固定的 nier 主題。" },
-            { type: "bool", key: "sync.hyprland", def: true, label: "視窗邊框跟著主題", desc: "Hyprland 的邊框與光暈用主題配色；關掉回到原本的全息配色。" }
+            { type: "bool", key: "sync.hyprland", def: true, label: "視窗邊框跟著主題", desc: "Hyprland 的邊框與光暈用主題配色；關掉回到原本的全息配色。" },
+            { type: "bool", key: "sync.terminal", def: true, label: "終端機跟著主題", desc: "kitty 的配色、zsh 提示符與 fzf / bat / delta / atuin 跟著主題；關掉時 kitty 回到 kitty.conf 自己的配色。" }
         ],
         hud: [
             { type: "bool", key: "hud.enabled",     def: true, label: "顯示 HUD", desc: "右上角的 HUD（狀態、月曆、工作區、OSD）。" },
