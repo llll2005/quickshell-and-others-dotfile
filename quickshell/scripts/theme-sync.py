@@ -484,6 +484,7 @@ def term_palette(r):
         p['white'], p['br_white'] = mix(fg, bg, 0.35), fg
     p['sel'] = mix(bg, r['light'] if dark else r['accent'], 0.28)
     p['suggest'] = mix(r['muted'], bg, 0.35)
+    p['line'] = mix(r['muted'], bg, 0.5)        # the prompt's frame: a hairline, quieter than muted
     return p
 
 
@@ -530,7 +531,7 @@ def _q(s):              # a single-quoted shell word
 
 
 def zsh_conf(p, name):
-    keys = ['bg', 'fg', 'raised', 'muted', 'light', 'accent', 'sel', 'suggest'] + ANSI[1:7] + ['br_' + a for a in ANSI[1:7]]
+    keys = ['bg', 'fg', 'raised', 'muted', 'light', 'accent', 'sel', 'suggest', 'line'] + ANSI[1:7] + ['br_' + a for a in ANSI[1:7]]
     fzf = ('--color=fg:%s,fg+:%s,bg:-1,bg+:%s,hl:%s,hl+:%s,info:%s,prompt:%s,pointer:%s,marker:%s,'
            'spinner:%s,header:%s,border:%s,label:%s,query:%s,gutter:-1,separator:%s,scrollbar:%s'
            % (p['white'], p['fg'], p['raised'], p['yellow'], p['br_yellow'], p['muted'], p['light'], p['light'],
