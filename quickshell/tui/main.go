@@ -3,10 +3,15 @@
 //
 //	voidbox pacman <args>      a transaction (queries just run pacman)
 //	voidbox askpass <prompt>   the password screen (what voidbox-askpass runs)
-//	voidbox render <askpass|pacman|yesno|choice> [w h]   one frame as text, for checking the look
+//	voidbox pinentry           gpg-agent's pinentry (what pinentry-void runs)
+//	voidbox choose TITLE ITEM… a numbered list card; prints the pick (choose.go)
+//	voidbox confirm QUESTION   a YES / NO card; exit 0 = yes
+//	voidbox render <askpass|askpass2|askconfirm|asktext|pacman|yesno|choice|auth> [w h]
+//	                           one frame as text, for checking the look
 //
-// voidbox-askpass (a symlink) is sudo's SUDO_ASKPASS: inside a voidbox pacman it hands
-// the question to that screen; anywhere else it draws its own on /dev/tty.
+// voidbox-askpass (a symlink) is the askpass for sudo, ssh and git: inside a voidbox
+// pacman it hands the question to that screen; in a terminal it draws its own on
+// /dev/tty; with no terminal the shell asks (widgets/AuthPrompt.qml's socket).
 // Shell side: tui/void.zsh. Build: make -C ~/.config/quickshell/tui
 package main
 
@@ -18,7 +23,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
@@ -45,10 +49,19 @@ func render(what string, w, h int) {
 	r.SetColorProfile(termenv.TrueColor)
 	l := newLook(r, loadPalette())
 	switch what {
-	case "askpass", "askpass2":
-		m := askModel{l: l, w: w, h: h, cmd: "pacman -Syu", user: "user", attempt: 1, t0: time.Now().Add(-time.Second), pass: []rune("hunter")}
-		if what == "askpass2" {
-			m.attempt, m.pass = 2, nil
+	case "askpass", "askpass2", "askconfirm", "asktext":
+		m := askModel{l: l, w: w, h: h, choice: 1, pass: []rune("hunter"),
+			q: askReq{kind: kSecret, detail: "$ sudo pacman -Syu", sudo: true, hint: "PASSWORD"}}
+		switch what {
+		case "askpass2":
+			m.q.status, m.pass = "WRONG PASSWORD  ·  TRY 2/3", nil
+		case "askconfirm":
+			m.q = askReq{kind: kConfirm, word: true, detail: "$ ssh example.org",
+				message: "The authenticity of host 'example.org' can't be established.\nED25519 key fingerprint is SHA256:0123456789abcdef.\nAre you sure you want to continue connecting (yes/no/[fingerprint])?"}
+		case "asktext":
+			m.q = askReq{kind: kText, detail: "$ git · https://example.org/repo.git", hint: "USER NAME",
+				message: "Username for 'https://example.org':"}
+			m.pass = []rune("octocat")
 		}
 		fmt.Println(m.View())
 	default:
@@ -75,6 +88,9 @@ func render(what string, w, h int) {
 }
 
 func main() {
+	if filepath.Base(os.Args[0]) == "pinentry-void" {
+		os.Exit(runPinentry(os.Args[1:]))
+	}
 	if filepath.Base(os.Args[0]) == "voidbox-askpass" {
 		prompt := strings.Join(os.Args[1:], " ")
 		if os.Getenv("VOIDBOX_SOCK") != "" {
@@ -83,7 +99,7 @@ func main() {
 		os.Exit(runAskpass(prompt))
 	}
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: voidbox pacman <args> | askpass <prompt> | render <what> [w h]")
+		fmt.Fprintln(os.Stderr, "usage: voidbox pacman <args> | askpass <prompt> | pinentry | choose TITLE ITEM… | confirm QUESTION | render <what> [w h]")
 		os.Exit(2)
 	}
 	switch os.Args[1] {
@@ -91,6 +107,16 @@ func main() {
 		os.Exit(runPacman(os.Args[2:]))
 	case "askpass":
 		os.Exit(runAskpass(strings.Join(os.Args[2:], " ")))
+	case "pinentry":
+		os.Exit(runPinentry(os.Args[2:]))
+	case "choose":
+		if len(os.Args) < 4 {
+			fmt.Fprintln(os.Stderr, "usage: voidbox choose TITLE ITEM…")
+			os.Exit(2)
+		}
+		os.Exit(runChoose(os.Args[2], os.Args[3:], false))
+	case "confirm":
+		os.Exit(runChoose(strings.Join(os.Args[2:], " "), nil, true))
 	case "render":
 		w, h := 100, 30
 		if len(os.Args) >= 5 {

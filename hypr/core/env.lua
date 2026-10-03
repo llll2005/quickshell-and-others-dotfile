@@ -88,3 +88,8 @@ hl.env("XCURSOR_THEME", "peachy_cursor")
 hl.env("XCURSOR_SIZE", "12")
 hl.env("HYPRCURSOR_THEME", "peachy_cursor")
 hl.env("HYPRCURSOR_SIZE", "12")
+
+-- Passwords asked with no terminal (ssh / git from a GUI app): voidbox-askpass hands them
+-- to the shell's Void prompt (quickshell/tui → widgets/AuthPrompt.qml); interactive zsh
+-- sets SSH_ASKPASS_REQUIRE=force on top, so terminals get the Void too (tui/void.zsh)
+hl.env("SSH_ASKPASS", os.getenv("HOME") .. "/.local/bin/voidbox-askpass")

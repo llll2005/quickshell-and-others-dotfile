@@ -3166,13 +3166,52 @@ Popup {
                             border.color: root.colInk
                             border.width: 1
 
+                            // the secret as a diamond per character, like the Void's VoidField
+                            // (the TextInput below only takes the keys; its glyphs are hidden)
+                            Row {
+                                id: pwDiamonds
+                                anchors.left: parent.left; anchors.leftMargin: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 6
+                                property real blink: 1
+                                Timer {
+                                    interval: 530; repeat: true; running: pwInput.activeFocus
+                                    onTriggered: pwDiamonds.blink = pwDiamonds.blink > 0.5 ? 0.2 : 1
+                                    onRunningChanged: pwDiamonds.blink = 1
+                                }
+                                Repeater {
+                                    model: Math.min(pwInput.length, 28)
+                                    Rectangle {
+                                        width: 7; height: 7; rotation: 45
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: root.colInk
+                                    }
+                                }
+                                Rectangle {   // caret
+                                    width: 7; height: 7; rotation: 45
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: "transparent"; border.color: root.colInk; border.width: 1
+                                    opacity: pwInput.activeFocus ? pwDiamonds.blink : 0.35
+                                }
+                                Text {
+                                    visible: pwInput.length === 0
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "TYPE PASSWORD"
+                                    font.family: Theme.mono; font.pixelSize: 10; font.letterSpacing: 2.5
+                                    color: root.colInk; opacity: 0.35
+                                }
+                            }
+
                             TextInput {
                                 id: pwInput
                                 anchors.fill: parent
                                 anchors.leftMargin: 10
                                 anchors.rightMargin: 10
                                 verticalAlignment: TextInput.AlignVCenter
-                                color: root.colInk
+                                color: "transparent"
+                                selectionColor: "transparent"
+                                selectedTextColor: "transparent"
+                                cursorDelegate: Item {}
                                 font.pixelSize: 13
                                 echoMode: TextInput.Password
                                 clip: true

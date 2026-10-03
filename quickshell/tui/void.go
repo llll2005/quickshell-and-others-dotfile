@@ -6,6 +6,8 @@ package main
 
 import (
 	"bufio"
+	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -14,6 +16,11 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 )
+
+// voidBlack: the Void's black, one step off #000000 — kitty draws a cell whose background
+// equals its own default (black, unless a theme sets one) with background_opacity, so a
+// pure black screen would show the desktop through
+const voidBlack = "#010101"
 
 type palette struct {
 	light, warn string
@@ -177,24 +184,46 @@ var ansiRe = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\a]*(\a|\x1b\
 
 func stripANSI(s string) string { return ansiRe.ReplaceAllString(s, "") }
 
-// ── the password screen, shared by sudo's askpass and the pacman screen's sudo question ──
+// ── the password screen: askpass (sudo, ssh, git), pinentry, pacman's sudo question ──
 // The same composition as the shell's Void (the power exit, the lock, the polkit prompt):
-// a diamond, a title, one hairline, a mono line ("$ sudo …", where the exit shows its
-// command), then the password as a diamond per character on a line, a status, the keys.
-// Every cell is painted black, so a translucent terminal doesn't show through.
+// a diamond, a title, one hairline, the program's question and a mono line ("$ sudo …",
+// where the exit shows its command), then the answer — a diamond per character on a
+// line, the text itself, or YES / NO — a status, the keys. Every cell is painted black,
+// so a translucent terminal doesn't show through.
 
 type promptView struct {
-	title  string // "AUTHORIZATION REQUIRED"
-	what   string // "$ sudo pacman -Syu"
-	n      int    // characters typed
-	caret  bool   // the caret's blink phase (true = lit)
-	done   bool   // submitted: no caret
-	status string // "WRONG PASSWORD · TRY 2/3"
-	warn   bool   // the status (and the diamond) in warn
+	title   string // "AUTHORIZATION REQUIRED"
+	message string // the program's own question ("Enter passphrase for key …")
+	what    string // "$ sudo pacman -Syu"
+	n       int    // characters typed
+	echo    string // a visible answer (a user name): shown instead of the diamonds
+	caret   bool   // the caret's blink phase (true = lit)
+	done    bool   // submitted: no caret
+	status  string // "WRONG PASSWORD · TRY 2/3"
+	warn    bool   // the status (and the diamond) in warn
+	confirm bool   // YES / NO instead of the field
+	choice  int    // 0 YES · 1 NO
+	hint    string // "TYPE PASSWORD"
+	keys    [][2]string
+	big     bool // kitty: the title at twice the size (see bigTitle)
 }
 
-func (l look) voidPrompt(w, h int, p promptView) string {
-	black := lipgloss.Color("#000000")
+// voidFrame: a screen as h painted lines, plus the title to lay over them at twice the
+// size (kitty's text-sizing protocol draws a character over 2×2 cells; bubbletea's line
+// renderer would erase its lower half, so these screens are painted whole — paint()).
+type voidFrame struct {
+	lines              []string
+	title              string // "" = no big title
+	titleRow, titleCol int
+	titleSGR           string
+}
+
+func (f voidFrame) String() string { return strings.Join(f.lines, "\n") }
+
+func (l look) voidPrompt(w, h int, p promptView) string { return l.voidScreen(w, h, p).String() }
+
+func (l look) voidScreen(w, h int, p promptView) voidFrame {
+	black := lipgloss.Color(voidBlack)
 	bg := func(s lipgloss.Style) lipgloss.Style { return s.Background(black) }
 	fg, dim, faint, warn := bg(l.fg), bg(l.r.NewStyle().Foreground(lipgloss.Color("#9a9a9a"))), bg(l.faint), bg(l.warn)
 	sp := func(n int) string { return bg(l.r.NewStyle()).Render(strings.Repeat(" ", n)) }
@@ -204,22 +233,45 @@ func (l look) voidPrompt(w, h int, p promptView) string {
 	}
 
 	var field strings.Builder
-	n := p.n
-	if n > 24 {
-		n = 24
+	switch {
+	case p.confirm:
+		for i, word := range []string{"YES", "NO"} {
+			if i > 0 {
+				field.WriteString(sp(10))
+			}
+			if p.choice == i {
+				field.WriteString(fg.Render(l.dia) + sp(2) + fg.Render(spaced(word)))
+			} else {
+				field.WriteString(faint.Render(l.hollow) + sp(2) + faint.Render(spaced(word)))
+			}
+		}
+	case p.echo != "":
+		field.WriteString(fg.Render(p.echo))
+		if !p.done {
+			field.WriteString(sp(1))
+		}
+	default:
+		n := p.n
+		if n > 24 {
+			n = 24
+		}
+		for i := 0; i < n; i++ {
+			field.WriteString(fg.Render(l.dia) + sp(1))
+		}
 	}
-	for i := 0; i < n; i++ {
-		field.WriteString(fg.Render(l.dia) + sp(1))
-	}
-	if !p.done {
+	if !p.confirm && !p.done {
 		if p.caret {
 			field.WriteString(fg.Render(l.hollow))
 		} else {
 			field.WriteString(faint.Render(l.hollow))
 		}
-	}
-	if p.n == 0 && !p.done {
-		field.WriteString(sp(2) + faint.Render(spaced("TYPE PASSWORD")))
+		if p.n == 0 && p.echo == "" {
+			hint := p.hint
+			if hint == "" {
+				hint = "TYPE PASSWORD"
+			}
+			field.WriteString(sp(2) + faint.Render(spaced(hint)))
+		}
 	}
 	under := faint
 	if p.warn {
@@ -229,27 +281,141 @@ func (l look) voidPrompt(w, h int, p promptView) string {
 	if p.status != "" {
 		status = warn.Render(spaced(p.status))
 	}
+	keys := p.keys
+	if keys == nil {
+		keys = [][2]string{{"↵", "AUTHORIZE"}, {"ESC", "CANCEL"}}
+	}
+	var kb strings.Builder
+	for i, k := range keys {
+		if i > 0 {
+			kb.WriteString(sp(5))
+		}
+		kb.WriteString(faint.Render(k[0]+" ") + dim.Render(spaced(k[1])))
+	}
 
-	lines := []string{
-		mark.Render(l.hollow),
-		"",
-		fg.Render(spaced(p.title)),
-		"",
-		dim.Render(strings.Repeat(l.line, 26)),
-		dim.Render(p.what),
-		"",
-		"",
-		field.String(),
-		under.Render(strings.Repeat(l.line, 40)),
-		status,
-		"",
-		faint.Render("↵ ") + dim.Render(spaced("AUTHORIZE")) + sp(5) + faint.Render("ESC ") + dim.Render(spaced("CANCEL")),
+	// the title: at twice the size where kitty can and the screen is wide enough
+	title := fg.Render(spaced(p.title))
+	big := p.big && !l.pal.ascii && w >= bigWidth(p.title)+6 && h >= 18
+	if big {
+		title = ""
 	}
-	// the look's own renderer: the default one is bound to stdout, which for askpass is the
-	// pipe to sudo (no colour), and would leave the padding unpainted
+	lines := []string{mark.Render(l.hollow), "", title, ""}
+	if big {
+		lines = append(lines, "") // the big title sits a touch lower: room above the rule
+	}
+	lines = append(lines, dim.Render(strings.Repeat(l.line, 26)))
+	if p.message != "" {
+		width := w - 8
+		if width > 72 {
+			width = 72
+		}
+		msg := l.r.NewStyle().Width(width).Align(lipgloss.Center).Render(p.message)
+		for _, ln := range strings.Split(msg, "\n") {
+			lines = append(lines, bg(l.fg).Render(strings.TrimSpace(ln)))
+		}
+	}
+	lines = append(lines, dim.Render(p.what), "", "", field.String())
+	if !p.confirm {
+		lines = append(lines, under.Render(strings.Repeat(l.line, 40)))
+	}
+	lines = append(lines, status, "", kb.String())
+
+	// centred both ways, on black (the look's own renderer: the default one is bound to
+	// stdout, which for askpass is the pipe to sudo — no colour, padding left unpainted)
 	ws := lipgloss.WithWhitespaceBackground(black)
-	for i := range lines {
-		lines[i] = l.r.PlaceHorizontal(w, lipgloss.Center, lines[i], ws)
+	blank := sp(w)
+	out := make([]string, 0, h)
+	top := (h - len(lines)) / 2
+	if top < 0 {
+		top = 0
 	}
-	return l.r.Place(w, h, lipgloss.Center, lipgloss.Center, strings.Join(lines, "\n"), ws)
+	for i := 0; i < top; i++ {
+		out = append(out, blank)
+	}
+	for _, ln := range lines {
+		if len(out) == h {
+			break
+		}
+		out = append(out, l.r.PlaceHorizontal(w, lipgloss.Center, ln, ws))
+	}
+	for len(out) < h {
+		out = append(out, blank)
+	}
+	f := voidFrame{lines: out}
+	if big {
+		f.title, f.titleRow, f.titleCol = p.title, top+2, (w-bigWidth(p.title))/2
+		f.titleSGR = sgrRGB(l.pal.light)
+	}
+	return f
+}
+
+// ── big text (kitty ≥ 0.40: OSC 66, the text-sizing protocol) ──
+
+// kittyBig: this terminal draws text at several sizes
+func kittyBig() bool {
+	return os.Getenv("KITTY_WINDOW_ID") != "" || os.Getenv("TERM") == "xterm-kitty"
+}
+
+// a title at twice the size keeps the Void's tracking: each letter is its own 2×2-cell
+// character, with a 1-cell gap after it (3 for a word space)
+func bigWidth(s string) int {
+	n := 0
+	for i, r := range []rune(s) {
+		if i > 0 {
+			n++
+		}
+		if r == ' ' {
+			n++
+		} else {
+			n += 2
+		}
+	}
+	return n
+}
+
+func bigTitle(s, sgr string) string {
+	var b strings.Builder
+	b.WriteString(sgr)
+	for i, r := range []rune(s) {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		if r == ' ' {
+			b.WriteByte(' ')
+			continue
+		}
+		b.WriteString("\x1b]66;s=2;" + string(r) + "\a")
+	}
+	b.WriteString("\x1b[0m")
+	return b.String()
+}
+
+func sgrRGB(hex string) string {
+	var r, g, b int
+	if len(hex) == 7 {
+		fmt.Sscanf(hex[1:], "%02x%02x%02x", &r, &g, &b)
+	}
+	return fmt.Sprintf("\x1b[0;38;2;%d;%d;%d;48;2;1;1;1m", r, g, b)
+}
+
+// sgrFG: the colour alone, on whatever the terminal's background is (the scrollback)
+func sgrFG(hex string) string {
+	var r, g, b int
+	if len(hex) == 7 {
+		fmt.Sscanf(hex[1:], "%02x%02x%02x", &r, &g, &b)
+	}
+	return fmt.Sprintf("\x1b[0;38;2;%d;%d;%dm", r, g, b)
+}
+
+// paint: the whole frame in one synchronized update, then the big title over it (written
+// last, so the rows painted under it don't erase it)
+func paint(w io.Writer, f voidFrame) {
+	var b strings.Builder
+	b.WriteString("\x1b[?2026h\x1b[H")
+	b.WriteString(strings.Join(f.lines, "\r\n"))
+	if f.title != "" {
+		fmt.Fprintf(&b, "\x1b[%d;%dH%s", f.titleRow+1, f.titleCol+1, bigTitle(f.title, f.titleSGR))
+	}
+	b.WriteString("\x1b[?2026l")
+	io.WriteString(w, b.String())
 }

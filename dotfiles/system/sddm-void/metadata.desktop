@@ -1,0 +1,8 @@
+[SddmGreeterTheme]
+Name=void
+Description=The login screen in the Void: the same composition as the Quickshell lock and power exit
+Author=llll2005
+Type=sddm-theme
+MainScript=Main.qml
+ConfigFile=theme.conf
+QtVersion=6
