@@ -7,13 +7,15 @@
 # Limine's look, should a write have slipped past the post hook
 [ -x /usr/local/lib/boot-void/limine-look ] && /usr/local/lib/boot-void/limine-look
 command -v efibootmgr >/dev/null || exit 0
+# the Limine entry by what it loads, whatever it's called (boot-void.sh --label renames it)
+find_lim() { printf '%s\n' "$1" | grep -iF '\EFI\limine\limine_x64.efi' | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\).*/\1/p' | head -1; }
 list=$(efibootmgr) || exit 0
-lim=$(printf '%s\n' "$list" | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\{0,1\} Limine[[:space:]].*/\1/p' | head -1)
+lim=$(find_lim "$list")
 if [ -z "$lim" ]; then
     echo "no Limine boot entry: registering it again"
     limine-install >/dev/null 2>&1 || exit 1
     list=$(efibootmgr)
-    lim=$(printf '%s\n' "$list" | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\{0,1\} Limine[[:space:]].*/\1/p' | head -1)
+    lim=$(find_lim "$list")
     [ -n "$lim" ] || exit 1
 fi
 order=$(printf '%s\n' "$list" | sed -n 's/^BootOrder: *//p')

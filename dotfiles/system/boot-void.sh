@@ -8,6 +8,8 @@
 #   sudo sh boot-void.sh --update  bring an install up to date with this folder: the pictures,
 #                                  the Plymouth theme (into every initramfs), Limine's look
 #   sudo sh boot-void.sh --art     redraw the pictures only (after changing [void] or fonts)
+#   sudo sh boot-void.sh --label NAME  what the firmware's boot menu calls Limine (default
+#                                  "Limine"; the entry is recreated under the new name)
 #   sudo sh boot-void.sh --drop-grub   take GRUB out of the firmware's boot menu (its kernels
 #                                  go stale with the first update after the switch)
 #   sudo sh boot-void.sh --undo    GRUB first again, the initramfs as it was, no splash
@@ -73,6 +75,28 @@ if [ "$1" = "--update" ]; then
     /usr/local/lib/boot-void/limine-look
     say "boot chain up to date"
     grep -q '^# ── boot-void: the look' "$ESP/limine.conf" && say "Limine's look is in $ESP/limine.conf"
+    exit 0
+fi
+
+if [ "$1" = "--label" ]; then
+    name=$2
+    [ -n "$name" ] || { echo "usage: sudo sh $0 --label NAME"; exit 1; }
+    # the guard finds the entry by its loader, not its name: install that one first
+    install -Dm 755 "$SRC/bootorder-guard" /usr/local/lib/boot-void/bootorder-guard
+    loader='\EFI\limine\limine_x64.efi'
+    ids() { efibootmgr | grep -iF "$loader" | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\).*/\1/p'; }
+    old=$(ids)
+    src=$(findmnt -n -o SOURCE "$ESP")
+    disk=/dev/$(lsblk -no PKNAME "$src")
+    part=$(cat "/sys/class/block/${src#/dev/}/partition")
+    # the new entry first, the old one only once it's there (never without one)
+    efibootmgr --create --disk "$disk" --part "$part" --label "$name" --loader "$loader" >/dev/null
+    new=$(ids | grep -vxF "$old" | head -1)
+    [ -n "$new" ] || { echo "couldn't create the entry; nothing removed"; exit 1; }
+    for n in $old; do efibootmgr -b "$n" -B >/dev/null; done
+    /usr/local/lib/boot-void/bootorder-guard >/dev/null || true
+    say "the firmware's boot menu calls Limine \"$name\" now (Boot$new)"
+    efibootmgr | sed -n '/^BootOrder/p; /^Boot[0-9A-Fa-f]\{4\}/p' | cut -c1-60
     exit 0
 fi
 
