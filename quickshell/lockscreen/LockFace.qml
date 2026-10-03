@@ -4,16 +4,13 @@ import Quickshell.Io
 import "../theme"
 import "../settings"
 import "../components"
-import "../services"
 
-// LockFace — one screen of the session lock, in the Void: black, light type, a diamond,
-// words that scramble in. Every screen shows the same state (LockState); whichever one
-// has the keyboard takes the typing.
-//
-// The glass is only for the moments: on lock it unfolds over the black and shatters away
-// as the face scrambles in; on the right password it unfolds again over the face and the
-// screen opens. In between nothing animates but the caret and the seconds, so a locked
-// machine idles.
+// LockFace — one screen of the session lock, built like the power exit (the Void's
+// reference): the desktop shatters into the dark, then a diamond, SYSTEM LOCKED, one
+// hairline and a mono line (the time, where the exit shows its command) fade in — and under
+// them, the password as a diamond per character. No big clock, no corners, no typing
+// effect. Every screen shows the same state (LockState); whichever has the keyboard types.
+// Nothing animates at rest but the caret's two-frames-a-second blink.
 Item {
     id: face
     required property var st
@@ -21,18 +18,14 @@ Item {
 
     readonly property real  u:     Math.max(0.7, height / 1080)
     readonly property color fg:    Theme.voidLight
-    readonly property color dim:   Theme.alpha(Theme.voidLight, 0.55)
+    readonly property color dim:   Theme.alpha(Theme.voidLight, 0.6)
     readonly property color faint: Theme.alpha(Theme.voidLight, 0.22)
     readonly property color warn:  Theme.voidWarn
-    readonly property string mono: Theme.voidFont      // the Void's voice ([font] void)
-    // which face: "void" (the clock and the line) or "relic" (lockscreen/RelicLayer.qml)
-    readonly property string style: Quickshell.env("QS_LOCK_STYLE") || Config.str("lock.style", "void")
-    // the type scale (Theme.voidStep: px at 1080 p) at this screen's size
-    readonly property real s0:     Theme.voidStep(0) * u                    // labels, corners
-    readonly property real s1:     Theme.voidStep(1) * u                    // the prompt, the seconds
-    readonly property real s2:     Theme.voidStep(2) * u                    // the big gaps
-    readonly property real sClock: Theme.voidStep(Theme.voidClockStep) * u
-    readonly property int  wt:     Theme.voidWeight
+    readonly property string vfont: Theme.voidFont
+    // the Void's type scale (Theme.voidStep: px at 1080 p) at this screen's size
+    readonly property real s0: Theme.voidStep(0) * u      // the mono line, the status
+    readonly property real s2: Theme.voidStep(2) * u      // the title (as the exit's)
+    readonly property int  wt: Theme.voidWeight
 
     focus: true
     Component.onCompleted: forceActiveFocus()
@@ -52,19 +45,15 @@ Item {
         e.accepted = true
     }
 
-    // ── clock ──
+    // ── the time, for the mono line ──
     property date now: new Date()
     Timer { interval: 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: face.now = new Date() }
     function pad(n) { return String(n).padStart(2, "0") }
-    readonly property var days:   ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+    readonly property var days:   ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
     readonly property var months: ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
-    property string host: ""
-    FileView { path: "/etc/hostname"; onLoaded: face.host = text().trim() }
-    readonly property string user: Quickshell.env("USER") || ""
-
     // ── motion ──
-    property real inT: 0          // the face scrambling in
+    property real inT: 0          // the face fading in
     SequentialAnimation {
         id: introT
         // with the frozen desktop: it shows under the glass, then shatters into the dark (the
@@ -85,160 +74,82 @@ Item {
     Timer { id: closeT; interval: 350; onTriggered: glass.active = true }   // the glass closes over the face, then the screen opens
     Connections {
         target: face.st
-        function onFailedPulse() { if (relic.item) relic.item.fail(); else inputLine.fail() }
-        function onAuthorizedPulse() { if (relic.item) relic.item.ok(); else inputLine.ok(); closeT.start() }
+        function onFailedPulse() { inputLine.fail() }
+        function onAuthorizedPulse() { inputLine.ok(); closeT.start() }
     }
 
-    // ── the relic face ──
-    Loader {
-        id: relic
-        anchors.fill: parent
-        active: face.style === "relic"
-        // not `face: face` — inside RelicLayer that name is its own property (undefined)
-        sourceComponent: RelicLayer { face: relic.parent }
-    }
+    // ── the exit's composition: diamond · title · hairline · mono line, then the password ──
+    Column {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        // the optical centre sits a little above the middle (46 %)
+        anchors.verticalCenterOffset: -0.04 * face.height + (1 - face.inT) * 14 * face.u
+        spacing: 0
+        opacity: face.inT
 
-    // ── the void face: the clock, the line ──
-    Item {
-        id: classic
-        anchors.fill: parent
-        visible: face.style !== "relic"
-
-        // ── corner brackets ──
-        Repeater {
-            model: 4
-            Item {
-                readonly property bool r: index % 2 === 1
-                readonly property bool b: index >= 2
-                x: r ? face.width - 36 * face.u - width : 36 * face.u
-                y: b ? face.height - 36 * face.u - height : 36 * face.u
-                width: 22 * face.u; height: 22 * face.u
-                opacity: face.inT
-                Rectangle { x: parent.r ? parent.width - 1 : 0; width: 1; height: parent.height; color: face.faint }
-                Rectangle { y: parent.b ? parent.height - 1 : 0; width: parent.width; height: 1; color: face.faint }
-            }
-        }
-
-        // ── top: what this is ──
-        Text {
-            x: 72 * face.u; y: 48 * face.u
-            text: "SYSTEM LOCKED"
-            font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
-            color: face.dim; opacity: face.inT
-        }
-        Text {
-            anchors.right: parent.right; anchors.rightMargin: 72 * face.u; y: 48 * face.u
-            text: face.now.getFullYear() + "." + face.pad(face.now.getMonth() + 1) + "." + face.pad(face.now.getDate())
-            font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
-            color: face.dim; opacity: face.inT
-        }
-
-        // ── centre ──
-        Column {
-            id: centre
+        Item {   // the diamond, its core pulsing while PAM thinks
             anchors.horizontalCenter: parent.horizontalCenter
-            anchors.verticalCenter: parent.verticalCenter
-            // the optical centre sits a little above the middle (46 %)
-            anchors.verticalCenterOffset: -0.04 * face.height + (1 - face.inT) * 14 * face.u
-            spacing: 0
-            opacity: face.inT
-
-            Row {
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: face.s0 * 0.35
-                FixedDigits {
-                    text: face.pad(face.now.getHours()) + ":" + face.pad(face.now.getMinutes())
-                    font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.sClock); font.letterSpacing: 0.02 * face.sClock
-                    color: face.fg
-                }
-                FixedDigits {
-                    y: face.sClock * 0.16
-                    text: face.pad(face.now.getSeconds())
-                    font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s1)
-                    color: face.dim
-                }
+            width: 18 * face.u; height: width
+            readonly property color c: face.st.phase === "failed" ? face.warn : face.fg
+            Rectangle {
+                anchors.centerIn: parent; width: 12 * face.u; height: width; rotation: 45
+                color: "transparent"; border.color: parent.c; border.width: 1
             }
-            Item { width: 1; height: face.s0 * 0.6 }
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: face.days[face.now.getDay()] + "  ·  " + face.pad(face.now.getDate()) + " " + face.months[face.now.getMonth()] + " " + face.now.getFullYear()
-                font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
-                color: face.dim
-            }
-
-            Item { width: 1; height: face.s2 }
-
-            Item {   // the rule, a diamond at its middle
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: 300 * face.u; height: 9 * face.u
-                Rectangle { anchors.verticalCenter: parent.verticalCenter; width: parent.width * face.inT; x: (parent.width - width) / 2; height: 1; color: face.faint }
-                Rectangle {
-                    anchors.centerIn: parent; width: 7 * face.u; height: width; rotation: 45
-                    color: "black"; border.color: face.st.phase === "failed" ? face.warn : face.fg; border.width: 1
-                    Rectangle {
-                        anchors.centerIn: parent; width: 3 * face.u; height: width
-                        color: face.st.phase === "failed" ? face.warn : face.fg
-                        opacity: face.st.phase === "verifying" ? 0.35 + 0.65 * blink.v : 0.85
-                    }
-                }
-            }
-
-            Item { width: 1; height: face.s2 }
-
-            Text {      // no typing: phase changes just switch the words
-                id: prompt
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: ({ idle: "AUTHORIZATION REQUIRED", verifying: "VERIFYING", failed: "FAILED",
-                         authorized: "AUTHORIZED" })[face.st.phase] || ""
-                font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s1); font.letterSpacing: 0.32 * face.s1
-                color: face.st.phase === "failed" ? face.warn : face.fg
-            }
-
-            Item { width: 1; height: face.s1 }
-
-            // the password: a diamond per character on a hairline (components/VoidField.qml)
-            VoidField {
-                id: inputLine
-                anchors.horizontalCenter: parent.horizontalCenter
-                u: face.u
-                text: face.st.text
-                phase: face.st.phase
-                blink: blink.v
-                Component.onCompleted: burst.backdrop = glass
-            }
-
-            Item { width: 1; height: face.s0 }
-
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                readonly property int wait: Math.max(0, Math.ceil((face.st.holdUntil - face.now.getTime()) / 1000))
-                text: face.st.caps ? "CAPS LOCK ON"
-                    : wait > 0 ? "RETRY IN " + wait + " S"
-                    : face.st.fails > 0 ? face.st.fails + (face.st.fails === 1 ? " FAILED ATTEMPT" : " FAILED ATTEMPTS") : " "
-                font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
-                color: face.st.caps || wait > 0 ? face.warn : face.dim
+            Rectangle {
+                anchors.centerIn: parent; width: 5 * face.u; height: width; rotation: 45
+                color: parent.c
+                opacity: face.st.phase === "verifying" ? 0.3 + 0.7 * blink.v : 0.8
             }
         }
-
-        // ── bottom: who, and the power left ──
-        Text {
-            x: 72 * face.u; anchors.bottom: parent.bottom; anchors.bottomMargin: 48 * face.u
-            text: "USER " + face.user.toUpperCase() + (face.host ? "   ·   HOST " + face.host.toUpperCase() : "")
-            font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
-            color: face.dim; opacity: face.inT
+        Item { width: 1; height: 16 * face.u }
+        Text {      // no typing: phase changes just switch the words
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: ({ idle: "SYSTEM LOCKED", verifying: "VERIFYING", failed: "ACCESS DENIED",
+                     authorized: "UNLOCKED" })[face.st.phase] || ""
+            font.family: face.vfont; font.weight: face.wt
+            font.pixelSize: Math.round(face.s2); font.letterSpacing: 0.26 * face.s2
+            color: face.st.phase === "failed" ? face.warn : face.fg
         }
+        Item { width: 1; height: 16 * face.u }
+        Rectangle {   // the hairline, opening with the face
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 260 * face.u * face.inT; height: 1
+            color: face.fg; opacity: 0.45
+        }
+        Item { width: 1; height: 14 * face.u }
+        Text {        // where the exit shows its command: the time
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: face.pad(face.now.getHours()) + ":" + face.pad(face.now.getMinutes()) + "  ·  "
+                + face.days[face.now.getDay()] + " " + face.pad(face.now.getDate()) + " " + face.months[face.now.getMonth()]
+            font.family: "Iosevka, monospace"; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.04 * face.s0
+            color: face.dim
+        }
+        Item { width: 1; height: 44 * face.u }
+        // the password: a diamond per character on a hairline (components/VoidField.qml)
+        VoidField {
+            id: inputLine
+            anchors.horizontalCenter: parent.horizontalCenter
+            u: face.u
+            text: face.st.text
+            phase: face.st.phase
+            blink: blink.v
+            opacity: face.st.text !== "" || face.st.phase !== "idle" ? 1 : 0.55
+            Behavior on opacity { NumberAnimation { duration: 220 } }
+            Component.onCompleted: burst.backdrop = glass
+        }
+        Item { width: 1; height: 14 * face.u }
         Text {
-            anchors.right: parent.right; anchors.rightMargin: 72 * face.u
-            anchors.bottom: parent.bottom; anchors.bottomMargin: 48 * face.u
-            visible: Battery.available
-            text: "BAT " + Battery.percent + "%" + (Battery.charging ? "  ·  CHARGING" : "")
-            font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
-            color: Battery.percent <= 15 && !Battery.charging ? face.warn : face.dim
-            opacity: face.inT
+            anchors.horizontalCenter: parent.horizontalCenter
+            readonly property int wait: Math.max(0, Math.ceil((face.st.holdUntil - face.now.getTime()) / 1000))
+            text: face.st.caps ? "CAPS LOCK ON"
+                : wait > 0 ? "RETRY IN " + wait + " S"
+                : face.st.fails > 0 ? face.st.fails + (face.st.fails === 1 ? " FAILED ATTEMPT" : " FAILED ATTEMPTS") : " "
+            font.family: face.vfont; font.weight: face.wt
+            font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
+            color: face.st.caps || wait > 0 ? face.warn : face.dim
         }
     }
 
-    readonly property real blinkV: blink.v     // for the relic face
     // caret / verifying blink — stepped, not animated: two frames a second while locked
     QtObject {
         id: blink

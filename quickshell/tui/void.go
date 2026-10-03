@@ -171,8 +171,85 @@ func (l look) rule(w int, k float64, mark lipgloss.Style) string {
 	return l.faint.Render(side) + mark.Render(l.dia) + l.faint.Render(side)
 }
 
-func centre(s string, w int) string { return lipgloss.PlaceHorizontal(w, lipgloss.Center, s) }
+func (l look) centre(s string, w int) string { return l.r.PlaceHorizontal(w, lipgloss.Center, s) }
 
 var ansiRe = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\a]*(\a|\x1b\\)|\x1b[()][0-9A-Za-z]`)
 
 func stripANSI(s string) string { return ansiRe.ReplaceAllString(s, "") }
+
+// ── the password screen, shared by sudo's askpass and the pacman screen's sudo question ──
+// The same composition as the shell's Void (the power exit, the lock, the polkit prompt):
+// a diamond, a title, one hairline, a mono line ("$ sudo …", where the exit shows its
+// command), then the password as a diamond per character on a line, a status, the keys.
+// Every cell is painted black, so a translucent terminal doesn't show through.
+
+type promptView struct {
+	title  string // "AUTHORIZATION REQUIRED"
+	what   string // "$ sudo pacman -Syu"
+	n      int    // characters typed
+	caret  bool   // the caret's blink phase (true = lit)
+	done   bool   // submitted: no caret
+	status string // "WRONG PASSWORD · TRY 2/3"
+	warn   bool   // the status (and the diamond) in warn
+}
+
+func (l look) voidPrompt(w, h int, p promptView) string {
+	black := lipgloss.Color("#000000")
+	bg := func(s lipgloss.Style) lipgloss.Style { return s.Background(black) }
+	fg, dim, faint, warn := bg(l.fg), bg(l.r.NewStyle().Foreground(lipgloss.Color("#9a9a9a"))), bg(l.faint), bg(l.warn)
+	sp := func(n int) string { return bg(l.r.NewStyle()).Render(strings.Repeat(" ", n)) }
+	mark := fg
+	if p.warn {
+		mark = warn
+	}
+
+	var field strings.Builder
+	n := p.n
+	if n > 24 {
+		n = 24
+	}
+	for i := 0; i < n; i++ {
+		field.WriteString(fg.Render(l.dia) + sp(1))
+	}
+	if !p.done {
+		if p.caret {
+			field.WriteString(fg.Render(l.hollow))
+		} else {
+			field.WriteString(faint.Render(l.hollow))
+		}
+	}
+	if p.n == 0 && !p.done {
+		field.WriteString(sp(2) + faint.Render(spaced("TYPE PASSWORD")))
+	}
+	under := faint
+	if p.warn {
+		under = warn
+	}
+	status := sp(1)
+	if p.status != "" {
+		status = warn.Render(spaced(p.status))
+	}
+
+	lines := []string{
+		mark.Render(l.hollow),
+		"",
+		fg.Render(spaced(p.title)),
+		"",
+		dim.Render(strings.Repeat(l.line, 26)),
+		dim.Render(p.what),
+		"",
+		"",
+		field.String(),
+		under.Render(strings.Repeat(l.line, 40)),
+		status,
+		"",
+		faint.Render("↵ ") + dim.Render(spaced("AUTHORIZE")) + sp(5) + faint.Render("ESC ") + dim.Render(spaced("CANCEL")),
+	}
+	// the look's own renderer: the default one is bound to stdout, which for askpass is the
+	// pipe to sudo (no colour), and would leave the padding unpainted
+	ws := lipgloss.WithWhitespaceBackground(black)
+	for i := range lines {
+		lines[i] = l.r.PlaceHorizontal(w, lipgloss.Center, lines[i], ws)
+	}
+	return l.r.Place(w, h, lipgloss.Center, lipgloss.Center, strings.Join(lines, "\n"), ws)
+}

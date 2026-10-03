@@ -90,79 +90,18 @@ func (m askModel) View() string {
 	if m.w == 0 {
 		return ""
 	}
-	l := m.l
-	t := float64(time.Since(m.t0)) / float64(520*time.Millisecond)
-	k := t
-	if k > 1 {
-		k = 1
+	what := "$ sudo"
+	if m.cmd != "" {
+		what = "$ sudo " + m.cmd
 	}
-	if m.done { // the rule folds into its diamond, then the screen goes
-		k = 1 - float64(time.Since(m.exitT0))/float64(260*time.Millisecond)
-		if k < 0 {
-			k = 0
-		}
+	status := ""
+	if m.attempt > 1 {
+		status = fmt.Sprintf("WRONG PASSWORD  ·  TRY %d/3", m.attempt)
 	}
-	failed := m.attempt > 1
-	mark := l.fg
-	if failed {
-		mark = l.warn
-	}
-	title := "AUTHORIZATION REQUIRED"
-	if m.done {
-		title = "SUBMITTED"
-	}
-
-	var dots strings.Builder
-	n := len(m.pass)
-	if n > 24 {
-		n = 24
-	}
-	for i := 0; i < n; i++ {
-		dots.WriteString(l.fg.Render(l.dia) + " ")
-	}
-	caret := l.fg.Render(l.hollow)
-	if m.blink && !m.done {
-		caret = l.faint.Render(l.hollow)
-	}
-	field := dots.String() + caret
-	if len(m.pass) == 0 {
-		field = caret + "  " + l.faint.Render(spaced("PASSWORD"))
-	}
-	under := l.dim.Render(strings.Repeat(l.line, 40))
-	if failed {
-		under = l.warn.Render(strings.Repeat(l.line, 40))
-	}
-
-	status := " "
-	if failed {
-		status = l.warn.Render(spaced(fmt.Sprintf("WRONG PASSWORD  ·  TRY %d/3", m.attempt)))
-	}
-	what := l.dim.Render("sudo " + m.cmd)
-	if m.cmd == "" {
-		what = l.dim.Render("sudo")
-	}
-	lines := []string{
-		mark.Render(l.hollow),
-		"",
-		l.bold.Render(spaced(title)),
-		"",
-		l.rule(36, k, mark),
-		"",
-		what,
-		l.faint.Render("AS  ") + l.fg.Render(spaced(strings.ToUpper(m.user))),
-		"",
-		field,
-		under,
-		"",
-		status,
-		"",
-		l.faint.Render("↵ ") + l.dim.Render(spaced("AUTHORIZE")) + "     " + l.faint.Render("ESC ") + l.dim.Render(spaced("CANCEL")),
-	}
-	for i := range lines {
-		lines[i] = centre(lines[i], m.w)
-	}
-	body := strings.Join(lines, "\n")
-	return lipgloss.Place(m.w, m.h, lipgloss.Center, lipgloss.Center, body)
+	return m.l.voidPrompt(m.w, m.h, promptView{
+		title: "AUTHORIZATION REQUIRED", what: what, n: len(m.pass), caret: !m.blink,
+		done: m.done, status: status, warn: m.attempt > 1,
+	})
 }
 
 // attempt: 1 for a new sudo, then 2, 3 when the same sudo asks again

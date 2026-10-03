@@ -592,6 +592,17 @@ func (m pacModel) View() string {
 	if m.w == 0 {
 		return ""
 	}
+	// sudo's question takes the whole screen, as everywhere else a password is asked
+	if m.kind == pAuth {
+		status := ""
+		if m.authTry > 1 {
+			status = fmt.Sprintf("WRONG PASSWORD  ·  TRY %d/3", m.authTry)
+		}
+		return m.l.voidPrompt(m.w, m.h, promptView{
+			title: "AUTHORIZATION REQUIRED", what: "$ sudo pacman " + strings.Join(m.args, " "),
+			n: len(m.input), caret: !m.tick, status: status, warn: m.authTry > 1,
+		})
+	}
 	l, w := m.l, m.w-6
 	pad := "   "
 	op := "pacman " + strings.Join(m.args, " ")
