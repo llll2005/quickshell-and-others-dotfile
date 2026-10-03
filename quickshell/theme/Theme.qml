@@ -69,7 +69,13 @@ QtObject {
     readonly property real voidRatio:     Config.num("font.voidRatio", 1.618)
     readonly property int  voidClockStep: Config.num("font.voidClockStep", 5)
     function voidStep(k) { return Math.round(voidBase * Math.pow(voidRatio, k)) }
-    readonly property string voidGlyphs: voidFont === mono ? "▸◆▪▫░▒▓█/\\|-_=+*" : "ABCDEFGHJKLMNPRSTUVWXYZ0123456789/=+-"
+    // the scramble's noise: block glyphs whatever the face (Qt draws the ones a face lacks
+    // from a fallback font — that's part of the decoding look)
+    readonly property string voidGlyphs: "▸◆▪▫░▒▓█/\\|-_=+*"
+    // the Void's ink is its own, not the theme's ([void] in shell.conf): 月白 and a muted red
+    readonly property color voidLight: _hex(Config.str("void.light", ""), "#d6ecf0")
+    readonly property color voidWarn:  _hex(Config.str("void.warn", ""), "#b8403c")
+    function _hex(v, d) { return /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v) ? v : d }
 
     // ── helpers ──
     function alpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }

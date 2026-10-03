@@ -2130,11 +2130,11 @@ Popup {
                 anchors.horizontalCenter: parent.horizontalCenter
                 Rectangle {
                     anchors.centerIn: parent; width: 12; height: 12; rotation: 45
-                    color: "transparent"; border.color: root.exitError !== "" ? Theme.warn : Theme.light; border.width: 1
+                    color: "transparent"; border.color: root.exitError !== "" ? Theme.voidWarn : Theme.voidLight; border.width: 1
                 }
                 Rectangle {
                     anchors.centerIn: parent; width: 5; height: 5; rotation: 45
-                    color: root.exitError !== "" ? Theme.warn : Theme.light
+                    color: root.exitError !== "" ? Theme.voidWarn : Theme.voidLight
                     opacity: 0.35 + 0.65 * root.pulse
                 }
             }
@@ -2147,13 +2147,13 @@ Popup {
                 font.family: Theme.voidFont
                 font.pixelSize: Theme.voidStep(2); font.letterSpacing: 0.26 * Theme.voidStep(2)
                 font.weight: Theme.voidWeight
-                color: root.exitError !== "" ? Theme.warn : Theme.light
+                color: root.exitError !== "" ? Theme.voidWarn : Theme.voidLight
                 ScrambleAnim { id: exitScramble; target: exitTitle; duration: 520; chars: Theme.voidGlyphs }
             }
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: 260 * root.exitFade; height: 1
-                color: Theme.light; opacity: 0.45
+                color: Theme.voidLight; opacity: 0.45
             }
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -2163,7 +2163,7 @@ Popup {
                 text: root.exitError !== "" ? root.exitError
                     : root.exitKey !== "" ? "$ " + (root.powerActs[root.exitKey] || {cmd: []}).cmd.join(" ") : ""
                 font.family: "Iosevka, monospace"; font.pixelSize: Theme.voidStep(0)
-                color: Theme.alpha(Theme.light, 0.6)
+                color: Theme.alpha(Theme.voidLight, 0.6)
                 elide: Text.ElideRight
             }
         }

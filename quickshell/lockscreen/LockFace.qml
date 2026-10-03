@@ -20,10 +20,10 @@ Item {
     property var scr: null
 
     readonly property real  u:     Math.max(0.7, height / 1080)
-    readonly property color fg:    Theme.light
-    readonly property color dim:   Theme.alpha(Theme.light, 0.55)
-    readonly property color faint: Theme.alpha(Theme.light, 0.22)
-    readonly property color warn:  Theme.warn
+    readonly property color fg:    Theme.voidLight
+    readonly property color dim:   Theme.alpha(Theme.voidLight, 0.55)
+    readonly property color faint: Theme.alpha(Theme.voidLight, 0.22)
+    readonly property color warn:  Theme.voidWarn
     readonly property string mono: Theme.voidFont      // the Void's voice ([font] void)
     // the type scale (Theme.voidStep: px at 1080 p) at this screen's size
     readonly property real s0:     Theme.voidStep(0) * u                    // labels, corners

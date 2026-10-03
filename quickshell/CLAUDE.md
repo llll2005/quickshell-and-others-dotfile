@@ -119,7 +119,9 @@ Two geometry rules the input mask depends on:
   - **Ink** — what *stays and tells*: CornerHud, OSD, lyrics, notifications, nav bars. Dark
     ink panel, paper text.
   - **Void** — the system *changing state or asking for authority*: boot, login, lock,
-    password prompts, sleep, shutdown. Pure black, the theme's `light`, a diamond,
+    password prompts, sleep, shutdown. Pure black, its own fixed ink — `Theme.voidLight` /
+    `voidWarn` from `[void] light / warn` in shell.conf (月白 #d6ecf0, a muted red), never the
+    theme's colours (also in the fallback hyprlock and voidbox) — a diamond,
     words scrambling in (`components/ScrambleText.qml`), one hairline, glass that
     collapses into the dark. The CC's power exit and `lock.qml` are the reference.
 - **One confirm**: hit-stop (~0.1 s pop + flash) → HitBurst (+ backdrop shock ring) → the
@@ -139,7 +141,7 @@ Two geometry rules the input mask depends on:
   prompt/dates/seconds, 2 titles and the big gaps, `voidClockStep` the lock's clock; every
   Void size comes from it (×`u` = screen height / 1080). Caps take tracking by size (0.3 em
   labels → 0.02 em the clock); the lock's block sits at the optical centre (46 %).
-  `Theme.voidGlyphs` keeps the scramble inside the face's own letters,
+  `Theme.voidGlyphs` is the scramble's noise — block glyphs (▸◆▪░▒▓█…) whatever the face,
   `components/FixedDigits.qml` sets clock digits in fixed cells (proportional figures).
   Never ask a display face for a weight it lacks (Norse had no Medium → Qt fell back to
   another family). A font installed while `qs` runs isn't seen until it restarts. The

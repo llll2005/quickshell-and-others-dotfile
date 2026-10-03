@@ -85,10 +85,11 @@ func loadPalette() palette {
 	if name == "" {
 		name = "nier"
 	}
-	t := parseConf(filepath.Join(dir, "config", "themes", name+".conf"))
+	// the Void's ink is its own, not the theme's: [void] in shell.conf (月白, a muted red)
+	_ = name
 	return palette{
-		light: hexOr(t["palette.light"], "#fff6cf"),
-		warn:  hexOr(t["palette.warn"], "#c8685c"),
+		light: hexOr(shell["void.light"], "#d6ecf0"),
+		warn:  hexOr(shell["void.warn"], "#b8403c"),
 		ascii: os.Getenv("TERM") == "linux",
 	}
 }

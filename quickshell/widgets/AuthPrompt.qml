@@ -151,10 +151,10 @@ Popup {
             Rectangle {   // the diamond
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: 11 * root.u; height: width; rotation: 45
-                color: "transparent"; border.color: root.authPhase === "failed" ? Theme.warn : Theme.light; border.width: 1
+                color: "transparent"; border.color: root.authPhase === "failed" ? Theme.voidWarn : Theme.voidLight; border.width: 1
                 Rectangle {
                     anchors.centerIn: parent; width: 4 * root.u; height: width
-                    color: root.authPhase === "failed" ? Theme.warn : Theme.light
+                    color: root.authPhase === "failed" ? Theme.voidWarn : Theme.voidLight
                     opacity: root.authPhase === "verifying" ? 0.35 + 0.65 * root.blinkV : 0.85
                 }
             }
@@ -167,13 +167,13 @@ Popup {
                 duration: 360
                 glyphs: Theme.voidGlyphs
                 font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s1); font.letterSpacing: 0.32 * root.s1
-                color: root.authPhase === "failed" ? Theme.warn : Theme.light
+                color: root.authPhase === "failed" ? Theme.voidWarn : Theme.voidLight
             }
             Item { width: 1; height: 18 * root.u }
             Item {   // the rule
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: 300 * root.u; height: 1
-                Rectangle { width: parent.width * root.inT; x: (parent.width - width) / 2; height: 1; color: Theme.alpha(Theme.light, 0.22) }
+                Rectangle { width: parent.width * root.inT; x: (parent.width - width) / 2; height: 1; color: Theme.alpha(Theme.voidLight, 0.22) }
             }
             Item { width: 1; height: 22 * root.u }
             Text {   // what is being asked for (polkit's message, often in your language)
@@ -183,7 +183,7 @@ Popup {
                 wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
                 font.family: Theme.cjk; font.pixelSize: Math.round(root.s1 * 0.85)
                 lineHeight: 1.25
-                color: Theme.alpha(Theme.light, 0.88)
+                color: Theme.alpha(Theme.voidLight, 0.88)
             }
             Item { width: 1; height: 8 * root.u }
             Text {
@@ -192,21 +192,21 @@ Popup {
                 text: root.actionId
                 elide: Text.ElideMiddle
                 font.family: Theme.mono; font.pixelSize: Math.round(root.s0 * 0.9); font.letterSpacing: 0.08 * root.s0
-                color: Theme.alpha(Theme.light, 0.35)
+                color: Theme.alpha(Theme.voidLight, 0.35)
             }
             Item { width: 1; height: 30 * root.u }
             Row {    // as whom (←→ when there's a choice)
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: 12 * root.u
                 readonly property bool many: !!root.flow && !!root.flow.identities && root.flow.identities.length > 1
-                Text { text: "AS"; font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s0); font.letterSpacing: 0.3 * root.s0; color: Theme.alpha(Theme.light, 0.45) }
-                Text { visible: parent.many; text: "◂"; font.pixelSize: Math.round(root.s0); color: Theme.alpha(Theme.light, 0.6) }
+                Text { text: "AS"; font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s0); font.letterSpacing: 0.3 * root.s0; color: Theme.alpha(Theme.voidLight, 0.45) }
+                Text { visible: parent.many; text: "◂"; font.pixelSize: Math.round(root.s0); color: Theme.alpha(Theme.voidLight, 0.6) }
                 Text {
                     text: root.flow ? root.idName(root.flow.selectedIdentity) : ""
                     font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s0); font.letterSpacing: 0.3 * root.s0
-                    color: Theme.light
+                    color: Theme.voidLight
                 }
-                Text { visible: parent.many; text: "▸"; font.pixelSize: Math.round(root.s0); color: Theme.alpha(Theme.light, 0.6) }
+                Text { visible: parent.many; text: "▸"; font.pixelSize: Math.round(root.s0); color: Theme.alpha(Theme.voidLight, 0.6) }
             }
             Item { width: 1; height: 16 * root.u }
             VoidField {
@@ -226,7 +226,7 @@ Popup {
                 horizontalAlignment: Text.AlignHCenter
                 text: root.flow && root.flow.supplementaryMessage ? root.flow.supplementaryMessage : " "
                 font.family: Theme.cjk; font.pixelSize: Math.round(root.s0)
-                color: root.flow && root.flow.supplementaryIsError ? Theme.warn : Theme.alpha(Theme.light, 0.55)
+                color: root.flow && root.flow.supplementaryIsError ? Theme.voidWarn : Theme.alpha(Theme.voidLight, 0.55)
             }
             Item { width: 1; height: 26 * root.u }
             Row {    // the keys
@@ -239,13 +239,13 @@ Popup {
                         spacing: 6 * root.u
                         Rectangle {
                             width: kk.implicitWidth + root.s0 * 0.7; height: root.s0 * 1.5
-                            color: "transparent"; border.color: Theme.alpha(Theme.light, 0.35); border.width: 1
-                            Text { id: kk; anchors.centerIn: parent; text: modelData[0]; font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s0 * 0.85); color: Theme.light }
+                            color: "transparent"; border.color: Theme.alpha(Theme.voidLight, 0.35); border.width: 1
+                            Text { id: kk; anchors.centerIn: parent; text: modelData[0]; font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s0 * 0.85); color: Theme.voidLight }
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: modelData[1]; font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s0); font.letterSpacing: 0.26 * root.s0
-                            color: Theme.alpha(Theme.light, 0.55)
+                            color: Theme.alpha(Theme.voidLight, 0.55)
                         }
                     }
                 }
