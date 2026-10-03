@@ -28,18 +28,22 @@ Popup {
     burst.spreadY: 0.7
 
     FolderListModel { id: themeFiles; folder: "file://" + Config.dir + "/themes"; nameFilters: ["*.conf"]; showDirs: false }
-    // display faces the Void can use — only those installed (the current one is kept even
-    // when this qs started before it was installed: fonts are read at startup)
-    readonly property var voidFonts: {
+    // font choices — only the installed faces (the current one is kept even when this qs
+    // started before it was installed: fonts are read at startup)
+    function installedFonts(want, key) {
         var have = Qt.fontFamilies()
-        var want = ["Josefin Sans", "Jost", "League Spartan", "Raleway", "Outfit", "Urbanist", "Figtree",
-                    "Novecento sans wide", "Michroma", "Bender", "Rajdhani", "BigNoodleTitling",
-                    "Barlow Condensed", "D-DIN", "Cinzel", "Norse", Theme.mono]
         var out = want.filter(function(f) { return have.indexOf(f) >= 0 })
-        var cur = Config.str("font.void", "")
+        var cur = Config.str(key, "")
         if (cur !== "" && out.indexOf(cur) < 0) out.unshift(cur)
         return out.length ? out : [Theme.mono]
     }
+    readonly property var monoFonts: installedFonts(["Operator Mono", "GoMono Nerd Font Mono", "Maple Mono NF CN",
+                                                     "Iosevka", "Fira Code", "Share Tech Mono"], "font.mono")
+    readonly property var cjkFonts: installedFonts(["jf金萱那提2.0", "源雲明體丹", "Noto Sans CJK TC", "Noto Serif CJK TC"], "font.cjk")
+    // display faces the Void can use
+    readonly property var voidFonts: installedFonts(["Josefin Sans", "Jost", "League Spartan", "Raleway", "Outfit", "Urbanist", "Figtree",
+                                                     "Novecento sans wide", "Michroma", "Bender", "Rajdhani", "BigNoodleTitling",
+                                                     "Barlow Condensed", "D-DIN", "Cinzel", "Norse", Theme.mono], "font.void")
     readonly property var themeNames: {
         var out = []
         for (var i = 0; i < themeFiles.count; i++) out.push(themeFiles.get(i, "fileBaseName"))
@@ -75,6 +79,8 @@ Popup {
         ],
         look: [
             { type: "choice", key: "general.theme", def: "nier", options: root.themeNames, label: "主題", desc: "整個 shell 的配色；fcitx5 與視窗邊框也會跟著換（見下方兩項）。" },
+            { type: "choice", key: "font.mono", def: "Operator Mono", options: root.monoFonts, label: "系統字型", desc: "標籤、數字與內文的等寬字（只列已安裝的）；kitty 用同一套時要另外改 kitty.conf。" },
+            { type: "choice", key: "font.cjk", def: "jf金萱那提2.0", options: root.cjkFonts, label: "中文字型", desc: "中文說明與通知的字；任何字缺的中文都會落到這裡（fontconfig 規則只認金萱，換別的要改 60-quickshell.conf）。" },
             { type: "choice", key: "font.void", def: "", options: root.voidFonts, label: "虛空字型", desc: "鎖屏、授權、關機過場的字（只列已安裝的）。新裝的字要重啟 qs 才看得到。" },
             { type: "choice", key: "font.voidWeight", def: "400", options: ["300", "400"], label: "虛空字重", desc: "300 Light · 400 Regular。" },
             { type: "choice", key: "font.voidRatio", def: "1.618", options: ["1.25", "1.333", "1.5", "1.618"], label: "虛空字級比例", desc: "每一級是上一級的幾倍：1.618 黃金比例落差最大，1.25 最平緩。" },

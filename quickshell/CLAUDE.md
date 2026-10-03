@@ -134,8 +134,15 @@ Two geometry rules the input mask depends on:
   (launcher, clipboard), and Alt works everywhere. Key-hint footers use the same words:
   `ALT 1–9`/`1–9 RUN`, `←→ <tab noun>`, `↑↓ SELECT`, `↵ <verb>`, `ESC CLOSE`.
 - **Words**: titles and labels in English caps (the system's voice), explanations in
-  Chinese. **Type**: mono (`Theme.mono`) for system labels and numbers, `Theme.cjk` for
-  Chinese; a 5-step size scale (to be settled with the mono choice). The Void's voice is
+  Chinese. **Type**: one pair for the whole system, kitty included: `Theme.mono`
+  (`[font] mono` = Operator Mono) for system labels, numbers and body text, `Theme.cjk`
+  (`[font] cjk` = jf金萱那提2.0) for Chinese; a 5-step size scale (still to be settled).
+  Never hardcode a family. Fontconfig does the pairing for the shell process only
+  (`~/.config/fontconfig/conf.d/60-quickshell.conf`, prgname `quickshell`): any face falls
+  back to Operator Mono, then 金萱 (Qt would pick Noto Sans CJK), and unset text is
+  Operator Mono. `20-operator-mono-weights.conf` corrects Operator's weights as they're
+  scanned (its files say Book = 80, so "regular" got Bold; run `fc-cache -f` after a
+  change). Operator Mono is commercial: it is not in the repo. The Void's voice is
   `Theme.voidFont` / `voidWeight` (`[font] void` = Josefin Sans Light here, installed in
   `~/.local/share/fonts` — not in the repo; empty = the theme's mono). **Its sizes are a
   modular scale**: `Theme.voidStep(k)` = `voidBase × voidRatio^k` px at 1080 p (golden
@@ -146,7 +153,7 @@ Two geometry rules the input mask depends on:
   `components/FixedDigits.qml` sets clock digits in fixed cells (proportional figures).
   Never ask a display face for a weight it lacks (Norse had no Medium → Qt fell back to
   another family). A font installed while `qs` runs isn't seen until it restarts. The
-  settings panel's LOOK page has rows for all five `[font]` keys.
+  settings panel's LOOK page has rows for all seven `[font]` keys.
 - **Previews** (nothing locks, nothing runs): `scripts/lock.sh --preview` (the real opening,
   frozen frames included; click to close) or `QS_LOCK_PREVIEW=1 qs -p lock.qml`
   (`QS_VOID_FONT=… QS_VOID_WEIGHT=…` try a face without touching shell.conf) · `qs ipc call ctrl exitPreview <poweroff|reboot|firmware|hibernate|sleep|logout>`

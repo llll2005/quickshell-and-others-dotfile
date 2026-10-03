@@ -491,7 +491,8 @@ Popup {
                     // needs a password: new network, or the saved one no longer works
                     var again = root._wifiTriedPsk === modelData.name
                     root.wifiPromptSSID = modelData.name
-                    root.wifiError = again ? "Wrong password" : ""
+                    // NM reports a failed handshake the same way as a wrong key, so say both
+                    root.wifiError = again ? "Auth failed · wrong password or dropped link" : ""
                 } else if (root.wifiPromptSSID === modelData.name) {
                     root.wifiError = "Connection failed · " + ConnectionFailReason.toString(reason)
                 }
@@ -2027,7 +2028,7 @@ Popup {
                 Text {
                     width: parent.width
                     text: root.qshareUrl
-                    font.family: "Iosevka, monospace"
+                    font.family: Theme.mono
                     font.pixelSize: 9
                     color: root.colInk
                     opacity: 0.55
@@ -2060,7 +2061,7 @@ Popup {
                         Text {
                             width: parent.width
                             text: "✓ " + modelData
-                            font.family: "Iosevka, monospace"
+                            font.family: Theme.mono
                             font.pixelSize: 10
                             color: root.colInk
                             opacity: 0.85
@@ -2159,7 +2160,7 @@ Popup {
                 horizontalAlignment: Text.AlignHCenter
                 text: root.exitError !== "" ? root.exitError
                     : root.exitKey !== "" ? "$ " + (root.powerActs[root.exitKey] || {cmd: []}).cmd.join(" ") : ""
-                font.family: "Iosevka, monospace"; font.pixelSize: Theme.voidStep(0)
+                font.family: Theme.mono; font.pixelSize: Theme.voidStep(0)
                 color: Theme.alpha(Theme.voidLight, 0.6)
                 elide: Text.ElideRight
             }
@@ -2766,7 +2767,7 @@ Popup {
                     readonly property var pa: root.powerActs[root.sub] || ({cmd: [], ask: ""})
                     Text {
                         text: "$ " + parent.pa.cmd.join(" ").replace("sh -c ", "")
-                        font.family: "Iosevka, monospace"; font.pixelSize: 10
+                        font.family: Theme.mono; font.pixelSize: 10
                         color: root.colInk; opacity: 0.7
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -2808,7 +2809,7 @@ Popup {
                             Text {
                                 width: selectedFiles.width - 16
                                 text: root.fileName(modelData)
-                                font.family: "Iosevka, monospace"
+                                font.family: Theme.mono
                                 font.pixelSize: 10
                                 color: root.colInk
                                 opacity: 0.8
@@ -3215,6 +3216,7 @@ Popup {
                         Text {
                             visible: root.wifiError !== ""
                             text: root.wifiError
+                            width: parent.width; elide: Text.ElideRight
                             font.pixelSize: 10
                             color: Theme.warn
                         }

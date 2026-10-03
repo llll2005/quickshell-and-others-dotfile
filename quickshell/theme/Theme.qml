@@ -53,8 +53,11 @@ QtObject {
     readonly property color triangleShade: Config.color("backdrop.shade",    ink)
 
     // ── fonts ──
-    readonly property string mono: Config.tstr("font.mono", "Share Tech Mono")
-    readonly property string cjk:  Config.tstr("font.cjk",  "jf金萱那提2.0")
+    // `[font] mono` / `cjk` in shell.conf, else the theme's, else these. One pair for the
+    // whole system: kitty uses the same two. Qt falls from any face to Operator Mono, then
+    // 金萱, for the glyphs it lacks (~/.config/fontconfig/conf.d/60-quickshell.conf).
+    readonly property string mono: Config.str("font.mono", "") || Config.tstr("font.mono", "Operator Mono")
+    readonly property string cjk:  Config.str("font.cjk", "")  || Config.tstr("font.cjk",  "jf金萱那提2.0")
     // the Void's voice (lock, polkit, the power exit): `[font] void` in shell.conf (your
     // choice, any theme), else the theme's, else mono. A display face like Norse lacks
     // ◆ ▸ ░ …: the scramble then uses its own letters (voidGlyphs), and the clock sets its

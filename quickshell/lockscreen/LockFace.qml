@@ -121,7 +121,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             text: face.pad(face.now.getHours()) + ":" + face.pad(face.now.getMinutes()) + "  ·  "
                 + face.days[face.now.getDay()] + " " + face.pad(face.now.getDate()) + " " + face.months[face.now.getMonth()]
-            font.family: "Iosevka, monospace"; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.04 * face.s0
+            font.family: Theme.mono; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.04 * face.s0
             color: face.dim
         }
         Item { width: 1; height: 44 * face.u }
