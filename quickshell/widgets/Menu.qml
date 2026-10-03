@@ -545,6 +545,13 @@ Popup {
                                         }
                                         Keys.onLeftPressed:  root.stepCat(-1)
                                         Keys.onRightPressed: root.stepCat(1)
+                                        // a row's number is its key: Alt+1–9 (plain digits are typed)
+                                        Keys.onPressed: (e) => {
+                                            if (!(e.modifiers & Qt.AltModifier) || e.key < Qt.Key_1 || e.key > Qt.Key_9) return
+                                            var n = e.key - Qt.Key_1, a = root.results[n]
+                                            if (a) { root.focusIdx = n; appList.positionViewAtIndex(n, ListView.Contain); root.fireResult(a) }
+                                            e.accepted = true
+                                        }
 
                                         Text {
                                             visible:parent.text===""
@@ -750,7 +757,7 @@ Popup {
                         id: hintRow
                         spacing:14; anchors.verticalCenter:parent.verticalCenter
                         Repeater {
-                            model:[["←→","CAT"],["↑↓","NAV"],["↵","OPEN"],["ESC","CLOSE"]]
+                            model:[["ALT 1–9","RUN"],["←→","CAT"],["↑↓","SELECT"],["↵","OPEN"],["ESC","CLOSE"]]
                             Row {
                                 spacing:5; anchors.verticalCenter:parent.verticalCenter
                                 Rectangle {

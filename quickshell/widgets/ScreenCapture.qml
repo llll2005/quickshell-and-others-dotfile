@@ -482,7 +482,7 @@ Popup {
                     var acts=root.actionMap[root.currentCat]||[]
                     if(acts[root.focusIdx]) root.fire(root.currentCat,acts[root.focusIdx].id)
                 }
-                // 1–9 fire that row directly; F toggles the freeze frame.
+                // a row's number is its key: 1–9 (Alt too) fire that row; F toggles the freeze frame.
                 Keys.onPressed: (event) => {
                     if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
                         var acts = root.actionMap[root.currentCat] || []
@@ -987,7 +987,7 @@ Popup {
                     anchors { right:parent.right; rightMargin:28; verticalCenter:parent.verticalCenter }
                     spacing:14
                     Repeater {
-                        model:[["1–9","PICK"],["←→","CAT"],["↑↓","NAV"],["↵","EXEC"],["ESC","CLOSE"]]
+                        model:[["1–9","RUN"],["←→","CAT"],["↑↓","SELECT"],["↵","RUN"],["ESC","CLOSE"]]
                         Row {
                             spacing:5; anchors.verticalCenter:parent.verticalCenter
                             Rectangle {

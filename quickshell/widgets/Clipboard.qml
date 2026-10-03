@@ -271,6 +271,13 @@ Popup {
                             Keys.onReturnPressed: root.copyCurrent()
                             Keys.onEnterPressed:  root.copyCurrent()
                             Keys.onDeletePressed: root.deleteCurrent()
+                            // a row's number is its key: Alt+1–9 (plain digits filter)
+                            Keys.onPressed: (e) => {
+                                if (!(e.modifiers & Qt.AltModifier) || e.key < Qt.Key_1 || e.key > Qt.Key_9) return
+                                var n = e.key - Qt.Key_1
+                                if (n < root.results.length) { root.focusIdx = n; list.positionViewAtIndex(n, ListView.Contain); root.copyCurrent() }
+                                e.accepted = true
+                            }
                             Text {
                                 visible: parent.text === ""
                                 anchors.verticalCenter: parent.verticalCenter
@@ -415,7 +422,7 @@ Popup {
                     anchors { right: parent.right; rightMargin: 28; verticalCenter: parent.verticalCenter }
                     spacing: 14
                     Repeater {
-                        model: [["←→", "TYPE"], ["↑↓", "SELECT"], ["↵", "COPY"], ["DEL", "DELETE"], ["ESC", "CLOSE"]]
+                        model: [["ALT 1–9", "COPY"], ["←→", "TYPE"], ["↑↓", "SELECT"], ["↵", "COPY"], ["DEL", "DELETE"], ["ESC", "CLOSE"]]
                         Row {
                             spacing: 5; anchors.verticalCenter: parent.verticalCenter
                             Rectangle {

@@ -182,8 +182,8 @@ Popup {
     // line (none: Lock, which just closes the panel)
     readonly property var powerActs: ({
         lock:      { h3:"Lock", zh:"鎖定螢幕", exit:"", ask:"",
-                     cmd:["sh", "-c", "pidof hyprlock || hyprlock"],
-                     hint:"用 hyprlock 鎖定（同 SUPER+L）。立即執行。" },
+                     cmd:["sh", "-c", "~/.config/quickshell/scripts/lock.sh"],
+                     hint:"鎖定螢幕（同 SUPER+L）；鎖屏起不來時自動改用 hyprlock。立即執行。" },
         sleep:     { h3:"Sleep", zh:"睡眠 · 暫停到記憶體", exit:"SLEEP MODE", ask:"",
                      cmd:["systemctl", "suspend"],
                      hint:"關掉螢幕、保留所有視窗；按鍵或開蓋喚醒，醒來先解鎖。立即執行。" },
@@ -660,6 +660,7 @@ Popup {
         if (expandedNotif !== "" && notifIndexOf(expandedNotif) < 0) expandedNotif = ""
         if (!(slot === "right" && sub === "history" && level === 3)) return
         if (action.indexOf("notif:") === 0 && notifIndexOf(action.substring(6)) >= 0) return
+        if (action === "clear-all" && notifications.length > 0) return
         if (notifications.length === 0) { action = ""; if (atAction) atAction = false; return }
         action = "notif:" + notifications[Math.min(_lastNotifIdx, notifications.length - 1)].key
     }
@@ -1351,7 +1352,7 @@ Popup {
     }
 
     // ── Lifecycle (components/Popup.qml) ──
-    onOpening: { _resetPower(); ready = false; level = 1; slot = "center"; sub = ""; action = ""; atAction = false }
+    onOpening: { _resetPower(); if (_openPower) { _openPower = false; mode = "power" }; ready = false; level = 1; slot = "center"; sub = ""; action = ""; atAction = false }
     onIntro:   ready = true
     // phase is already "closing" here, so the depth reset doesn't kick or pop
     // (the mode stays: the arms fold in with the labels they had)
@@ -1363,9 +1364,25 @@ Popup {
         else close()
     }
 
+    // the power key (XF86PowerOff) opens straight into the power menu
+    property bool _openPower: false
+    function openPower() {
+        if (isOpen) { if (!power) { slot = "center"; level = 1; sub = ""; atAction = false; setMode("power") } return }
+        _openPower = true
+        open()
+    }
+    // while the shell runs, logind leaves the power key to us (it would power off at once);
+    // if Quickshell dies the inhibitor goes with it and logind's own handling is back
+    Process {
+        running: true
+        command: ["systemd-inhibit", "--what=handle-power-key", "--who=Quickshell", "--mode=block",
+                  "--why=The power key opens the Control Center's power menu", "sleep", "infinity"]
+    }
+
     IpcHandler {
         target: "ctrl"
         function toggle(): void { root.toggle() }
+        function power(): void  { root.openPower() }
         function show(): void   { root.open() }
         function hide(): void   { root.close() }
     }
@@ -1433,6 +1450,8 @@ Popup {
             if (dir === awayDir() && expandedNotif === fk) { expandedNotif = ""; return }
         }
         var actKeys = actList().map(function(a){ return a.key })
+        // the notification list ends in CLEAR ALL: ↓ past the last one selects it
+        if (slot === "right" && sub === "history" && actKeys.length > 0) actKeys.push("clear-all")
         var ai = actKeys.indexOf(action)
         if (dir === "up") {
             if (ai > 0) action = actKeys[ai - 1]
@@ -1488,8 +1507,9 @@ Popup {
                  ["↵", "RUN"], [away + " / ESC", "BACK"]]
         if (slot === "right" && sub === "history") {
             var nf = focusedNotif()
+            if (action === "clear-all") return [["↑", "SELECT"], ["↵", "CLEAR ALL"], [away + " / ESC", "BACK"]]
             return [["↑↓", "SELECT"], ["↵", nf && nf.live ? "OPEN" : "DETAILS"], [deep, "DETAILS"],
-                    ["DEL", "DISMISS"], ["TAB", "CLEAR ALL"], [away + " / ESC", "BACK"]]
+                    ["DEL", "DISMISS"], [away + " / ESC", "BACK"]]
         }
         return h
     }
@@ -1525,10 +1545,9 @@ Popup {
                 if (k === Qt.Key_Escape || k === Qt.Key_N)              root.confirmCancel()
                 else if (k === Qt.Key_Y)                                { root.confirmChoose(true); root.confirmActivate() }
                 else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) root.confirmActivate()
-                else if (k === Qt.Key_Left || k === Qt.Key_A)           root.confirmChoose(true)
-                else if (k === Qt.Key_Right || k === Qt.Key_D)          root.confirmChoose(false)
-                else if (k === Qt.Key_Tab || k === Qt.Key_Up || k === Qt.Key_Down || k === Qt.Key_W || k === Qt.Key_S)
-                    root.confirmChoose(!root.confirmYes)
+                else if (k === Qt.Key_Left)                             root.confirmChoose(true)
+                else if (k === Qt.Key_Right)                            root.confirmChoose(false)
+                else if (k === Qt.Key_Tab)                              root.confirmChoose(!root.confirmYes)
                 e.accepted = true
                 return
             }
@@ -1536,20 +1555,15 @@ Popup {
             else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) {
                 root.activateCurrent(); e.accepted = true
             }
-            else if (k === Qt.Key_Tab) {
-                if (root.slot === "right" && root.sub === "history" && root.level === 3)
-                    root.clearAllNotifs()
-                e.accepted = true
-            }
             else if (k === Qt.Key_Delete || k === Qt.Key_Backspace || k === Qt.Key_X) {
                 var dn = root.depth === 3 && root.slot === "right" && root.sub === "history" ? root.focusedNotif() : null
                 if (dn) root.dismissNotif(dn.key, false)
                 e.accepted = true
             }
-            else if (k === Qt.Key_W || k === Qt.Key_Up)       { root.navigate("up");    e.accepted = true }
-            else if (k === Qt.Key_S || k === Qt.Key_Down)     { root.navigate("down");  e.accepted = true }
-            else if (k === Qt.Key_A || k === Qt.Key_Left)     { root.navigate("left");  e.accepted = true }
-            else if (k === Qt.Key_D || k === Qt.Key_Right)    { root.navigate("right"); e.accepted = true }
+            else if (k === Qt.Key_Up)    { root.navigate("up");    e.accepted = true }
+            else if (k === Qt.Key_Down)  { root.navigate("down");  e.accepted = true }
+            else if (k === Qt.Key_Left)  { root.navigate("left");  e.accepted = true }
+            else if (k === Qt.Key_Right) { root.navigate("right"); e.accepted = true }
         }
 
         // ── Croix avec pan ──
@@ -2926,24 +2940,52 @@ Popup {
                     Item { width: 1; height: 14 }
 
                     Rectangle {
+                        id: clearAllBtn
+                        // selected with ↓ past the last notification (↵ clears), or hovered
+                        readonly property bool sel: root.depth === 3 && root.action === "clear-all"
+                        readonly property bool lit: sel || clearAllMA.containsMouse
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.topMargin: 14
                         height: 32
-                        color: clearAllMA.containsMouse ? root.colInk : "transparent"
+                        color: lit ? root.colInk : "transparent"
                         border.color: root.colInk
-                        border.width: 1
-                        Behavior on color { ColorAnimation { duration: 200 } }
+                        border.width: sel ? 2 : 1
+                        scale: sel ? root.focusScale(3) : 1
+                        transform: Translate { y: clearAllBtn.sel ? root.bump * root.bumpDir * 7 : 0 }
+                        Behavior on color { ColorAnimation { duration: 160 } }
 
+                        Rectangle {   // accent edge, as the selector's
+                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                            width: clearAllBtn.sel ? 3 + 2 * root.pulse : 0
+                            color: root.colAccent
+                        }
+                        Rectangle {
+                            id: clearGem
+                            width: 6; height: 6; rotation: clearAllBtn.sel ? 225 : 45
+                            Behavior on rotation { NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
+                            anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
+                            color: root.colCard
+                            opacity: clearAllBtn.sel ? 1 : 0
+                        }
+                        Rectangle { anchors.fill: parent; color: root.colLight; opacity: clearAllBtn.sel && root.hitDepth === 3 ? 0.45 * root.hitT : 0 }
                         Text {
                             anchors.centerIn: parent
                             text: "× CLEAR ALL"
                             font.pixelSize: 11
                             font.letterSpacing: 2.5
                             font.weight: Font.Medium
-                            color: clearAllMA.containsMouse ? root.colCard : root.colInk
-                            Behavior on color { ColorAnimation { duration: 200 } }
+                            color: clearAllBtn.lit ? root.colCard : root.colInk
+                            Behavior on color { ColorAnimation { duration: 160 } }
+                        }
+                        Connections {
+                            target: root
+                            function onConfirmPulse(s) {
+                                if (!clearAllBtn.sel) return
+                                var p = clearGem.mapToItem(null, 3, 3)
+                                root.impactAt(clearAllBtn.Window.window, p.x, p.y, s)
+                            }
                         }
 
                         MouseArea {
@@ -3614,7 +3656,7 @@ Popup {
             Item { width: 1; height: nbtn.expanded ? 4 : 0 }
             Flow {   // what it offers (↵ runs the first / "default")
                 width: parent.width; spacing: 4
-                visible: nbtn.expanded && nbtn.notifData.live && (nbtn.notifData.actions || []).length > 0
+                visible: nbtn.expanded && !!nbtn.notifData.live && (nbtn.notifData.actions || []).length > 0
                 Repeater {
                     model: nbtn.expanded ? (nbtn.notifData.actions || []).slice(0, 4) : []
                     Rectangle {

@@ -63,6 +63,9 @@ hl.config({
 		animate_manual_resizes = true,
 		animate_mouse_windowdragging = true,
 		vrr = 2, -- fullscreen only; the MSI opts out above
+		-- a lock that dies while locked can be taken over: quickshell's lock.sh then
+		-- starts hyprlock (the session stays locked meanwhile)
+		allow_session_lock_restore = true,
 	},
 
 	render = {

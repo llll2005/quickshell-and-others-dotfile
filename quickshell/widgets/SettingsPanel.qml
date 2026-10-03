@@ -244,6 +244,10 @@ Popup {
                 else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) root.activate(root.cur)
                 else if (k === Qt.Key_Minus || k === Qt.Key_Underscore || k === Qt.Key_BracketLeft) root.step(root.cur, -1)
                 else if (k === Qt.Key_Plus || k === Qt.Key_Equal || k === Qt.Key_BracketRight) root.step(root.cur, 1)
+                else if (k >= Qt.Key_1 && k <= Qt.Key_9) {      // a row's number is its key (Alt too)
+                    var n = k - Qt.Key_1
+                    if (n < root.rows.length) { root.focusIdx = n; root.activate(root.rows[n]) }
+                }
                 else return
                 e.accepted = true
             }
@@ -489,7 +493,7 @@ Popup {
                         anchors { right: parent.right; rightMargin: 28; verticalCenter: parent.verticalCenter }
                         spacing: 14
                         Repeater {
-                            model: [["←→", "PAGE"], ["↑↓", "SELECT"], ["↵", "TOGGLE"], ["−/+", "ADJUST"], ["ESC", "CLOSE"]]
+                            model: [["1–9", "RUN"], ["←→", "PAGE"], ["↑↓", "SELECT"], ["↵", "TOGGLE"], ["−/+", "ADJUST"], ["ESC", "CLOSE"]]
                             Row {
                                 spacing: 5; anchors.verticalCenter: parent.verticalCenter
                                 Rectangle {
