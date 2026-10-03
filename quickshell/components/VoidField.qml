@@ -18,7 +18,7 @@ Item {
     property real   blink: 1           // the owner's stepped blink (0.15 · 1)
 
     readonly property bool  busy: phase === "verifying" || phase === "authorized"
-    readonly property color fg:   Theme.voidLight
+    property color fg: Theme.voidLight          // the relic lock sets gold
 
     width: 380 * u; height: 28 * u
 
@@ -66,15 +66,15 @@ Item {
                 text: vf.hint
                 font.family: vf.mono; font.weight: Theme.voidWeight
                 font.pixelSize: Math.round(Theme.voidStep(0) * vf.u); font.letterSpacing: 0.3 * Theme.voidStep(0) * vf.u
-                color: Theme.alpha(Theme.voidLight, 0.22)
+                color: Theme.alpha(vf.fg, 0.22)
             }
         }
         Rectangle {
             anchors.bottom: parent.bottom; width: parent.width; height: 1
-            color: vf.phase === "failed" ? Theme.voidWarn : Theme.alpha(Theme.voidLight, 0.4)
+            color: vf.phase === "failed" ? Theme.voidWarn : Theme.alpha(vf.fg, 0.4)
         }
         Rectangle { anchors.fill: parent; color: vf.fg; opacity: 0.25 * vf.okT * (1 - vf.okT * 0.5) }
     }
     property alias burst: burst
-    HitBurst { id: burst; light: Theme.voidLight; paper: Theme.voidLight; accent: Theme.voidWarn }
+    HitBurst { id: burst; light: vf.fg; paper: vf.fg; accent: Theme.voidWarn }
 }

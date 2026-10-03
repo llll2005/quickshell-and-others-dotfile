@@ -79,6 +79,7 @@ Popup {
             { type: "choice", key: "font.voidWeight", def: "400", options: ["300", "400"], label: "虛空字重", desc: "300 Light · 400 Regular。" },
             { type: "choice", key: "font.voidRatio", def: "1.618", options: ["1.25", "1.333", "1.5", "1.618"], label: "虛空字級比例", desc: "每一級是上一級的幾倍：1.618 黃金比例落差最大，1.25 最平緩。" },
             { type: "num",  key: "font.voidBase", def: 12, min: 10, max: 18, step: 1, unit: "px", label: "虛空基準字級", desc: "最小一級（標籤）在 1080p 的大小；提示、標題、時鐘都由它乘上比例算出。" },
+            { type: "choice", key: "lock.style", def: "void", options: ["void", "relic"], label: "鎖屏風格", desc: "void 黑底白字（時鐘、細線）· relic 遺物（日輪、柱飾、符文、餘燼）。" },
             { type: "choice", key: "void.light", def: "#ffffff", options: ["#ffffff", "#d6ecf0", "#f2ecde", "#fff6cf"], label: "虛空文字色", desc: "固定、不跟主題：#ffffff 白 · #d6ecf0 月白 · #f2ecde 米白 · #fff6cf 象牙。" },
             { type: "choice", key: "void.warn", def: "#b8403c", options: ["#b8403c", "#c3272b", "#9d2933", "#d6ecf0"], label: "虛空警示色", desc: "FAILED 等警示：#b8403c 暗紅 · #c3272b 朱 · #9d2933 胭脂 · 或同文字色。" },
             { type: "choice", key: "font.voidClockStep", def: "5", options: ["4", "5"], label: "鎖屏時鐘級數", desc: "時鐘用第 4 級（小一號）或第 5 級。" },
