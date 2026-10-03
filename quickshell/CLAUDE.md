@@ -172,8 +172,15 @@ Two geometry rules the input mask depends on:
   · a socket request with no terminal: `setsid -w voidbox-askpass "Password:" </dev/null`
   (cancel with `qs ipc call auth cancel`) · the login screen:
   `sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/void`.
-- **The boot chain** (`dotfiles/system/boot-void.sh` + `boot-void/`, run with sudo; `--undo`
-  goes back to GRUB, `--art` redraws the pictures): Limine (a black menu over a backdrop —
+- **The boot chain** (`dotfiles/system/boot-void.sh` + `boot-void/`, run with sudo; `--update`
+  brings an install up to date with the folder, `--art` redraws the pictures, `--drop-grub`
+  takes GRUB out of the firmware menu, `--undo` goes back to GRUB while it's still there).
+  **limine-entry-tool rewrites limine.conf's global section from its own template on every
+  write**, so the look is a marked block (`limine-head.conf`) that `limine-look` puts back —
+  as `/etc/boot/hooks/post.d/80-boot-void-look` after each tool write, and at boot from the
+  guard service. Plymouth starts on simpledrm (the boot loader's mode) and moves to i915's
+  native one: `void.script` re-lays out whenever the window size changes, and Limine pins
+  `interface_resolution` to the panel's mode. Limine (a black menu over a backdrop —
   diamond, SELECT SYSTEM, hairline, keys — in Operator Mono drawn into its 8×16 cells by
   `gen-art.py`; box drawing / arrows drawn so lines join, `term_font_spacing 0`; a too-big
   `term_margin` with the 2× font leaves too few rows and Limine silently falls back to the

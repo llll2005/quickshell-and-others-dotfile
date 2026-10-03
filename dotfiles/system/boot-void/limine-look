@@ -1,0 +1,23 @@
+#!/bin/sh
+# limine-look — put the Void look back at the top of limine.conf. limine-entry-tool rewrites
+# the file's global section from its own template on every write (a kernel update, a
+# snapshot, limine-install), keeping the entries but dropping options it didn't write.
+# Installed by dotfiles/system/boot-void.sh as /etc/boot/hooks/post.d/80-boot-void-look (the
+# Limine tools run it after each write) and run at boot by boot-void-bootorder.service.
+ESP_PATH=/boot
+[ -r /etc/default/limine ] && eval "$(grep '^ESP_PATH=' /etc/default/limine)"
+conf=$ESP_PATH/limine.conf
+head=/usr/local/lib/boot-void/limine-head.conf
+[ -f "$conf" ] && [ -f "$head" ] || exit 0
+tmp=$(mktemp) || exit 0
+{
+    cat "$head"
+    # the old copy of the block, wherever it ended up
+    sed '/^# ── boot-void: the look/,/^# ── end boot-void ──/d' "$conf" | sed '/./,$!d'   # and the blank lines it left
+} > "$tmp"
+if ! cmp -s "$tmp" "$conf"; then
+    cat "$tmp" > "$conf"     # in place: the ESP is FAT, keep it simple
+    echo "boot-void: Limine's look restored in $conf"
+fi
+rm -f "$tmp"
+exit 0

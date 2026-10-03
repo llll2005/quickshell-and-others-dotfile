@@ -4,6 +4,9 @@
 # shell to here without anything moving. Booting, the hairline grows with the boot's
 # progress; a password question shows a diamond per character. The pictures come from
 # gen-art.py, at the exit's size on the laptop panel (×1.1).
+# The layout follows the screen every frame: Plymouth starts on the firmware's framebuffer
+# (simpledrm, whatever mode the boot loader left) and moves to i915's native mode a moment
+# later — a layout fixed at start sat up-left at the old size.
 
 Window.SetBackgroundTopColor(0, 0, 0);
 Window.SetBackgroundBottomColor(0, 0, 0);
@@ -23,41 +26,52 @@ rule_img = Image("rule.png");
 bullet_img = Image("bullet.png");
 
 # ── the column, as the exit's: diamond row · 18 · title · 18 · hairline · 18 · command ──
-W = Window.GetWidth();
-H = Window.GetHeight();
-cx = Window.GetX() + W / 2;
 sp = 18;
 row = 20;                  # the diamond's row
 title_h = 42;              # a line of the 34 px title face, as Qt lays it out
 cmd_h = 0;
 if (has_cmd) cmd_h = sp + 17;
-top = Window.GetY() + (H - (row + sp + title_h + sp + 1 + cmd_h)) / 2;
 
 dia = Sprite(dia_img);
-dia.SetPosition(cx - dia_img.GetWidth() / 2, top + row / 2 - dia_img.GetHeight() / 2, 2);
 core = Sprite(core_img);
-core.SetPosition(cx - core_img.GetWidth() / 2, top + row / 2 - core_img.GetHeight() / 2, 3);
-
-ty = top + row + sp;
 title = Sprite(title_img);
-title.SetPosition(cx - title_img.GetWidth() / 2, ty + (title_h - title_img.GetHeight()) / 2, 2);
-
-ry = ty + title_h + sp;
+cur_title = title_img;
 rule = Sprite();
 rule_w = 0;
-
-cy = ry + 1 + sp;
 if (has_cmd) {
     cmd_img = Image("cmd-" + name + ".png");
     cmd = Sprite(cmd_img);
-    cmd.SetPosition(cx - cmd_img.GetWidth() / 2, cy, 2);
 }
+
+# globals first: a variable a function assigns without one already existing stays local
+cx = 0; top = 0; ty = 0; ry = 0; cy = 0;
+lw = 0; lh = 0; lx = -1; ly = -1;
+fun layout() {
+    W = Window.GetWidth();
+    H = Window.GetHeight();
+    X0 = Window.GetX();
+    Y0 = Window.GetY();
+    if (W == lw && H == lh && X0 == lx && Y0 == ly) return;
+    lw = W; lh = H; lx = X0; ly = Y0;
+    cx = X0 + W / 2;
+    top = Y0 + (H - (row + sp + title_h + sp + 1 + cmd_h)) / 2;
+    dia.SetPosition(cx - dia_img.GetWidth() / 2, top + row / 2 - dia_img.GetHeight() / 2, 2);
+    core.SetPosition(cx - core_img.GetWidth() / 2, top + row / 2 - core_img.GetHeight() / 2, 3);
+    ty = top + row + sp;
+    title.SetPosition(cx - cur_title.GetWidth() / 2, ty + (title_h - cur_title.GetHeight()) / 2, 2);
+    ry = ty + title_h + sp;
+    cy = ry + 1 + sp;
+    if (has_cmd) cmd.SetPosition(cx - cmd_img.GetWidth() / 2, cy, 2);
+    rule_w = 0;            # the hairline re-centres on the next frame
+}
+layout();
 
 # ── time: everything fades in, the core pulses, the hairline draws out ──
 t = 0;
 progress = 0;
 asking = 0;
 fun refresh_cb() {
+    layout();
     t++;
     fade = Math.Min(1, t / 25);
     dia.SetOpacity(fade);
@@ -84,6 +98,7 @@ Plymouth.SetBootProgressFunction(progress_cb);
 nb = 0;
 fun display_password_cb(prompt, bullets) {
     asking = 1;
+    cur_title = pass_img;
     title.SetImage(pass_img);
     title.SetPosition(cx - pass_img.GetWidth() / 2, ty + (title_h - pass_img.GetHeight()) / 2, 2);
     n = Math.Min(bullets, 24);
@@ -98,6 +113,7 @@ fun display_password_cb(prompt, bullets) {
 }
 fun display_normal_cb() {
     asking = 0;
+    cur_title = title_img;
     title.SetImage(title_img);
     title.SetPosition(cx - title_img.GetWidth() / 2, ty + (title_h - title_img.GetHeight()) / 2, 2);
     for (i = 0; i < nb; i++) bullet[i].SetOpacity(0);

@@ -133,7 +133,7 @@ def limine_backdrop(out, W, H, s, light, warn):
             (('↑↓', 'SELECT'), ('↵', 'BOOT'), ('E', 'EDIT'), ('S', 'FIRMWARE'))]
     gap = int(18 * s)
     total = sum(k.width for k in keys) + gap * (len(keys) - 1)
-    x, y = (W - total) // 2, int(H * 0.84)
+    x, y = (W - total) // 2, int(H * 0.79)
     for k in keys:
         im.alpha_composite(k, (x, y))
         x += k.width + gap

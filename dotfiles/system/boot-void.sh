@@ -5,7 +5,11 @@
 #   through the shell's power exit and Plymouth (SYSTEM SHUTDOWN / REBOOTING), laid out alike.
 #
 #   sudo sh boot-void.sh           install (shows the plan and asks once)
+#   sudo sh boot-void.sh --update  bring an install up to date with this folder: the pictures,
+#                                  the Plymouth theme (into every initramfs), Limine's look
 #   sudo sh boot-void.sh --art     redraw the pictures only (after changing [void] or fonts)
+#   sudo sh boot-void.sh --drop-grub   take GRUB out of the firmware's boot menu (its kernels
+#                                  go stale with the first update after the switch)
 #   sudo sh boot-void.sh --undo    GRUB first again, the initramfs as it was, no splash
 #
 # In order:
@@ -20,7 +24,10 @@
 #   4. mkinitcpio: i915 first (the laptop panel hangs off the iGPU: Plymouth draws there),
 #      plymouth after systemd, sd-btrfs-overlayfs (a read-only snapshot boots with an overlay)
 #   5. the pictures (boot-void/gen-art.py), the Plymouth theme, /boot/limine.conf's look,
-#      then every initramfs and entry rebuilt, and Windows (on its own ESP) added
+#      then every initramfs and entry rebuilt, and Windows (on its own ESP) added.
+#      limine-entry-tool rewrites the config's global section from its own template on
+#      every write, so the look is a block that /etc/boot/hooks/post.d/80-boot-void-look
+#      (boot-void/limine-look) puts back after each one, and at boot
 #   6. the boot-order guard: Limine back in front at each boot (Windows updates move theirs)
 #
 # GRUB stays installed, behind Limine and Windows in the boot order; its copies of the
@@ -45,6 +52,40 @@ art() {
     install -m 644 "$tmp"/plymouth/*.png "$SRC/void.script" "$SRC/void.plymouth" /usr/share/plymouth/themes/void/
     rm -rf "$tmp"
 }
+
+# ── Limine's look: the block, the hook that keeps it, the guard that runs it at boot ──
+look() {
+    install -Dm 644 "$SRC/limine-head.conf" /usr/local/lib/boot-void/limine-head.conf
+    install -Dm 755 "$SRC/limine-look" /usr/local/lib/boot-void/limine-look
+    install -d /etc/boot/hooks/post.d
+    ln -sf /usr/local/lib/boot-void/limine-look /etc/boot/hooks/post.d/80-boot-void-look
+    install -Dm 755 "$SRC/bootorder-guard" /usr/local/lib/boot-void/bootorder-guard
+    install -Dm 644 "$SRC/boot-void-bootorder.service" /etc/systemd/system/boot-void-bootorder.service
+    systemctl daemon-reload
+    /usr/local/lib/boot-void/limine-look
+}
+
+if [ "$1" = "--update" ]; then
+    art
+    plymouth-set-default-theme void
+    look
+    limine-mkinitcpio          # the Plymouth theme rides in the initramfs; the hook restores the look after
+    /usr/local/lib/boot-void/limine-look
+    say "boot chain up to date"
+    grep -q '^# ── boot-void: the look' "$ESP/limine.conf" && say "Limine's look is in $ESP/limine.conf"
+    exit 0
+fi
+
+if [ "$1" = "--drop-grub" ]; then
+    for n in $(efibootmgr | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\{0,1\} Arch Linux[[:space:]].*grubx64\.efi.*/\1/p'); do
+        efibootmgr -b "$n" -B >/dev/null && say "removed Boot$n (GRUB) from the firmware's boot menu"
+    done
+    systemctl disable --now grub-btrfsd.service 2>/dev/null && say "grub-btrfsd off (it rewrote grub.cfg on every snapshot)" || true
+    echo "  GRUB's files stay in $ESP (EFI/ARCH, grub/). To remove GRUB altogether:"
+    echo "  pacman -Rns grub grub-btrfs os-prober"
+    echo "  (--undo can't go back to GRUB after this.)"
+    exit 0
+fi
 
 if [ "$1" = "--art" ]; then
     art
@@ -143,19 +184,15 @@ say "$(grep '^HOOKS=' "$CONF")"
 art
 plymouth-set-default-theme void
 touch "$ESP/limine.conf"
-if ! grep -q '^# ── boot-void' "$ESP/limine.conf"; then
-    { cat "$SRC/limine-head.conf"; grep -v '^\(timeout\|default_entry\|remember_last_entry\|interface_\|wallpaper\|backdrop\|term_\):' "$ESP/limine.conf"; } > "$ESP/limine.conf.new"
-    mv "$ESP/limine.conf.new" "$ESP/limine.conf"
-fi
+look                       # the block now, and the hook that puts it back after every write
 limine-mkinitcpio
 if [ -n "$win" ] && ! grep -q '^/Windows' "$ESP/limine.conf"; then
     printf '\n/Windows\n    comment: Windows Boot Manager, on its own EFI partition\n    protocol: efi\n    path: guid(%s):/EFI/Microsoft/Boot/bootmgfw.efi\n' "$win" >> "$ESP/limine.conf"
 fi
 
+/usr/local/lib/boot-void/limine-look
+
 # 6 ── the boot order, now and at every boot ──
-install -Dm 755 "$SRC/bootorder-guard" /usr/local/lib/boot-void/bootorder-guard
-install -Dm 644 "$SRC/boot-void-bootorder.service" /etc/systemd/system/boot-void-bootorder.service
-systemctl daemon-reload
 systemctl enable boot-void-bootorder.service
 /usr/local/lib/boot-void/bootorder-guard || true
 
