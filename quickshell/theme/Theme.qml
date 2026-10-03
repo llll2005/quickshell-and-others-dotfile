@@ -59,8 +59,14 @@ QtObject {
     // ◆ ▸ ░ …: the scramble then uses its own letters (voidGlyphs), and the clock sets its
     // digits in fixed cells (components/FixedDigits.qml) since its figures aren't tabular.
     readonly property string voidFont: Config.str("font.void", "") || Config.tstr("font.void", mono)
-    // a display face is lighter and narrower than the mono: small Void text grows with it
-    function voidPx(px) { return Math.round(px * (voidFont === mono ? 1 : 1.2)) }
+    readonly property int    voidWeight: Config.num("font.voidWeight", 400)
+    // the Void's sizes: a modular scale, px at 1080 p — step k = voidBase × voidRatio^k.
+    // Golden (1.618) suits the Void: few levels, a dramatic drop (12 → 19 → 31 → 51 → 82 → 133).
+    //   0 labels, corners, key hints · 1 prompts, dates · 2 titles · clockStep the lock's clock
+    readonly property real voidBase:      Config.num("font.voidBase", 12)
+    readonly property real voidRatio:     Config.num("font.voidRatio", 1.618)
+    readonly property int  voidClockStep: Config.num("font.voidClockStep", 5)
+    function voidStep(k) { return Math.round(voidBase * Math.pow(voidRatio, k)) }
     readonly property string voidGlyphs: voidFont === mono ? "▸◆▪▫░▒▓█/\\|-_=+*" : "ABCDEFGHJKLMNPRSTUVWXYZ0123456789/=+-"
 
     // ── helpers ──

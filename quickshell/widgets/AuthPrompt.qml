@@ -51,6 +51,9 @@ Popup {
     property string actionId: ""
     property real   inT: 0
     readonly property real u: Math.max(0.7, screenH / 1080)
+    // the Void's type scale (Theme.voidStep) at this screen's size
+    readonly property real s0: Theme.voidStep(0) * u
+    readonly property real s1: Theme.voidStep(1) * u
 
     function begin() {
         text = ""; authPhase = "idle"
@@ -163,7 +166,7 @@ Popup {
                 target: ({ idle: "AUTHORIZATION REQUIRED", verifying: "VERIFYING", failed: "FAILED", authorized: "AUTHORIZED" })[root.authPhase] || ""
                 duration: 360
                 glyphs: Theme.voidGlyphs
-                font.family: Theme.voidFont; font.pixelSize: Theme.voidPx(13 * root.u); font.letterSpacing: 6 * root.u
+                font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s1); font.letterSpacing: 0.32 * root.s1
                 color: root.authPhase === "failed" ? Theme.warn : Theme.light
             }
             Item { width: 1; height: 18 * root.u }
@@ -178,7 +181,7 @@ Popup {
                 horizontalAlignment: Text.AlignHCenter
                 text: root.message
                 wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight
-                font.family: Theme.cjk; font.pixelSize: Math.round(15 * root.u)
+                font.family: Theme.cjk; font.pixelSize: Math.round(root.s1 * 0.85)
                 lineHeight: 1.25
                 color: Theme.alpha(Theme.light, 0.88)
             }
@@ -188,7 +191,7 @@ Popup {
                 horizontalAlignment: Text.AlignHCenter
                 text: root.actionId
                 elide: Text.ElideMiddle
-                font.family: Theme.mono; font.pixelSize: Math.round(10 * root.u); font.letterSpacing: 1.5 * root.u
+                font.family: Theme.mono; font.pixelSize: Math.round(root.s0 * 0.9); font.letterSpacing: 0.08 * root.s0
                 color: Theme.alpha(Theme.light, 0.35)
             }
             Item { width: 1; height: 30 * root.u }
@@ -196,14 +199,14 @@ Popup {
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: 12 * root.u
                 readonly property bool many: !!root.flow && !!root.flow.identities && root.flow.identities.length > 1
-                Text { text: "AS"; font.family: Theme.voidFont; font.pixelSize: Theme.voidPx(10 * root.u); font.letterSpacing: 3 * root.u; color: Theme.alpha(Theme.light, 0.45) }
-                Text { visible: parent.many; text: "◂"; font.pixelSize: Math.round(10 * root.u); color: Theme.alpha(Theme.light, 0.6) }
+                Text { text: "AS"; font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s0); font.letterSpacing: 0.3 * root.s0; color: Theme.alpha(Theme.light, 0.45) }
+                Text { visible: parent.many; text: "◂"; font.pixelSize: Math.round(root.s0); color: Theme.alpha(Theme.light, 0.6) }
                 Text {
                     text: root.flow ? root.idName(root.flow.selectedIdentity) : ""
-                    font.family: Theme.voidFont; font.pixelSize: Theme.voidPx(10 * root.u); font.letterSpacing: 3 * root.u
+                    font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s0); font.letterSpacing: 0.3 * root.s0
                     color: Theme.light
                 }
-                Text { visible: parent.many; text: "▸"; font.pixelSize: Math.round(10 * root.u); color: Theme.alpha(Theme.light, 0.6) }
+                Text { visible: parent.many; text: "▸"; font.pixelSize: Math.round(root.s0); color: Theme.alpha(Theme.light, 0.6) }
             }
             Item { width: 1; height: 16 * root.u }
             VoidField {
@@ -222,7 +225,7 @@ Popup {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: root.flow && root.flow.supplementaryMessage ? root.flow.supplementaryMessage : " "
-                font.family: Theme.cjk; font.pixelSize: Math.round(11 * root.u)
+                font.family: Theme.cjk; font.pixelSize: Math.round(root.s0)
                 color: root.flow && root.flow.supplementaryIsError ? Theme.warn : Theme.alpha(Theme.light, 0.55)
             }
             Item { width: 1; height: 26 * root.u }
@@ -235,13 +238,13 @@ Popup {
                     Row {
                         spacing: 6 * root.u
                         Rectangle {
-                            width: kk.implicitWidth + 8 * root.u; height: 15 * root.u
+                            width: kk.implicitWidth + root.s0 * 0.7; height: root.s0 * 1.5
                             color: "transparent"; border.color: Theme.alpha(Theme.light, 0.35); border.width: 1
-                            Text { id: kk; anchors.centerIn: parent; text: modelData[0]; font.family: Theme.voidFont; font.pixelSize: Theme.voidPx(8 * root.u); color: Theme.light }
+                            Text { id: kk; anchors.centerIn: parent; text: modelData[0]; font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s0 * 0.85); color: Theme.light }
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: modelData[1]; font.family: Theme.voidFont; font.pixelSize: Theme.voidPx(9 * root.u); font.letterSpacing: 2 * root.u
+                            text: modelData[1]; font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: Math.round(root.s0); font.letterSpacing: 0.26 * root.s0
                             color: Theme.alpha(Theme.light, 0.55)
                         }
                     }

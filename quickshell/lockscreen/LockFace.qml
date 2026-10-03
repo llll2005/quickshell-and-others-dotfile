@@ -25,6 +25,12 @@ Item {
     readonly property color faint: Theme.alpha(Theme.light, 0.22)
     readonly property color warn:  Theme.warn
     readonly property string mono: Theme.voidFont      // the Void's voice ([font] void)
+    // the type scale (Theme.voidStep: px at 1080 p) at this screen's size
+    readonly property real s0:     Theme.voidStep(0) * u                    // labels, corners
+    readonly property real s1:     Theme.voidStep(1) * u                    // the prompt, the seconds
+    readonly property real s2:     Theme.voidStep(2) * u                    // the big gaps
+    readonly property real sClock: Theme.voidStep(Theme.voidClockStep) * u
+    readonly property int  wt:     Theme.voidWeight
 
     focus: true
     Component.onCompleted: forceActiveFocus()
@@ -97,13 +103,13 @@ Item {
     Text {
         x: 72 * face.u; y: 48 * face.u
         text: "SYSTEM LOCKED"
-        font.family: face.mono; font.pixelSize: Theme.voidPx(11 * face.u); font.letterSpacing: 4 * face.u
+        font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
         color: face.dim; opacity: face.inT
     }
     Text {
         anchors.right: parent.right; anchors.rightMargin: 72 * face.u; y: 48 * face.u
         text: face.now.getFullYear() + "." + face.pad(face.now.getMonth() + 1) + "." + face.pad(face.now.getDate())
-        font.family: face.mono; font.pixelSize: Theme.voidPx(11 * face.u); font.letterSpacing: 4 * face.u
+        font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
         color: face.dim; opacity: face.inT
     }
 
@@ -112,13 +118,14 @@ Item {
         id: centre
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        anchors.verticalCenterOffset: -30 * face.u + (1 - face.inT) * 14 * face.u
+        // the optical centre sits a little above the middle (46 %)
+        anchors.verticalCenterOffset: -0.04 * face.height + (1 - face.inT) * 14 * face.u
         spacing: 0
         opacity: face.inT
 
         Row {
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 10 * face.u
+            spacing: face.s0 * 0.35
             ScrambleText {      // drives the clock's scramble-in; FixedDigits draws it
                 id: clock
                 visible: false
@@ -128,24 +135,25 @@ Item {
             }
             FixedDigits {
                 text: clock.text
-                font.family: face.mono; font.pixelSize: Math.round(118 * face.u); font.letterSpacing: 4 * face.u
+                font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.sClock); font.letterSpacing: 0.02 * face.sClock
                 color: face.fg
             }
             FixedDigits {
-                y: 22 * face.u
+                y: face.sClock * 0.16
                 text: face.pad(face.now.getSeconds())
-                font.family: face.mono; font.pixelSize: Theme.voidPx(22 * face.u)
+                font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s1)
                 color: face.dim
             }
         }
+        Item { width: 1; height: face.s0 * 0.6 }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: face.days[face.now.getDay()] + "  ·  " + face.pad(face.now.getDate()) + " " + face.months[face.now.getMonth()] + " " + face.now.getFullYear()
-            font.family: face.mono; font.pixelSize: Theme.voidPx(13 * face.u); font.letterSpacing: 4 * face.u
+            font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
             color: face.dim
         }
 
-        Item { width: 1; height: 44 * face.u }
+        Item { width: 1; height: face.s2 }
 
         Item {   // the rule, a diamond at its middle
             anchors.horizontalCenter: parent.horizontalCenter
@@ -162,7 +170,7 @@ Item {
             }
         }
 
-        Item { width: 1; height: 26 * face.u }
+        Item { width: 1; height: face.s2 }
 
         ScrambleText {
             id: prompt
@@ -171,11 +179,11 @@ Item {
                        authorized: "AUTHORIZED" })[face.st.phase] || ""
             duration: 360
             glyphs: Theme.voidGlyphs
-            font.family: face.mono; font.pixelSize: Theme.voidPx(12 * face.u); font.letterSpacing: 6 * face.u
+            font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s1); font.letterSpacing: 0.32 * face.s1
             color: face.st.phase === "failed" ? face.warn : face.fg
         }
 
-        Item { width: 1; height: 22 * face.u }
+        Item { width: 1; height: face.s1 }
 
         // the password: a diamond per character on a hairline (components/VoidField.qml)
         VoidField {
@@ -188,7 +196,7 @@ Item {
             Component.onCompleted: burst.backdrop = glass
         }
 
-        Item { width: 1; height: 16 * face.u }
+        Item { width: 1; height: face.s0 }
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
@@ -196,7 +204,7 @@ Item {
             text: face.st.caps ? "CAPS LOCK ON"
                 : wait > 0 ? "RETRY IN " + wait + " S"
                 : face.st.fails > 0 ? face.st.fails + (face.st.fails === 1 ? " FAILED ATTEMPT" : " FAILED ATTEMPTS") : " "
-            font.family: face.mono; font.pixelSize: Theme.voidPx(10 * face.u); font.letterSpacing: 3 * face.u
+            font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
             color: face.st.caps || wait > 0 ? face.warn : face.dim
         }
     }
@@ -205,7 +213,7 @@ Item {
     Text {
         x: 72 * face.u; anchors.bottom: parent.bottom; anchors.bottomMargin: 48 * face.u
         text: "USER " + face.user.toUpperCase() + (face.host ? "   ·   HOST " + face.host.toUpperCase() : "")
-        font.family: face.mono; font.pixelSize: Theme.voidPx(10 * face.u); font.letterSpacing: 3 * face.u
+        font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
         color: face.dim; opacity: face.inT
     }
     Text {
@@ -213,7 +221,7 @@ Item {
         anchors.bottom: parent.bottom; anchors.bottomMargin: 48 * face.u
         visible: Battery.available
         text: "BAT " + Battery.percent + "%" + (Battery.charging ? "  ·  CHARGING" : "")
-        font.family: face.mono; font.pixelSize: Theme.voidPx(10 * face.u); font.letterSpacing: 3 * face.u
+        font.family: face.mono; font.weight: face.wt; font.pixelSize: Math.round(face.s0); font.letterSpacing: 0.3 * face.s0
         color: Battery.percent <= 15 && !Battery.charging ? face.warn : face.dim
         opacity: face.inT
     }

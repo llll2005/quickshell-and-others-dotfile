@@ -28,6 +28,17 @@ Popup {
     burst.spreadY: 0.7
 
     FolderListModel { id: themeFiles; folder: "file://" + Config.dir + "/themes"; nameFilters: ["*.conf"]; showDirs: false }
+    // display faces the Void can use — only those installed (the current one is kept even
+    // when this qs started before it was installed: fonts are read at startup)
+    readonly property var voidFonts: {
+        var have = Qt.fontFamilies()
+        var want = ["Josefin Sans", "Jost", "Cinzel", "Cormorant Garamond", "Michroma", "Syncopate",
+                    "Rajdhani", "Chakra Petch", "Norse", Theme.mono]
+        var out = want.filter(function(f) { return have.indexOf(f) >= 0 })
+        var cur = Config.str("font.void", "")
+        if (cur !== "" && out.indexOf(cur) < 0) out.unshift(cur)
+        return out.length ? out : [Theme.mono]
+    }
     readonly property var themeNames: {
         var out = []
         for (var i = 0; i < themeFiles.count; i++) out.push(themeFiles.get(i, "fileBaseName"))
@@ -63,6 +74,11 @@ Popup {
         ],
         look: [
             { type: "choice", key: "general.theme", def: "nier", options: root.themeNames, label: "主題", desc: "整個 shell 的配色；fcitx5 與視窗邊框也會跟著換（見下方兩項）。" },
+            { type: "choice", key: "font.void", def: "", options: root.voidFonts, label: "虛空字型", desc: "鎖屏、授權、關機過場的字（只列已安裝的）。新裝的字要重啟 qs 才看得到。" },
+            { type: "choice", key: "font.voidWeight", def: "400", options: ["300", "400"], label: "虛空字重", desc: "300 Light · 400 Regular。" },
+            { type: "choice", key: "font.voidRatio", def: "1.618", options: ["1.25", "1.333", "1.5", "1.618"], label: "虛空字級比例", desc: "每一級是上一級的幾倍：1.618 黃金比例落差最大，1.25 最平緩。" },
+            { type: "num",  key: "font.voidBase", def: 12, min: 10, max: 18, step: 1, unit: "px", label: "虛空基準字級", desc: "最小一級（標籤）在 1080p 的大小；提示、標題、時鐘都由它乘上比例算出。" },
+            { type: "choice", key: "font.voidClockStep", def: "5", options: ["4", "5"], label: "鎖屏時鐘級數", desc: "時鐘用第 4 級（小一號）或第 5 級。" },
             { type: "num",  key: "backdrop.opacity",  def: 0.42, min: 0.1, max: 0.9, step: 0.02, label: "玻璃三角形不透明度", desc: "彈窗背景三角形的濃淡，越小越透。" },
             { type: "num",  key: "backdrop.dim",      def: 0.28, min: 0, max: 0.8, step: 0.02, label: "背景變暗", desc: "彈窗打開時，背後畫面變暗的程度。" },
             { type: "num",  key: "backdrop.flicker",  def: 0.6,  min: 0, max: 1, step: 0.1, label: "閃動強度", desc: "三角形隨機閃動的強度，0 = 靜止。" },

@@ -20,7 +20,7 @@ Item {
     readonly property bool  busy: phase === "verifying" || phase === "authorized"
     readonly property color fg:   Theme.light
 
-    width: 360 * u; height: 26 * u
+    width: 380 * u; height: 28 * u
 
     property real shake: 0
     property real okT: 0
@@ -34,11 +34,11 @@ Item {
         transform: Translate { x: 12 * vf.u * Math.sin(vf.shake * Math.PI * 5) * (1 - vf.shake) }
         Row {
             anchors.centerIn: parent
-            spacing: 11 * vf.u
+            spacing: 12 * vf.u
             Repeater {
                 model: vf.echo ? 0 : Math.min(vf.text.length, 24)
                 Rectangle {
-                    width: 7 * vf.u; height: width; rotation: 45
+                    width: 8 * vf.u; height: width; rotation: 45
                     anchors.verticalCenter: parent.verticalCenter
                     color: vf.fg
                     opacity: vf.phase === "verifying" ? 0.45 : 1
@@ -49,12 +49,13 @@ Item {
                 visible: vf.echo && vf.text !== ""
                 anchors.verticalCenter: parent.verticalCenter
                 text: vf.text
-                font.family: vf.mono; font.pixelSize: Theme.voidPx(13 * vf.u); font.letterSpacing: 2 * vf.u
+                font.family: vf.mono; font.weight: Theme.voidWeight
+                font.pixelSize: Math.round(Theme.voidStep(1) * vf.u); font.letterSpacing: 0.1 * Theme.voidStep(1) * vf.u
                 color: vf.fg
             }
             Rectangle {  // caret
                 visible: !vf.busy
-                width: 7 * vf.u; height: width; rotation: 45
+                width: 8 * vf.u; height: width; rotation: 45
                 anchors.verticalCenter: parent.verticalCenter
                 color: "transparent"; border.color: vf.fg; border.width: 1
                 opacity: vf.blink
@@ -63,7 +64,8 @@ Item {
                 visible: vf.text === "" && vf.phase === "idle"
                 anchors.verticalCenter: parent.verticalCenter
                 text: vf.hint
-                font.family: vf.mono; font.pixelSize: Theme.voidPx(10 * vf.u); font.letterSpacing: 3 * vf.u
+                font.family: vf.mono; font.weight: Theme.voidWeight
+                font.pixelSize: Math.round(Theme.voidStep(0) * vf.u); font.letterSpacing: 0.3 * Theme.voidStep(0) * vf.u
                 color: Theme.alpha(Theme.light, 0.22)
             }
         }

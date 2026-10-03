@@ -2145,9 +2145,8 @@ Popup {
                 text: targetText
                 onTargetTextChanged: if (targetText !== "") exitScramble.start()
                 font.family: Theme.voidFont
-                // a face with only Regular / Bold (Norse) falls back to another family on Medium
-                font.pixelSize: Theme.voidPx(18); font.letterSpacing: 8
-                font.weight: Theme.voidFont === Theme.mono ? Font.Medium : Font.Normal
+                font.pixelSize: Theme.voidStep(2); font.letterSpacing: 0.26 * Theme.voidStep(2)
+                font.weight: Theme.voidWeight
                 color: root.exitError !== "" ? Theme.warn : Theme.light
                 ScrambleAnim { id: exitScramble; target: exitTitle; duration: 520; chars: Theme.voidGlyphs }
             }
@@ -2163,7 +2162,7 @@ Popup {
                 horizontalAlignment: Text.AlignHCenter
                 text: root.exitError !== "" ? root.exitError
                     : root.exitKey !== "" ? "$ " + (root.powerActs[root.exitKey] || {cmd: []}).cmd.join(" ") : ""
-                font.family: "Iosevka, monospace"; font.pixelSize: 11
+                font.family: "Iosevka, monospace"; font.pixelSize: Theme.voidStep(0)
                 color: Theme.alpha(Theme.light, 0.6)
                 elide: Text.ElideRight
             }

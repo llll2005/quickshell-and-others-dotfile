@@ -132,12 +132,18 @@ Two geometry rules the input mask depends on:
 - **Words**: titles and labels in English caps (the system's voice), explanations in
   Chinese. **Type**: mono (`Theme.mono`) for system labels and numbers, `Theme.cjk` for
   Chinese; a 5-step size scale (to be settled with the mono choice). The Void's voice is
-  `Theme.voidFont` (`[font] void` in shell.conf, e.g. Norse — not in the repo, a font the
-  user installs): `Theme.voidPx()` grows small text for a lighter display face,
-  `Theme.voidGlyphs` gives the scramble letters the face has, `components/FixedDigits.qml`
-  sets clock digits in fixed cells (Norse's figures aren't tabular), and no `Font.Medium`
-  on it (Regular/Bold only → Qt falls back to another family). A font installed while
-  `qs` runs isn't seen until it restarts (fontconfig is read at startup).
+  `Theme.voidFont` / `voidWeight` (`[font] void` = Josefin Sans Light here, installed in
+  `~/.local/share/fonts` — not in the repo; empty = the theme's mono). **Its sizes are a
+  modular scale**: `Theme.voidStep(k)` = `voidBase × voidRatio^k` px at 1080 p (golden
+  1.618 from 12: 12 · 19 · 31 · 51 · 82 · 133) — step 0 labels/corners/key hints, 1 the
+  prompt/dates/seconds, 2 titles and the big gaps, `voidClockStep` the lock's clock; every
+  Void size comes from it (×`u` = screen height / 1080). Caps take tracking by size (0.3 em
+  labels → 0.02 em the clock); the lock's block sits at the optical centre (46 %).
+  `Theme.voidGlyphs` keeps the scramble inside the face's own letters,
+  `components/FixedDigits.qml` sets clock digits in fixed cells (proportional figures).
+  Never ask a display face for a weight it lacks (Norse had no Medium → Qt fell back to
+  another family). A font installed while `qs` runs isn't seen until it restarts. The
+  settings panel's LOOK page has rows for all five `[font]` keys.
 - **Previews** (nothing locks, nothing runs): `QS_LOCK_PREVIEW=1 qs -p lock.qml` (click to
   close) · `qs ipc call ctrl exitPreview <poweroff|reboot|firmware|hibernate|sleep|logout>`
   · the polkit prompt: `pkcheck --action-id org.freedesktop.policykit.exec --process $$ -u`
