@@ -12,3 +12,4 @@ PaperCard    1.0 PaperCard.qml
 SpringSelector 1.0 SpringSelector.qml
 IrisHost     1.0 IrisHost.qml
 ScrambleText 1.0 ScrambleText.qml
+VoidField    1.0 VoidField.qml

@@ -12,3 +12,4 @@ CompanionsCard 1.0 CompanionsCard.qml
 Clipboard 1.0 Clipboard.qml
 WindowFx 1.0 WindowFx.qml
 SettingsPanel 1.0 SettingsPanel.qml
+AuthPrompt 1.0 AuthPrompt.qml

@@ -5,7 +5,7 @@
 local G = require("globals")
 
 hl.on("hyprland.start", function()
-    hl.exec_cmd("/usr/lib/polkit-kde-authentication-agent-1")
+    -- polkit: Quickshell's AuthPrompt is the agent (it starts the KDE one itself if it can't register)
     hl.exec_cmd("fcitx5 -d --replace")
     hl.exec_cmd("hypridle")
     hl.exec_cmd("blueman-applet")

@@ -233,6 +233,7 @@ Two geometry rules the input mask depends on:
   - `imeenter>>…` for Enter in any text input with a caret (English too), from `Event::bus()->m_events.input.keyboard.key`, one per press within 80 ms. The bridge holds an Enter 70 ms so the commit that follows it, if any, replaces it.
 
   Burst positions scale by the *screen* width (`modelData.width / mw`), not the window's: a window that has just been mapped is 0×0 for a moment, and a burst placed then lands in the corner. That caused the intermittent missing Enter effect. The bridge reads them from `.socket2.sock` and forwards them as `commit` messages (a HitBurst on the phrase: caret − n·h/2, skipped if a candidate pick burst < 250 ms ago) and `spark` messages (re-queried 45 ms later, once the app has moved its caret). Replacing a loaded plugin: `make reload` (`reload.sh`: builds a new file, unloads the old copy by its recorded load path, loads the new one). Never rebuild a `.so` in place while it's loaded. The bridge re-reads the caret on every panel update, and again 40 / 140 ms later (apps report the new box only after drawing the preedit), falling back to fcitx5's rect when the plugin has none (XWayland / D-Bus-module apps). **Rebuild the plugin (`make` in its folder) after every Hyprland update.** It checks the version hash and refuses to load otherwise, and without it the panel sits at the last rect it knew. With `imePanelEnabled: false`, fcitx5 uses its classic window, styled by the generated `quickshell` theme (see Theme sync below), or the static `nier` one in `~/.local/share/fcitx5/themes/nier/` with `[sync] fcitx5 = false`. **fcitx5 candidate window** drawn by the shell (`Settings.imePanelEnabled`). `scripts/imepanel.py` owns the D-Bus name `org.kde.impanel` and speaks the kimpanel protocol: fcitx5 prefers kimpanel (UIPriority 50) over its classic window while the name is owned, and falls back to it the moment the bridge exits, so a dead bridge never blocks typing. The bridge streams JSON lines (table / cands / cursor / aux / preedit / spot) and takes `select N` / `prev` / `next` on stdin. Relative spot rects (Wayland clients) are made absolute with the focused window's `at` from Hyprland's socket, then made monitor-local; QML scales layout px by `width / mw` (QT_SCALE_FACTOR). The panel is a full-screen Overlay surface, mapped only while there's a panel or sparks/burst in flight, with an input mask on the card alone. Look: a paper card, an ink selector springing between candidates, pages sliding in the flip direction, a HitBurst on a pick (detected when fcitx5 empties the list, since it clears the table *before* hiding it), and diamond sparks when the caret steps along a line (`Settings.imeSparks`). **Test without a keyboard:** make a private fcitx5 input context over D-Bus (`org.fcitx.Fcitx.InputMethod1.CreateInputContext` → `FocusIn`, `SetCursorRect`, `Controller1.SetCurrentIM mcbopomofo`, `ProcessKeyEvent`). `ShareInputState=No`, so it doesn't touch the user's apps. |
+| `widgets/AuthPrompt.qml` | **The polkit agent** (`Quickshell.Services.Polkit`), a Popup in the Void: the glass unfolds over the screen and collapses into the dark (`collapse` + `underlay`), then AUTHORIZATION REQUIRED, polkit's message and action id, AS <identity> (←→ when several), the password in a `VoidField` (key events, no TextInput), polkit's supplementary note; ↵ authorize · Esc cancel. The `PolkitAgent` sits in a Loader that starts only after any KDE agent left over is stopped (one agent per session); if it still isn't registered after 5 s, the KDE agent is started as the fallback. Hyprland's autostart no longer starts the KDE agent. IPC `auth status` / `auth cancel`. Test with `pkcheck --action-id org.freedesktop.policykit.exec --process $$ --allow-user-interaction` (asks, runs nothing). If Quickshell dies, terminal requests (pkexec, systemctl, sudo) still ask in the terminal. |
 | `widgets/Player.qml` / `PlayerCard.qml` | Floating media player on every screen (`qs ipc call player toggle`), fed by `services/Media.qml`. The windows are mapped only while the card is shown or sliding out (`card.mapped`); the reveal waits for MapGate. Cava bars stream from cava's stdout via `SplitParser`. |
 | `widgets/Notifications.qml` | Notification daemon + popups (top-left, `leftMargin` 24, 6 % from the top). **A popup that times out is only shelved** (hidden, out of the stack/mask) — its Notification stays tracked so the ControlCenter history can still run its actions; transient ones still close, and entries falling off the 50-item history are dismissed. DND and notifications carried over a reload (`lastGeneration`) arrive shelved (`_quiet`), with no popup. The history (minus live objects) survives config reloads via `PersistentProperties`, and carried-over notifications are relinked by id. Clicks get the shared hit feel (`HitBurst`): an action button or a body click (the default action, else close) pops the card, and ✕, a swipe or a middle/right click throw a lighter burst. **Quickshell closes a non-resident notification the instant an action is invoked, destroying its row**, so the card cuts out first and `invoke()` is the row's last act. |
 | `widgets/Companions.qml` / `CompanionsCard.qml` | Animated sprites (`[companions] enabled`, off by default; the gifs aren't in the repo). |
@@ -311,6 +312,31 @@ own palette in `nierlock/Config.qml`.
   - The server **stays up until stopped** (Ctrl-C, or SIGTERM from Quickshell) so one QR handles several transfers. `--once` restores the old shut-down-after-first-transfer behaviour.
   - `--tunnel` routes through a Cloudflare quick tunnel (works on mobile data); without it the URL is LAN-only.
   - Quickshell IPC is the `--event-file`, appended one line at a time: `COUNT`/`SIZE`/`STATUS`/`URL`/`QR`/`READY`/`TICK <name>`/`DONE`/`CANCELLED`/`ERROR`. ControlCenter watches the file (FileView `watchChanges`) while a transfer runs, re-reads it whole on each change and **rebuilds** state from it, so handlers must stay idempotent.
+
+### voidbox (`tui/`, Go) — sudo and pacman in the Void
+
+The terminal side of the design language, replacing glamour-box's sudo / pacman wrappers
+(`tui/void.zsh`, sourced from `~/.zshrc` after glamour-box's init.sh). `make -C tui` builds
+`~/.local/bin/voidbox` + the `voidbox-askpass` symlink; `make -C tui test` drives it in a pty
+against `fake-pacman.sh` (no sudo, no real pacman — never test with the real password:
+faillock locks the account after 3 failures).
+- **sudo**: interactive terminals run `sudo -A` with `SUDO_ASKPASS=voidbox-askpass` — sudo's
+  own mechanism; the Void screen is drawn on /dev/tty (a Linux VT too: plain glyphs on
+  TERM=linux), the password goes to sudo over stdout. A wrong password makes sudo call it
+  again: a state file per sudo pid shows "WRONG PASSWORD · TRY 2/3". Scripts/pipes: plain sudo.
+- **pacman**: queries `exec` pacman unchanged (`needsRoot()` reads the operation); the rest
+  run `sudo -A pacman …` in a pty. The screen: header + operation, pacman's output
+  scrolling (errors in warn), live download lines (pacman's in-place redraws are keyed),
+  and pacman's questions as cards — YES/NO for `[Y/n]`/`[y/N]`, a numbered list for
+  providers (↑↓ · 1–9 · ↵), toggles for group members, a typed line for anything
+  unrecognised (after 1.2 s idle). zh_TW prompts use full-width parentheses; the
+  patterns take both. **sudo's password is a card in the same screen**: sudo's
+  timestamp is per tty, so in the pty it asks again; voidbox-askpass sees `VOIDBOX_SOCK`
+  and hands the question to the screen over a private socket (token in `VOIDBOX_TOKEN`).
+  When pacman ends, the whole log is printed to the scrollback, then COMPLETED / FAILED
+  with the error lines. Ctrl+C is passed to pacman.
+- bubbletea's package init asks the terminal for its background (OSC 11): real terminals
+  answer at once; a silent pty waits 5 s and eats the keys typed meanwhile (test.py answers).
 
 ### Shell scripts
 

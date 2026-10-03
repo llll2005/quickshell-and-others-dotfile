@@ -57,8 +57,6 @@ Item {
 
     // ── motion ──
     property real inT: 0          // the face scrambling in
-    property real shake: 0        // a failed password
-    property real okT: 0          // the authorized hit
     SequentialAnimation {
         id: introT
         PauseAnimation { duration: 60 }
@@ -73,17 +71,11 @@ Item {
             }
         }
     }
-    NumberAnimation { id: shakeAnim; target: face; property: "shake"; from: 0; to: 1; duration: 460 }
-    SequentialAnimation {
-        id: okAnim
-        NumberAnimation { target: face; property: "okT"; from: 0; to: 1; duration: 90; easing.type: Easing.OutQuad }
-        PauseAnimation { duration: 260 }
-        ScriptAction { script: glass.active = true }      // the glass closes over the face, then the screen opens
-    }
+    Timer { id: closeT; interval: 350; onTriggered: glass.active = true }   // the glass closes over the face, then the screen opens
     Connections {
         target: face.st
-        function onFailedPulse() { shakeAnim.restart(); burst.playAt(inputLine, inputLine.width / 2, 0, 0.45) }
-        function onAuthorizedPulse() { okAnim.restart(); burst.playAt(inputLine, inputLine.width / 2, 0, 1.2) }
+        function onFailedPulse() { inputLine.fail() }
+        function onAuthorizedPulse() { inputLine.ok(); closeT.start() }
     }
 
     // ── corner brackets ──
@@ -179,46 +171,15 @@ Item {
 
         Item { width: 1; height: 22 * face.u }
 
-        // the password: a diamond per character on a hairline, the caret a hollow one
-        Item {
+        // the password: a diamond per character on a hairline (components/VoidField.qml)
+        VoidField {
             id: inputLine
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 360 * face.u; height: 26 * face.u
-            transform: Translate { x: 12 * face.u * Math.sin(face.shake * Math.PI * 5) * (1 - face.shake) }
-            Row {
-                id: dots
-                anchors.centerIn: parent
-                spacing: 11 * face.u
-                Repeater {
-                    model: Math.min(face.st.text.length, 24)
-                    Rectangle {
-                        width: 7 * face.u; height: width; rotation: 45
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: face.fg
-                        opacity: face.st.phase === "verifying" ? 0.45 : 1
-                        scale: 1 + 0.35 * face.okT
-                    }
-                }
-                Rectangle {   // caret
-                    visible: !face.st.busy
-                    width: 7 * face.u; height: width; rotation: 45
-                    anchors.verticalCenter: parent.verticalCenter
-                    color: "transparent"; border.color: face.fg; border.width: 1
-                    opacity: blink.v
-                }
-                Text {        // what to do, after the caret while nothing is typed
-                    visible: face.st.text === "" && face.st.phase === "idle"
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "TYPE TO UNLOCK"
-                    font.family: face.mono; font.pixelSize: Math.round(10 * face.u); font.letterSpacing: 3 * face.u
-                    color: face.faint
-                }
-            }
-            Rectangle {
-                anchors.bottom: parent.bottom; width: parent.width; height: 1
-                color: face.st.phase === "failed" ? face.warn : Theme.alpha(Theme.light, 0.4)
-            }
-            Rectangle { anchors.fill: parent; color: face.fg; opacity: 0.25 * face.okT * (1 - face.okT * 0.5) }
+            u: face.u
+            text: face.st.text
+            phase: face.st.phase
+            blink: blink.v
+            Component.onCompleted: burst.backdrop = glass
         }
 
         Item { width: 1; height: 16 * face.u }
@@ -268,5 +229,4 @@ Item {
         originPx: Qt.point(width / 2, height / 2)
         glarePx: Qt.point(width / 2, height / 2)
     }
-    HitBurst { id: burst; backdrop: glass }
 }
