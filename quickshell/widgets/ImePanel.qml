@@ -245,7 +245,7 @@ Scope {
                         Text {
                             visible: root.auxShown && root.auxText !== ""
                             text: root.auxText
-                            font.family: root.candFont; font.pixelSize: 12
+                            font.family: root.candFont; font.pixelSize: Theme.fs(12)
                             color: root.inkSoft
                         }
                         Item {
@@ -254,7 +254,7 @@ Scope {
                             Text {
                                 id: preT
                                 text: root.preText
-                                font.family: root.candFont; font.pixelSize: 13
+                                font.family: root.candFont; font.pixelSize: Theme.fs(13)
                                 color: root.inkStrong
                             }
                             Rectangle {   // caret
@@ -343,13 +343,13 @@ Scope {
                                             Text {
                                                 anchors.baseline: candText.baseline
                                                 text: root.labels[cand.index] || ""
-                                                font.family: Theme.mono; font.pixelSize: 9
+                                                font.family: Theme.mono; font.pixelSize: Theme.fs(9)
                                                 color: cand.on ? root.paperA(0.6) : root.inkSoft
                                             }
                                             Text {
                                                 id: candText
                                                 text: cand.modelData
-                                                font.family: root.candFont; font.pixelSize: 15; font.weight: Font.Medium
+                                                font.family: root.candFont; font.pixelSize: Theme.fs(15); font.weight: Font.Medium
                                                 color: cand.on ? root.paper : root.inkStrong
                                             }
                                         }
@@ -383,7 +383,7 @@ Scope {
                                     }
                                     Text {
                                         anchors.centerIn: parent; anchors.verticalCenterOffset: -1
-                                        text: pg.modelData < 0 ? "‹" : "›"; font.pixelSize: 9
+                                        text: pg.modelData < 0 ? "‹" : "›"; font.pixelSize: Theme.fs(9)
                                         color: pgMA.containsMouse && pg.can ? root.paper : root.ink
                                     }
                                     MouseArea {

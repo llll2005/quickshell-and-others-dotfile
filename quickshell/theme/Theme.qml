@@ -58,6 +58,12 @@ QtObject {
     // 金萱, for the glyphs it lacks (~/.config/fontconfig/conf.d/60-quickshell.conf).
     readonly property string mono: Config.str("font.mono", "") || Config.tstr("font.mono", "Operator Mono")
     readonly property string cjk:  Config.str("font.cjk", "")  || Config.tstr("font.cjk",  "jf金萱那提2.0")
+    // the size of all text outside the Void: `[font] size` steps of ×1.09 (about a pixel at
+    // 11 px; +2 ≈ ×1.19). Every Paper / Ink surface sets its sizes through fs(); the Void
+    // (lock, polkit, the power exit, voidbox) keeps its own scale, voidStep().
+    readonly property int  fontStep: Config.num("font.size", 0)
+    readonly property real fontScale: Math.pow(1.09, fontStep)
+    function fs(px) { return Math.max(1, Math.round(px * fontScale)) }
     // the Void's voice (lock, polkit, the power exit): `[font] void` in shell.conf (your
     // choice, any theme), else the theme's, else mono. A display face like Norse lacks
     // ◆ ▸ ░ …: the scramble then uses its own letters (voidGlyphs), and the clock sets its

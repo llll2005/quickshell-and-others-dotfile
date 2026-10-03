@@ -108,8 +108,8 @@ Item {
                             Behavior on sdw   { NumberAnimation { duration: 120 } }
                             Behavior on scale { NumberAnimation { duration: 80  } }
                             transformOrigin: Item.Center
-                            Text { x: btnPrev.sdw; y: btnPrev.sdw; text: "⏮"; font.family: Theme.mono; font.pixelSize: root.s(21); color: Theme.alpha(Theme.sepiaDim, 0.28) }
-                            Text { anchors.fill: parent; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; text: "⏮"; font.family: Theme.mono; font.pixelSize: root.s(21)
+                            Text { x: btnPrev.sdw; y: btnPrev.sdw; text: "⏮"; font.family: Theme.mono; font.pixelSize: Theme.fs(root.s(21)); color: Theme.alpha(Theme.sepiaDim, 0.28) }
+                            Text { anchors.fill: parent; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; text: "⏮"; font.family: Theme.mono; font.pixelSize: Theme.fs(root.s(21))
                                 color: btnPrev.hov ? Theme.alpha(Theme.sepia, 1) : Theme.alpha(Theme.sepia, 0.65)
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }
@@ -131,8 +131,8 @@ Item {
                             Behavior on sdw   { NumberAnimation { duration: 120 } }
                             Behavior on scale { NumberAnimation { duration: 80  } }
                             transformOrigin: Item.Center
-                            Text { x: btnPlay.sdw; y: btnPlay.sdw; text: root.mpPlaying ? "⏸" : "▶"; font.family: Theme.mono; font.pixelSize: root.s(19); color: Theme.alpha(Theme.sepiaDim, 0.28) }
-                            Text { anchors.fill: parent; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; text: root.mpPlaying ? "⏸" : "▶"; font.family: Theme.mono; font.pixelSize: root.s(19)
+                            Text { x: btnPlay.sdw; y: btnPlay.sdw; text: root.mpPlaying ? "⏸" : "▶"; font.family: Theme.mono; font.pixelSize: Theme.fs(root.s(19)); color: Theme.alpha(Theme.sepiaDim, 0.28) }
+                            Text { anchors.fill: parent; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; text: root.mpPlaying ? "⏸" : "▶"; font.family: Theme.mono; font.pixelSize: Theme.fs(root.s(19))
                                 color: btnPlay.hov ? Theme.alpha(Theme.sepia, 1) : Theme.alpha(Theme.sepia, 0.65)
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }
@@ -154,8 +154,8 @@ Item {
                             Behavior on sdw   { NumberAnimation { duration: 120 } }
                             Behavior on scale { NumberAnimation { duration: 80  } }
                             transformOrigin: Item.Center
-                            Text { x: btnNext.sdw; y: btnNext.sdw; text: "⏭"; font.family: Theme.mono; font.pixelSize: root.s(21); color: Theme.alpha(Theme.sepiaDim, 0.28) }
-                            Text { anchors.fill: parent; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; text: "⏭"; font.family: Theme.mono; font.pixelSize: root.s(21)
+                            Text { x: btnNext.sdw; y: btnNext.sdw; text: "⏭"; font.family: Theme.mono; font.pixelSize: Theme.fs(root.s(21)); color: Theme.alpha(Theme.sepiaDim, 0.28) }
+                            Text { anchors.fill: parent; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; text: "⏭"; font.family: Theme.mono; font.pixelSize: Theme.fs(root.s(21))
                                 color: btnNext.hov ? Theme.alpha(Theme.sepia, 1) : Theme.alpha(Theme.sepia, 0.65)
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }
@@ -469,7 +469,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: root._displayedTitle
                             font.family: Theme.mono
-                            font.pixelSize: root.s(13)
+                            font.pixelSize: Theme.fs(root.s(13))
                             color: Theme.alpha(Theme.sepia, 0.9)
                             elide: Text.ElideRight
                             width: parent.width - root.s(20)
@@ -514,7 +514,7 @@ Item {
             color: closeBtnMA.containsMouse ? Theme.alpha(Theme.sepia, 0.18) : "transparent"
             border.color: Theme.alpha(Theme.sepia, 0.25); border.width: 1; z: 6
             Behavior on color { ColorAnimation { duration: 100 } }
-            Text { anchors.centerIn: parent; text: "✕"; font.family: Theme.mono; font.pixelSize: root.s(7); color: Theme.alpha(Theme.sepia, 0.5) }
+            Text { anchors.centerIn: parent; text: "✕"; font.family: Theme.mono; font.pixelSize: Theme.fs(root.s(7)); color: Theme.alpha(Theme.sepia, 0.5) }
             MouseArea { id: closeBtnMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleVisible() }
         }
 

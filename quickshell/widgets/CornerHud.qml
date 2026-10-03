@@ -609,16 +609,16 @@ Scope {
                             spacing: 4
                             opacity: (win.showWsp || root.osdMode !== "") ? 0 : 1
                             Behavior on opacity { NumberAnimation { duration: 200 } }
-                            Text { text: root.clock; font.family: root.mono; font.pixelSize: 14
+                            Text { text: root.clock; font.family: root.mono; font.pixelSize: Theme.fs(14)
                                    font.letterSpacing: 1; color: root.cText
                                    anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: root.secs; font.family: root.mono; font.pixelSize: 9
+                            Text { text: root.secs; font.family: root.mono; font.pixelSize: Theme.fs(9)
                                    color: root.cMuted; y: 2 }
                         }
                         // workspace label (morph-in)
                         Text {
                             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                            text: "WORKSPACE"; font.pixelSize: 10; font.weight: Font.Medium
+                            text: "WORKSPACE"; font.pixelSize: Theme.fs(10); font.weight: Font.Medium
                             font.letterSpacing: 3; color: root.cAccent
                             opacity: win.showWsp ? 1 : 0
                             Behavior on opacity { NumberAnimation { duration: 200 } }
@@ -644,7 +644,7 @@ Scope {
                             Text {
                                 visible: !parent.level
                                 text: ({ mic: "MIC", caps: "CAPS", ime: "IME" })[root.osdMode] || ""
-                                font.pixelSize: 10; font.weight: Font.Medium; font.letterSpacing: 3
+                                font.pixelSize: Theme.fs(10); font.weight: Font.Medium; font.letterSpacing: 3
                                 color: root.cAccent; anchors.verticalCenter: parent.verticalCenter
                             }
                             Rectangle {
@@ -661,7 +661,7 @@ Scope {
                                     text: root.osdMode === "ime" ? (Ime.name || Ime.label)
                                         : parent.on ? "ON" : "OFF"
                                     font.family: root.osdMode === "ime" ? Theme.cjk : root.mono
-                                    font.pixelSize: 10; font.letterSpacing: root.osdMode === "ime" ? 0.5 : 2
+                                    font.pixelSize: Theme.fs(10); font.letterSpacing: root.osdMode === "ime" ? 0.5 : 2
                                     color: parent.on ? root.cInk : root.cText
                                 }
                             }
@@ -683,7 +683,7 @@ Scope {
                                 visible: parent.level
                                 text: root.osdMode === "vol" && Audio.muted ? "mute"
                                     : Math.round(parent.lvl*100) + "%"
-                                font.family: root.mono; font.pixelSize: 12; color: root.cText
+                                font.family: root.mono; font.pixelSize: Theme.fs(12); color: root.cText
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
@@ -696,7 +696,7 @@ Scope {
                                         color: root.wspPinned ? root.cAccent : "transparent"
                                         border.color: root.wspPinned ? root.cAccent : root.cMuted; border.width: 1
                                         anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "ws·" + win.wsId; font.family: root.mono; font.pixelSize: 11
+                            Text { text: "ws·" + win.wsId; font.family: root.mono; font.pixelSize: Theme.fs(11)
                                    font.letterSpacing: 1; color: root.cText
                                    anchors.verticalCenter: parent.verticalCenter }
                         }
@@ -732,24 +732,24 @@ Scope {
                                     width: srcT.implicitWidth + 8; height: 13; color: root.cAccent
                                     anchors.verticalCenter: parent.verticalCenter
                                     Text { id: srcT; anchors.centerIn: parent; text: Media.source || "MEDIA"
-                                           font.family: root.mono; font.pixelSize: 8; font.letterSpacing: 1.5; color: root.cInk }
+                                           font.family: root.mono; font.pixelSize: Theme.fs(8); font.letterSpacing: 1.5; color: root.cInk }
                                 }
                                 Text {
                                     width: parent.width - srcT.implicitWidth - 14; elide: Text.ElideRight
-                                    text: Media.title; font.pixelSize: 10; color: root.cText
+                                    text: Media.title; font.pixelSize: Theme.fs(10); color: root.cText
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
                             Text {
                                 visible: !root.lyricShowing; width: parent.width; elide: Text.ElideRight
                                 text: Media.artist + (Lyrics.on && Lyrics.status === "searching" ? "  ·  ♪ …" : "")
-                                font.pixelSize: 9; color: root.cMuted
+                                font.pixelSize: Theme.fs(9); color: root.cMuted
                             }
                             Text {
                                 visible: root.lyricShowing; width: parent.width
                                 wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
                                 text: Lyrics.current !== "" ? Lyrics.current : "♪"
-                                font.family: Theme.cjk; font.pixelSize: 12; color: root.cText
+                                font.family: Theme.cjk; font.pixelSize: Theme.fs(12); color: root.cText
                                 opacity: 1 - root.lyrSlide * 0.8
                                 transform: Translate { y: root.lyrSlide * 8 }
                             }
@@ -759,7 +759,7 @@ Scope {
                             }
                             Text {
                                 visible: root.lyricShowing && Lyrics.next !== ""; width: parent.width; elide: Text.ElideRight
-                                text: Lyrics.next; font.family: Theme.cjk; font.pixelSize: 10; color: root.cMuted
+                                text: Lyrics.next; font.family: Theme.cjk; font.pixelSize: Theme.fs(10); color: root.cMuted
                             }
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Lyrics.on = !Lyrics.on }
@@ -788,19 +788,19 @@ Scope {
                                     anchors.verticalCenter: parent.verticalCenter
                                     Text { id: stT; anchors.centerIn: parent
                                            text: taskBlock.failed ? "FAILED · " + root.task.code : "DONE"
-                                           font.family: root.mono; font.pixelSize: 8; font.letterSpacing: 1.5; color: root.cInk }
+                                           font.family: root.mono; font.pixelSize: Theme.fs(8); font.letterSpacing: 1.5; color: root.cInk }
                                 }
                                 Text {
                                     width: parent.width - stT.implicitWidth - 14; elide: Text.ElideRight
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: root.took(root.task.secs)
-                                    font.family: root.mono; font.pixelSize: 9; font.letterSpacing: 1.5; color: root.cMuted
+                                    font.family: root.mono; font.pixelSize: Theme.fs(9); font.letterSpacing: 1.5; color: root.cMuted
                                 }
                             }
                             Text {
                                 width: parent.width; elide: Text.ElideMiddle
                                 text: root.task.cmd
-                                font.family: root.mono; font.pixelSize: 11; color: root.cText
+                                font.family: root.mono; font.pixelSize: Theme.fs(11); color: root.cText
                             }
                         }
                         MouseArea {
@@ -996,12 +996,12 @@ Scope {
                                             model: Weather.forecast
                                             Column {
                                                 width: pgInfo.width / 3; spacing: 1
-                                                Text { text: modelData.date; font.family: root.mono; font.pixelSize: 8
+                                                Text { text: modelData.date; font.family: root.mono; font.pixelSize: Theme.fs(8)
                                                        color: root.cMuted; anchors.horizontalCenter: parent.horizontalCenter }
-                                                Text { text: modelData.icon; font.family: root.mono; font.pixelSize: 13
+                                                Text { text: modelData.icon; font.family: root.mono; font.pixelSize: Theme.fs(13)
                                                        color: root.cText; anchors.horizontalCenter: parent.horizontalCenter }
                                                 Text { text: modelData.max + "/" + modelData.min; font.family: root.mono
-                                                       font.pixelSize: 8; color: root.cText
+                                                       font.pixelSize: Theme.fs(8); color: root.cText
                                                        anchors.horizontalCenter: parent.horizontalCenter }
                                             }
                                         }
@@ -1018,7 +1018,7 @@ Scope {
                                         Text {
                                             y: 0
                                             text: root.monthNames[root.calMonth] + " " + root.calYear
-                                            font.pixelSize: 8; font.weight: Font.Medium; font.letterSpacing: 2.5
+                                            font.pixelSize: Theme.fs(8); font.weight: Font.Medium; font.letterSpacing: 2.5
                                             color: root.paperA(0.72)
                                             opacity: 1 - root.calOut
                                             transform: Translate { x: root.calSlide }
@@ -1043,7 +1043,7 @@ Scope {
                                                     Text {
                                                         anchors.centerIn: parent; anchors.verticalCenterOffset: -1
                                                         text: navBtn.modelData < 0 ? "‹" : "›"
-                                                        font.pixelSize: 10; color: navMA.containsMouse ? root.cInk : root.cText
+                                                        font.pixelSize: Theme.fs(10); color: navMA.containsMouse ? root.cInk : root.cText
                                                     }
                                                     MouseArea {
                                                         id: navMA
@@ -1148,7 +1148,7 @@ Scope {
                                                 Text {
                                                     anchors.centerIn: parent; text: dcell.day
                                                     font.family: root.mono; font.bold: dcell.isToday || dcell.isSel
-                                                    font.pixelSize: Math.max(8, Math.round(parent.height * 0.7))
+                                                    font.pixelSize: Theme.fs(Math.max(8, Math.round(parent.height * 0.7)))
                                                     color: dcell.isSel ? root.cInk : "#f3ecd8"
                                                 }
                                                 // event marker: a tiny ◆ under the number
@@ -1204,7 +1204,7 @@ Scope {
                                     Text {
                                         width: pgInfo.width
                                         text: root.monthNames[root.calMonth] + " " + root.calSelDay
-                                        font.family: root.mono; font.pixelSize: 9; font.letterSpacing: 1.5; color: root.cAccent
+                                        font.family: root.mono; font.pixelSize: Theme.fs(9); font.letterSpacing: 1.5; color: root.cAccent
                                     }
                                     Repeater {
                                         model: Cal.eventsOn(root.dateStr(root.calYear, root.calMonth, root.calSelDay))
@@ -1213,14 +1213,14 @@ Scope {
                                             Rectangle { width: 4; height: 4; rotation: 45; antialiasing: true; color: root.cAccent
                                                         anchors.verticalCenter: parent.verticalCenter }
                                             Text { text: modelData.time !== "" ? modelData.time : "all-day"
-                                                   font.family: root.mono; font.pixelSize: 8; color: root.cMuted; width: 44 }
-                                            Text { text: modelData.title; font.family: root.mono; font.pixelSize: 8
+                                                   font.family: root.mono; font.pixelSize: Theme.fs(8); color: root.cMuted; width: 44 }
+                                            Text { text: modelData.title; font.family: root.mono; font.pixelSize: Theme.fs(8)
                                                    color: root.cText; elide: Text.ElideRight; width: pgInfo.width - 58 }
                                         }
                                     }
                                     Text {
                                         visible: Cal.eventsOn(root.dateStr(root.calYear, root.calMonth, root.calSelDay)).length === 0
-                                        text: "◇ NO EVENTS ◇"; font.pixelSize: 7; font.letterSpacing: 2.5; color: root.cMuted
+                                        text: "◇ NO EVENTS ◇"; font.pixelSize: Theme.fs(7); font.letterSpacing: 2.5; color: root.cMuted
                                     }
                                     // tasks due on the selected day (Google Tasks)
                                     Repeater {
@@ -1233,7 +1233,7 @@ Scope {
                                                             color: modelData.done ? root.cGood : "transparent"
                                                             border.color: modelData.done ? root.cGood : root.cAccent; border.width: 1 }
                                             }
-                                            Text { text: modelData.title; font.family: root.mono; font.pixelSize: 8
+                                            Text { text: modelData.title; font.family: root.mono; font.pixelSize: Theme.fs(8)
                                                    color: root.cText; elide: Text.ElideRight; width: pgInfo.width - 18
                                                    font.strikeout: modelData.done }
                                         }
@@ -1259,7 +1259,7 @@ Scope {
                                         width: pgInfo.width
                                         text: todoView.fullText !== "" ? todoView.fullText : "_(empty)_"
                                         textFormat: Text.MarkdownText
-                                        font.family: root.mono; font.pixelSize: 9
+                                        font.family: root.mono; font.pixelSize: Theme.fs(9)
                                         color: root.cText; wrapMode: Text.Wrap
                                         onLinkActivated: (l) => root.run("xdg-open '" + l + "'")
                                     }
@@ -1272,7 +1272,7 @@ Scope {
                                         TextEdit {
                                             id: todoEd
                                             anchors.fill: parent; anchors.margins: 5
-                                            font.family: root.mono; font.pixelSize: 9
+                                            font.family: root.mono; font.pixelSize: Theme.fs(9)
                                             color: root.cText; selectionColor: root.cAccent; selectedTextColor: root.cInk
                                             wrapMode: TextEdit.Wrap
                                             textFormat: TextEdit.PlainText
@@ -1301,7 +1301,7 @@ Scope {
                                     Row {
                                         width: parent.width; spacing: 8
                                         Text {
-                                            text: root.swFmt(root.swElapsed); font.family: root.mono; font.pixelSize: 16
+                                            text: root.swFmt(root.swElapsed); font.family: root.mono; font.pixelSize: Theme.fs(16)
                                             color: root.swGo ? root.cAccent : root.cText
                                             anchors.verticalCenter: parent.verticalCenter; width: 78
                                         }
@@ -1374,7 +1374,7 @@ Scope {
                                             visible: wsCell.exists
                                             anchors.centerIn: parent
                                             text: wsCell.wsid
-                                            font.family: root.mono; font.pixelSize: 9
+                                            font.family: root.mono; font.pixelSize: Theme.fs(9)
                                             color: wsCell.active ? root.cInk : wsCell.monColor
                                         }
                                         // unopened → ◇
@@ -1419,7 +1419,7 @@ Scope {
                                 Rectangle { width: parent.width; height: 1; color: root.cBorder }
                                 Text {
                                     text: "ws·" + win.displayWs + "  ·  " + root.windowsFor(win.displayWs).length + " win"
-                                    font.family: root.mono; font.pixelSize: 8; font.letterSpacing: 1
+                                    font.family: root.mono; font.pixelSize: Theme.fs(8); font.letterSpacing: 1
                                     color: root.cMuted; topPadding: 2
                                 }
                                 Repeater {
@@ -1428,10 +1428,10 @@ Scope {
                                         width: wspView.width; spacing: 6
                                         Rectangle { width: 4; height: 4; rotation: 45; antialiasing: true; color: root.cAccent
                                                     anchors.verticalCenter: parent.verticalCenter }
-                                        Text { text: modelData.cls; font.family: root.mono; font.pixelSize: 9
+                                        Text { text: modelData.cls; font.family: root.mono; font.pixelSize: Theme.fs(9)
                                                color: root.cText; width: 54; elide: Text.ElideRight
                                                anchors.verticalCenter: parent.verticalCenter }
-                                        Text { text: modelData.title; font.family: root.mono; font.pixelSize: 9
+                                        Text { text: modelData.title; font.family: root.mono; font.pixelSize: Theme.fs(9)
                                                color: root.cMuted; elide: Text.ElideRight
                                                width: wspView.width - 70
                                                anchors.verticalCenter: parent.verticalCenter }
@@ -1439,7 +1439,7 @@ Scope {
                                 }
                                 Text {
                                     visible: root.windowsFor(win.displayWs).length === 0
-                                    text: "◇ EMPTY ◇"; font.pixelSize: 8; font.letterSpacing: 2.5
+                                    text: "◇ EMPTY ◇"; font.pixelSize: Theme.fs(8); font.letterSpacing: 2.5
                                     color: root.cMuted
                                 }
                             }
@@ -1501,7 +1501,7 @@ Scope {
         Text {
             id: srLabel
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            text: sLabel; font.family: root.mono; font.pixelSize: 9; font.letterSpacing: 1
+            text: sLabel; font.family: root.mono; font.pixelSize: Theme.fs(9); font.letterSpacing: 1
             color: sr.hot ? sr.ink : root.cMuted; width: 26
             Behavior on color { ColorAnimation { duration: 120 } }
             MouseArea { enabled: sr.interactive; anchors.fill: parent
@@ -1510,7 +1510,7 @@ Scope {
         Text {
             id: srVal
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-            text: sVal; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+            text: sVal; font.family: root.mono; font.pixelSize: Theme.fs(10); font.letterSpacing: 1
             color: sr.hot ? sr.ink : sColor; horizontalAlignment: Text.AlignRight; width: 40
             Behavior on color { ColorAnimation { duration: 120 } }
         }
@@ -1577,7 +1577,7 @@ Scope {
         Text {
             id: secLbl
             y: 0
-            text: label; font.pixelSize: 8; font.weight: Font.Medium; font.letterSpacing: 2.5
+            text: label; font.pixelSize: Theme.fs(8); font.weight: Font.Medium; font.letterSpacing: 2.5
             color: secMA.containsMouse ? root.cAccent : root.paperA(0.72)
             Behavior on color { ColorAnimation { duration: 120 } }
         }
@@ -1607,14 +1607,14 @@ Scope {
         Text {
             id: infoL
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            text: iLabel; font.family: root.mono; font.pixelSize: 9
+            text: iLabel; font.family: root.mono; font.pixelSize: Theme.fs(9)
             color: ir.hot ? root.cInk : root.cMuted
             Behavior on color { ColorAnimation { duration: 120 } }
             width: 34; elide: Text.ElideRight
         }
         Text {
             anchors { left: infoL.right; right: parent.right; verticalCenter: parent.verticalCenter }
-            text: iVal; font.family: root.mono; font.pixelSize: 9
+            text: iVal; font.family: root.mono; font.pixelSize: Theme.fs(9)
             color: ir.hot ? root.cInk : iColor
             Behavior on color { ColorAnimation { duration: 120 } }
             elide: Text.ElideRight; horizontalAlignment: Text.AlignRight
@@ -1646,7 +1646,7 @@ Scope {
         }
         Text {
             id: btxt; anchors.centerIn: parent; text: bLabel
-            font.family: root.mono; font.pixelSize: 8; font.letterSpacing: 1.5
+            font.family: root.mono; font.pixelSize: Theme.fs(8); font.letterSpacing: 1.5
             color: btnMA.containsMouse ? root.cInk : bColor
         }
         MouseArea { id: btnMA; anchors.fill: parent; hoverEnabled: true
@@ -1721,7 +1721,7 @@ Scope {
         Text {
             x: 12; width: parent.width - 14; anchors.verticalCenter: parent.verticalCenter
             horizontalAlignment: Text.AlignHCenter
-            text: parent.label; font.pixelSize: 7; font.weight: Font.Medium; font.letterSpacing: 1.5
+            text: parent.label; font.pixelSize: Theme.fs(7); font.weight: Font.Medium; font.letterSpacing: 1.5
             color: parent.inked ? root.cInk : (parent.hovered ? root.cText : root.cMuted)
         }
     }

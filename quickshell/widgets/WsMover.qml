@@ -113,14 +113,14 @@ Popup {
                     spacing: 10
                     Text {
                         text: "WORKSPACE RELOCATOR"
-                        font.pixelSize:10; font.letterSpacing:3; font.weight:Font.Medium
+                        font.pixelSize:Theme.fs(10); font.letterSpacing:3; font.weight:Font.Medium
                         color: root.inkStrong
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Rectangle { width:20; height:1; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
                     Text {
                         text: "ワークスペース移動"
-                        font.pixelSize:9; font.letterSpacing:2; color:root.inkSoft
+                        font.pixelSize:Theme.fs(9); font.letterSpacing:2; color:root.inkSoft
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -128,10 +128,10 @@ Popup {
                 Row {
                     anchors { right:parent.right; rightMargin:20; verticalCenter:parent.verticalCenter }
                     spacing: 6
-                    Text { text:"WS"; font.pixelSize:8; font.letterSpacing:2; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:"WS"; font.pixelSize:Theme.fs(8); font.letterSpacing:2; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
                     Text {
                         text: String(root.curWs).padStart(2, "0")
-                        font.pixelSize:10; font.letterSpacing:2; color:root.accent
+                        font.pixelSize:Theme.fs(10); font.letterSpacing:2; color:root.accent
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -150,7 +150,7 @@ Popup {
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "MOVE ALL WINDOWS  ·  WS " + String(root.curWs).padStart(2,"0") + " → ?"
-                        font.pixelSize:9; font.letterSpacing:2.5; color:root.inkSoft
+                        font.pixelSize:Theme.fs(9); font.letterSpacing:2.5; color:root.inkSoft
                     }
 
                     Row {
@@ -159,7 +159,7 @@ Popup {
 
                         Text {
                             text: "TARGET"
-                            font.pixelSize:10; font.letterSpacing:3; color:root.inkSoft
+                            font.pixelSize:Theme.fs(10); font.letterSpacing:3; color:root.inkSoft
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
@@ -173,7 +173,7 @@ Popup {
                             TextInput {
                                 id: wsInput
                                 anchors { fill:parent; margins:8 }
-                                font.pixelSize:22; font.letterSpacing:4
+                                font.pixelSize:Theme.fs(22); font.letterSpacing:4
                                 color: root.ink
                                 maximumLength: 2
                                 inputMethodHints: Qt.ImhDigitsOnly
@@ -202,7 +202,7 @@ Popup {
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "1 – 20"
-                        font.pixelSize:8; font.letterSpacing:3; color:root.inkSoft; opacity:0.45
+                        font.pixelSize:Theme.fs(8); font.letterSpacing:3; color:root.inkSoft; opacity:0.45
                     }
                 }
             }
@@ -215,7 +215,7 @@ Popup {
                 Text {
                     anchors { left:parent.left; leftMargin:20; verticalCenter:parent.verticalCenter }
                     text: "YoRHa WORKSPACE CONTROL"
-                    font.pixelSize:8; font.letterSpacing:2; color:root.inkSoft; opacity:0.35
+                    font.pixelSize:Theme.fs(8); font.letterSpacing:2; color:root.inkSoft; opacity:0.35
                 }
 
                 Row {
@@ -228,9 +228,9 @@ Popup {
                             Rectangle {
                                 width:kT.implicitWidth+8; height:16; color:"transparent"
                                 border.color:root.lineSoft; border.width:1
-                                Text { id:kT; anchors.centerIn:parent; text:modelData[0]; font.pixelSize:9; font.letterSpacing:1; color:root.ink }
+                                Text { id:kT; anchors.centerIn:parent; text:modelData[0]; font.pixelSize:Theme.fs(9); font.letterSpacing:1; color:root.ink }
                             }
-                            Text { text:modelData[1]; font.pixelSize:9; font.letterSpacing:2; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
+                            Text { text:modelData[1]; font.pixelSize:Theme.fs(9); font.letterSpacing:2; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
                         }
                     }
                 }

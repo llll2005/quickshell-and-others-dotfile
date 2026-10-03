@@ -310,20 +310,20 @@ Scope {
                         Text {
                             id: urgLabel; anchors.centerIn: parent
                             text: notif.urgencyLabel; color: Theme.paper
-                            font.family: Theme.mono; font.pixelSize: 8
+                            font.family: Theme.mono; font.pixelSize: Theme.fs(8)
                             font.weight: Font.Medium; font.letterSpacing: 2
                         }
                     }
-                    Text { text: notif.urgencyJp; color: Theme.inkSoft; font.family: Theme.cjk; font.pixelSize: 9 }
+                    Text { text: notif.urgencyJp; color: Theme.inkSoft; font.family: Theme.cjk; font.pixelSize: Theme.fs(9) }
                     Text {
                         Layout.fillWidth: true
                         text: notif.notification ? (notif.notification.appName || "SYSTEM").toUpperCase() : "SYSTEM"
-                        color: Theme.inkSoft; font.family: Theme.mono; font.pixelSize: 8
+                        color: Theme.inkSoft; font.family: Theme.mono; font.pixelSize: Theme.fs(8)
                         font.letterSpacing: 2; elide: Text.ElideRight
                     }
                     Text {
                         text: { const d=new Date(),p=n=>String(n).padStart(2,'0'); return `${p(d.getHours())}:${p(d.getMinutes())}` }
-                        color: Theme.inkSoft; font.family: Theme.mono; font.pixelSize: 8; font.letterSpacing: 1
+                        color: Theme.inkSoft; font.family: Theme.mono; font.pixelSize: Theme.fs(8); font.letterSpacing: 1
                     }
 
                     // Bouton fermer — zone de clic élargie
@@ -339,7 +339,7 @@ Scope {
                             Text {
                                 anchors.centerIn: parent; text: "✕"
                                 color: closeMouse.containsMouse ? Theme.paper : Theme.ink
-                                font.family: Theme.mono; font.pixelSize: 9
+                                font.family: Theme.mono; font.pixelSize: Theme.fs(9)
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }
                         }
@@ -378,7 +378,7 @@ Scope {
                             anchors.top: parent.top; anchors.left: parent.left
                             width: 14; height: 10; color: notif.accentColor; z: 2
                             Text { anchors.centerIn: parent; text: String(notif.itemIndex+1).padStart(2,'0')
-                                color: Theme.paper; font.family: Theme.mono; font.pixelSize: 7 }
+                                color: Theme.paper; font.family: Theme.mono; font.pixelSize: Theme.fs(7) }
                         }
                         Image {
                             anchors.fill: parent; anchors.margins: 2
@@ -394,7 +394,7 @@ Scope {
                         Text {
                             Layout.fillWidth: true
                             text: notif.notification ? notif.notification.summary : ""
-                            color: Theme.inkStrong; font.family: Theme.mono; font.pixelSize: 13
+                            color: Theme.inkStrong; font.family: Theme.mono; font.pixelSize: Theme.fs(13)
                             font.weight: Font.Medium; font.letterSpacing: 0.8
                             wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                             visible: text.length > 0
@@ -402,7 +402,7 @@ Scope {
                         Text {
                             Layout.fillWidth: true
                             text: notif.notification ? notif.notification.body : ""
-                            color: Theme.ink; font.family: Theme.mono; font.pixelSize: 11
+                            color: Theme.ink; font.family: Theme.mono; font.pixelSize: Theme.fs(11)
                             font.weight: Font.Light; font.letterSpacing: 0.3
                             wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight
                             textFormat: Text.PlainText; visible: text.length > 0; lineHeight: 1.4
@@ -430,7 +430,7 @@ Scope {
                                 id: actionText; anchors.centerIn: parent
                                 text: `▸ ${(modelData && modelData.text ? modelData.text : "").toUpperCase()}`
                                 color: actMouse.containsMouse ? Theme.paper : Theme.ink
-                                font.family: Theme.mono; font.pixelSize: 9; font.letterSpacing: 1.5
+                                font.family: Theme.mono; font.pixelSize: Theme.fs(9); font.letterSpacing: 1.5
                                 Behavior on color { ColorAnimation { duration: 120 } }
                             }
                             MouseArea {

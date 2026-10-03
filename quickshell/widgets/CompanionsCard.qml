@@ -116,14 +116,14 @@ Item {
                 Text {
                     width: parent.width
                     text:  root.companions[root.currentIdx].name
-                    font.family: Theme.mono; font.pixelSize: 8; font.letterSpacing: 3
+                    font.family: Theme.mono; font.pixelSize: Theme.fs(8); font.letterSpacing: 3
                     color: root.companions[root.currentIdx].color
                     elide: Text.ElideRight
                 }
                 Text {
                     width:    parent.width
                     text:     root.bubbleText_
-                    font.family: Theme.mono; font.pixelSize: 9
+                    font.family: Theme.mono; font.pixelSize: Theme.fs(9)
                     color:    Qt.rgba(200/255,184/255,154/255,0.65)
                     wrapMode: Text.WordWrap
                     maximumLineCount: 3
@@ -143,7 +143,7 @@ Item {
                 width: 26; height: 38; color: "transparent"
                 border.color: Qt.rgba(200/255,184/255,154/255,0.15); border.width: 1
                 anchors.verticalCenter: parent.verticalCenter
-                Text { anchors.centerIn: parent; text: "‹"; font.pixelSize: 18
+                Text { anchors.centerIn: parent; text: "‹"; font.pixelSize: Theme.fs(18)
                        color: maL.containsMouse ? "#c8b89a" : Qt.rgba(200/255,184/255,154/255,0.35)
                        Behavior on color { ColorAnimation { duration: 100 } } }
                 MouseArea { id: maL; anchors.fill: parent; hoverEnabled: true; onClicked: root.navigate(-1) }
@@ -234,7 +234,7 @@ Item {
                 width: 26; height: 38; color: "transparent"
                 border.color: Qt.rgba(200/255,184/255,154/255,0.15); border.width: 1
                 anchors.verticalCenter: parent.verticalCenter
-                Text { anchors.centerIn: parent; text: "›"; font.pixelSize: 18
+                Text { anchors.centerIn: parent; text: "›"; font.pixelSize: Theme.fs(18)
                        color: maR.containsMouse ? "#c8b89a" : Qt.rgba(200/255,184/255,154/255,0.35)
                        Behavior on color { ColorAnimation { duration: 100 } } }
                 MouseArea { id: maR; anchors.fill: parent; hoverEnabled: true; onClicked: root.navigate(1) }
@@ -245,7 +245,7 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text:  root.companions[root.currentIdx].name
-            font.family: Theme.mono; font.pixelSize: 8; font.letterSpacing: 2
+            font.family: Theme.mono; font.pixelSize: Theme.fs(8); font.letterSpacing: 2
             color: root.companions[root.currentIdx].color
             Behavior on color { ColorAnimation { duration: 150 } }
         }

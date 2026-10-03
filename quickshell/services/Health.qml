@@ -10,6 +10,10 @@ import Quickshell.Io
 //            at boot; here it is loaded whenever it's missing.
 //   clip     the two cliphist watchers (the clipboard panel's history)
 //   fcitx, bridge   fcitx5 and the kimpanel bridge (reported; ImePanel restarts the bridge)
+//   nm       NetworkManager's bus name. Quickshell's Networking never reconnects after
+//            NetworkManager restarts (an upgrade, wifi-iwd.sh) and a reload keeps it, so a
+//            changed owner restarts the whole shell (scripts/qs-restart.sh). nmRunning
+//            false: NetworkManager is down (the CC says so).
 // A repair (`fix`) runs at start and whenever a 30 s check finds the plugin or the
 // watchers gone. `rebuild()` recompiles the plugin after a Hyprland update.
 Singleton {
@@ -21,6 +25,10 @@ Singleton {
     property bool clip:   false
     property bool fcitx:  false
     property bool bridge: false
+    property string nm: ""             // NetworkManager's unique name now
+    property string nmFirst: ""        // … when the shell first saw it
+    readonly property bool nmRunning: !known || nm !== ""
+    readonly property bool nmStale: nmFirst !== "" && nm !== "" && nm !== nmFirst
     property bool busy:   false        // a fix / rebuild is running
     readonly property bool allOk: plugin && clip && fcitx && bridge
 
@@ -44,6 +52,8 @@ Singleton {
                     var s = JSON.parse(line)
                     root.plugin = s.plugin; root.built = s.built; root.clip = s.clip
                     root.fcitx = s.fcitx; root.bridge = s.bridge; root.known = true
+                    root.nm = s.nm || ""
+                    if (root.nmFirst === "") root.nmFirst = root.nm
                 } catch (e) {}
             }
         }
@@ -53,6 +63,12 @@ Singleton {
             // a check that finds something gone repairs it
             if (root.known && (!root.plugin && root.built || !root.clip)) root._autoFix()
         }
+    }
+    onNmStaleChanged: if (nmStale) restartT.start()
+    Timer {   // NetworkManager settles for a moment after it comes back
+        id: restartT; interval: 2500
+        onTriggered: Quickshell.execDetached(["sh", Quickshell.shellDir + "/scripts/qs-restart.sh",
+                                              "NetworkManager 重新啟動過，shell 重新連上它。"])
     }
     property double _lastFix: 0
     function _autoFix() {

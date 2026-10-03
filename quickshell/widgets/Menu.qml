@@ -391,9 +391,9 @@ Popup {
                     Row {
                         id: hdrL
                         spacing:14; anchors.verticalCenter:parent.verticalCenter
-                        Text { text:"SYSTEM"; font.pixelSize:11; font.letterSpacing:3.5; font.weight:Font.Medium; color:root.inkStrong }
+                        Text { text:"SYSTEM"; font.pixelSize:Theme.fs(11); font.letterSpacing:3.5; font.weight:Font.Medium; color:root.inkStrong }
                         Rectangle { width:24; height:1; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
-                        Text { text:"システム"; font.pixelSize:10; font.letterSpacing:2; color:root.inkSoft }
+                        Text { text:"システム"; font.pixelSize:Theme.fs(10); font.letterSpacing:2; color:root.inkSoft }
                     }
                     Item { width: Math.max(0, parent.width - hdrL.width - hdrR.width); height:1 }
                     Row {
@@ -404,7 +404,7 @@ Popup {
                             Text {
                                 id:lhTick
                                 text: root.clockStr + " · " + root.apps.length + " APPS · "
-                                font.pixelSize:9; font.letterSpacing:1.5; color:root.inkSoft; y:2
+                                font.pixelSize:Theme.fs(9); font.letterSpacing:1.5; color:root.inkSoft; y:2
                                 NumberAnimation on x {
                                     from:120; to:-lhTick.implicitWidth
                                     duration:12000; loops:Animation.Infinite; running:root.isOpen
@@ -420,7 +420,7 @@ Popup {
                                 scale: 1 + 1.4 * root.beatPhase; opacity: (1 - root.beatPhase) * 0.7
                             }
                         }
-                        Text { text:"SESSION 0471"; font.pixelSize:9; font.letterSpacing:2.5; color:root.inkSoft }
+                        Text { text:"SESSION 0471"; font.pixelSize:Theme.fs(9); font.letterSpacing:2.5; color:root.inkSoft }
                     }
                 }
                 Rectangle { anchors.bottom:parent.bottom; width:parent.width; height:1; color:root.lineSoft }
@@ -458,7 +458,7 @@ Popup {
                             Column {
                                 anchors { left:parent.left; leftMargin:22; bottom:parent.bottom; bottomMargin:6 }
                                 spacing:4
-                                Text { text:root.results.length+"/"+root.apps.length+" NODES"; font.pixelSize:8; font.letterSpacing:2; color:root.inkSoft; opacity:0.6 }
+                                Text { text:root.results.length+"/"+root.apps.length+" NODES"; font.pixelSize:Theme.fs(8); font.letterSpacing:2; color:root.inkSoft; opacity:0.6 }
                                 Rectangle {
                                     width:72; height:2; color:root.lineSoft
                                     Rectangle {
@@ -486,7 +486,7 @@ Popup {
                         id: watermark
                         anchors { right: parent.right; bottom: parent.bottom; rightMargin: 22; bottomMargin: -22 }
                         text: root.catLabels[root.listCat] || root.listCat.toUpperCase()
-                        font.pixelSize: 96; font.weight: Font.Bold; font.letterSpacing: 4
+                        font.pixelSize: Theme.fs(96); font.weight: Font.Bold; font.letterSpacing: 4
                         color: root.inkA(0.07)
                         property real slide: 0
                         opacity: 1 - root.listOut
@@ -510,7 +510,7 @@ Popup {
                                 Text {
                                     anchors.verticalCenter:parent.verticalCenter
                                     text: root.modeLabel !== "" ? root.modeLabel : "▸"
-                                    font.pixelSize: root.modeLabel !== "" ? 9 : 12; font.letterSpacing: 2; color:root.accent
+                                    font.pixelSize: Theme.fs(root.modeLabel !== "" ? 9 : 12); font.letterSpacing: 2; color:root.accent
                                 }
                                 FocusScope {
                                     id:searchScope; width:parent.width-60; height:30
@@ -521,7 +521,7 @@ Popup {
                                         id:           searchInput
                                         anchors.fill: parent
                                         verticalAlignment: TextInput.AlignVCenter
-                                        font.pixelSize:13; font.letterSpacing:0.5; font.weight:Font.Normal
+                                        font.pixelSize:Theme.fs(13); font.letterSpacing:0.5; font.weight:Font.Normal
                                         color:        root.inkStrong
                                         cursorVisible:activeFocus
                                         focus:        true
@@ -557,7 +557,7 @@ Popup {
                                             visible:parent.text===""
                                             anchors.verticalCenter:parent.verticalCenter
                                             text:"search apps ·  = calc ·  / files ·  : emoji"
-                                            font.pixelSize:13; font.italic:true; font.weight:Font.Light
+                                            font.pixelSize:Theme.fs(13); font.italic:true; font.weight:Font.Light
                                             color:root.inkSoft; opacity:0.5
                                         }
                                     }
@@ -624,7 +624,7 @@ Popup {
 
                                     Text {
                                         anchors.verticalCenter:parent.verticalCenter
-                                        text:String(index + 1).padStart(2, "0"); width:22; font.pixelSize:9; font.letterSpacing:1.5
+                                        text:String(index + 1).padStart(2, "0"); width:22; font.pixelSize:Theme.fs(9); font.letterSpacing:1.5
                                         color: appDelegate.isFocused ? root.paperA(0.5) : root.inkSoft
                                         Behavior on color { ColorAnimation { duration:120 } }
                                     }
@@ -661,36 +661,40 @@ Popup {
                                             Behavior on scale { NumberAnimation { duration: 240; easing.type: Easing.OutBack } }
                                         }
                                         Text {
-                                            anchors.centerIn:parent; text:modelData.icon; font.pixelSize: modelData.kind === "emoji" ? 15 : 12
+                                            anchors.centerIn:parent; text:modelData.icon; font.pixelSize: Theme.fs(modelData.kind === "emoji" ? 15 : 12)
                                             visible: appIcon.status !== Image.Ready
                                             color: appDelegate.isFocused ? root.paperA(0.95) : root.ink
                                             Behavior on color { ColorAnimation { duration:120 } }
                                         }
                                     }
+                                    // the name takes what the number, the icon and the tag leave (elided)
                                     Column {
                                         anchors.verticalCenter:parent.verticalCenter; spacing:2
+                                        width: parent.width - 22 - 28 - catTag.width - 14 - 4 * 14
                                         Text {
-                                            text:modelData.name; font.pixelSize:12; font.letterSpacing:1.2; font.weight:Font.Medium
+                                            width: parent.width; elide: Text.ElideRight
+                                            text:modelData.name; font.pixelSize:Theme.fs(12); font.letterSpacing:1.2; font.weight:Font.Medium
                                             color: appDelegate.isFocused ? root.paper : root.ink
                                             Behavior on color { ColorAnimation { duration:120 } }
                                         }
                                         Text {
-                                            text:modelData.meta; font.pixelSize:9; font.letterSpacing:1.5
+                                            width: parent.width; elide: Text.ElideRight
+                                            text:modelData.meta; font.pixelSize:Theme.fs(9); font.letterSpacing:1.5
                                             color: appDelegate.isFocused ? root.paperA(0.5) : root.inkSoft
                                             Behavior on color { ColorAnimation { duration:120 } }
                                         }
                                     }
-                                    Item { width:appList.width-310; height:1 }
                                     Text {
+                                        id: catTag
                                         anchors.verticalCenter:parent.verticalCenter
                                         text:(root.catLabels[modelData.cat]||modelData.cat).toUpperCase()
-                                        font.pixelSize:9; font.letterSpacing:2
+                                        font.pixelSize:Theme.fs(9); font.letterSpacing:2
                                         color: appDelegate.isFocused ? root.paperA(0.4) : root.inkSoft
                                         Behavior on color { ColorAnimation { duration:120 } }
                                     }
                                     Text {
                                         anchors.verticalCenter:parent.verticalCenter
-                                        text:"▸"; font.pixelSize:14; color:root.light
+                                        text:"▸"; font.pixelSize:Theme.fs(14); color:root.light
                                         opacity: appDelegate.isFocused ? 1 : 0
                                         Behavior on opacity { NumberAnimation { duration:120 } }
                                     }
@@ -706,7 +710,7 @@ Popup {
                             Item {
                                 visible: root.results.length===0 && root.appsLoaded
                                 width:appList.width; height:60
-                                Text { anchors.centerIn:parent; text:"▸ NO RESULTS"; font.pixelSize:10; font.letterSpacing:3; color:root.inkSoft; opacity:0.5 }
+                                Text { anchors.centerIn:parent; text:"▸ NO RESULTS"; font.pixelSize:Theme.fs(10); font.letterSpacing:3; color:root.inkSoft; opacity:0.5 }
                             }
                         }
                     }
@@ -739,7 +743,7 @@ Popup {
                                 }
                                 Text {
                                     id:faLbl; anchors.centerIn:parent
-                                    text:modelData.l; font.pixelSize:9; font.letterSpacing:2.5
+                                    text:modelData.l; font.pixelSize:Theme.fs(9); font.letterSpacing:2.5
                                     color: faMA.containsMouse ? (modelData.danger===true ? root.accent : root.inkStrong) : root.inkSoft
                                     Behavior on color { ColorAnimation { duration:150 } }
                                 }
@@ -763,9 +767,9 @@ Popup {
                                 Rectangle {
                                     width:kbdT.implicitWidth+8; height:16; color:"transparent"
                                     border.color:root.lineSoft; border.width:1
-                                    Text { id:kbdT; anchors.centerIn:parent; text:modelData[0]; font.pixelSize:9; font.letterSpacing:1; color:root.ink }
+                                    Text { id:kbdT; anchors.centerIn:parent; text:modelData[0]; font.pixelSize:Theme.fs(9); font.letterSpacing:1; color:root.ink }
                                 }
-                                Text { text:modelData[1]; anchors.verticalCenter:parent.verticalCenter; font.pixelSize:9; font.letterSpacing:2; color:root.inkSoft }
+                                Text { text:modelData[1]; anchors.verticalCenter:parent.verticalCenter; font.pixelSize:Theme.fs(9); font.letterSpacing:2; color:root.inkSoft }
                             }
                         }
                     }

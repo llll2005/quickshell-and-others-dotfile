@@ -104,12 +104,12 @@ Item {
         property bool inked:   false
         Text {
             x: 38; anchors.verticalCenter: parent.verticalCenter
-            text: tab.label; font.pixelSize: 10; font.letterSpacing: 2
+            text: tab.label; font.pixelSize: Theme.fs(10); font.letterSpacing: 2
             color: inked ? tab.paper : (hovered ? tab.inkStrong : tab.inkSoft)
         }
         Text {
             anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-            text: tab.sub; font.pixelSize: 8; font.letterSpacing: 1
+            text: tab.sub; font.pixelSize: Theme.fs(8); font.letterSpacing: 1
             color: inked ? Theme.alpha(Theme.paper, 0.6) : Theme.alpha(Theme.inkSoft, 0.5)
         }
     }

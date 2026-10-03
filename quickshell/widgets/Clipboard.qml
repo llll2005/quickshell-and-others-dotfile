@@ -201,14 +201,14 @@ Popup {
                 Row {
                     anchors { left: parent.left; leftMargin: 28; verticalCenter: parent.verticalCenter }
                     spacing: 14
-                    Text { text: "CLIPBOARD"; font.pixelSize: 11; font.letterSpacing: 3.5; font.weight: Font.Medium; color: Theme.inkStrong }
+                    Text { text: "CLIPBOARD"; font.pixelSize: Theme.fs(11); font.letterSpacing: 3.5; font.weight: Font.Medium; color: Theme.inkStrong }
                     Rectangle { width: 24; height: 1; color: Theme.inkSoft; anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: "クリップボード"; font.pixelSize: 10; font.letterSpacing: 2; color: Theme.inkSoft }
+                    Text { text: "クリップボード"; font.pixelSize: Theme.fs(10); font.letterSpacing: 2; color: Theme.inkSoft }
                 }
                 Row {
                     anchors { right: parent.right; rightMargin: 28; verticalCenter: parent.verticalCenter }
                     spacing: 12
-                    Text { text: root.results.length + " / " + root.entries.length + " ENTRIES"; font.pixelSize: 9; font.letterSpacing: 2; color: Theme.inkSoft; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: root.results.length + " / " + root.entries.length + " ENTRIES"; font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: Theme.inkSoft; anchors.verticalCenter: parent.verticalCenter }
                     Item {
                         width: 12; height: 12; anchors.verticalCenter: parent.verticalCenter
                         Rectangle { anchors.centerIn: parent; width: 7; height: 7; rotation: 45; color: Theme.accent; scale: 1 + 0.45 * root.pulse }
@@ -254,13 +254,13 @@ Popup {
                     Item {
                         id: searchRow
                         width: parent.width; height: 46
-                        Text { x: 24; anchors.verticalCenter: parent.verticalCenter; text: "▸"; font.pixelSize: 12; color: Theme.accent }
+                        Text { x: 24; anchors.verticalCenter: parent.verticalCenter; text: "▸"; font.pixelSize: Theme.fs(12); color: Theme.accent }
                         TextInput {
                             id: search
                             x: 44; width: parent.width - 64; height: 30
                             anchors.verticalCenter: parent.verticalCenter
                             verticalAlignment: TextInput.AlignVCenter
-                            font.pixelSize: 13; color: Theme.inkStrong
+                            font.pixelSize: Theme.fs(13); color: Theme.inkStrong
                             cursorVisible: activeFocus; focus: root.isOpen; selectByMouse: true
                             onTextEdited: { root.query = text; root.focusIdx = 0 }
                             Keys.onEscapePressed: root.close()
@@ -281,7 +281,7 @@ Popup {
                             Text {
                                 visible: parent.text === ""
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: "filter history…"; font.pixelSize: 13; font.italic: true
+                                text: "filter history…"; font.pixelSize: Theme.fs(13); font.italic: true
                                 color: Theme.inkSoft; opacity: 0.5
                             }
                         }
@@ -320,7 +320,7 @@ Popup {
                             Rectangle { anchors.bottom: parent.bottom; x: 24; width: parent.width - 48; height: 1; color: Theme.alpha(Theme.ink, 0.12) }
                             Text {
                                 x: 14; anchors.verticalCenter: parent.verticalCenter; width: 22
-                                text: String(index + 1).padStart(2, "0"); font.pixelSize: 9; font.letterSpacing: 1.5
+                                text: String(index + 1).padStart(2, "0"); font.pixelSize: Theme.fs(9); font.letterSpacing: 1.5
                                 color: row.focused ? Theme.alpha(Theme.paper, 0.5) : Theme.inkSoft
                             }
                             // kind mark: a frame that turns into a diamond when picked; images show a thumbnail
@@ -345,7 +345,7 @@ Popup {
                                     anchors.centerIn: parent
                                     visible: !row.isImg
                                     text: modelData.kind === "link" ? "↗" : "T"
-                                    font.pixelSize: 11; font.weight: Font.Medium
+                                    font.pixelSize: Theme.fs(11); font.weight: Font.Medium
                                     color: row.focused ? Theme.paper : Theme.ink
                                 }
                             }
@@ -354,11 +354,11 @@ Popup {
                                 Text {
                                     width: parent.width; elide: Text.ElideRight; maximumLineCount: 1
                                     text: row.isImg ? "IMAGE" : modelData.text.replace(/\s+/g, " ")
-                                    font.pixelSize: 12; font.letterSpacing: 0.4
+                                    font.pixelSize: Theme.fs(12); font.letterSpacing: 0.4
                                     color: row.focused ? Theme.paper : Theme.ink
                                 }
                                 Text {
-                                    text: modelData.meta; font.pixelSize: 9; font.letterSpacing: 1.5
+                                    text: modelData.meta; font.pixelSize: Theme.fs(9); font.letterSpacing: 1.5
                                     color: row.focused ? Theme.alpha(Theme.paper, 0.5) : Theme.inkSoft
                                 }
                             }
@@ -372,7 +372,7 @@ Popup {
                             visible: root.results.length === 0
                             anchors.centerIn: parent
                             text: root.entries.length === 0 ? "▸ CLIPBOARD IS EMPTY" : "▸ NO MATCHES"
-                            font.pixelSize: 10; font.letterSpacing: 3; color: Theme.inkSoft; opacity: 0.6
+                            font.pixelSize: Theme.fs(10); font.letterSpacing: 3; color: Theme.inkSoft; opacity: 0.6
                         }
                     }
                 }
@@ -386,7 +386,7 @@ Popup {
                         Text {
                             id: pvHead
                             text: root.cur ? (root.cur.kind.toUpperCase() + "  ·  #" + root.cur.id) : "—"
-                            font.pixelSize: 9; font.letterSpacing: 2.5; color: Theme.accent
+                            font.pixelSize: Theme.fs(9); font.letterSpacing: 2.5; color: Theme.accent
                         }
                         Rectangle { id: pvRule; anchors.top: pvHead.bottom; anchors.topMargin: 8; width: parent.width; height: 1; color: Theme.alpha(Theme.ink, 0.25) }
                         Image {
@@ -406,7 +406,7 @@ Popup {
                                 width: parent.width
                                 text: root.fullText !== "" ? root.fullText : (root.cur ? root.cur.text : "")
                                 wrapMode: Text.WrapAnywhere; textFormat: Text.PlainText
-                                font.pixelSize: 12; lineHeight: 1.25; color: Theme.inkStrong
+                                font.pixelSize: Theme.fs(12); lineHeight: 1.25; color: Theme.inkStrong
                             }
                         }
                     }
@@ -428,9 +428,9 @@ Popup {
                             Rectangle {
                                 width: kt.implicitWidth + 8; height: 16; color: "transparent"
                                 border.color: Theme.alpha(Theme.ink, 0.25); border.width: 1
-                                Text { id: kt; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: 9; color: Theme.ink }
+                                Text { id: kt; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: Theme.fs(9); color: Theme.ink }
                             }
-                            Text { text: modelData[1]; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: 9; font.letterSpacing: 2; color: Theme.inkSoft }
+                            Text { text: modelData[1]; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: Theme.inkSoft }
                         }
                     }
                 }

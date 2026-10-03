@@ -531,9 +531,9 @@ Popup {
                 Row {
                     anchors { left:parent.left; leftMargin:28; verticalCenter:parent.verticalCenter }
                     spacing:14
-                    Text { text:"CAPTURE"; font.pixelSize:11; font.letterSpacing:3.5; font.weight:Font.Medium; color:root.inkStrong }
+                    Text { text:"CAPTURE"; font.pixelSize:Theme.fs(11); font.letterSpacing:3.5; font.weight:Font.Medium; color:root.inkStrong }
                     Rectangle { width:24; height:1; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
-                    Text { text:"スクリーン撮影"; font.pixelSize:10; font.letterSpacing:2; color:root.inkSoft }
+                    Text { text:"スクリーン撮影"; font.pixelSize:Theme.fs(10); font.letterSpacing:2; color:root.inkSoft }
                 }
                 Row {
                     anchors { right:parent.right; rightMargin:28; verticalCenter:parent.verticalCenter }
@@ -550,7 +550,7 @@ Popup {
                                 NumberAnimation { to:1.0;  duration:500 }
                             }
                         }
-                        Text { text:"REC"; font.pixelSize:9; font.letterSpacing:2; color:root.accent; anchors.verticalCenter:parent.verticalCenter }
+                        Text { text:"REC"; font.pixelSize:Theme.fs(9); font.letterSpacing:2; color:root.accent; anchors.verticalCenter:parent.verticalCenter }
                     }
                     // Metronome: the beat everything else pulses on
                     Item {
@@ -565,7 +565,7 @@ Popup {
                             scale: 1 + 1.4 * root.beatPhase; opacity: (1 - root.beatPhase) * 0.7
                         }
                     }
-                    Text { text:root.clockStr; font.pixelSize:9; font.letterSpacing:1.5; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text:root.clockStr; font.pixelSize:Theme.fs(9); font.letterSpacing:1.5; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
                 }
                 Rectangle { anchors.bottom:parent.bottom; width:parent.width; height:1; color:root.lineSoft }
             }
@@ -609,7 +609,7 @@ Popup {
                         id: watermark
                         anchors { right: parent.right; bottom: parent.bottom; rightMargin: 22; bottomMargin: -26 }
                         text: root.cats[root.shownIndex].label
-                        font.pixelSize: 132; font.weight: Font.Bold; font.letterSpacing: 6
+                        font.pixelSize: Theme.fs(132); font.weight: Font.Bold; font.letterSpacing: 6
                         color: root.inkA(0.075)
                         property real slide: 0
                         opacity: 1 - root.listOut
@@ -734,7 +734,7 @@ Popup {
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: 22; horizontalAlignment: Text.AlignHCenter
                                             text: row.act.key
-                                            font.pixelSize: 15; font.weight: Font.Medium
+                                            font.pixelSize: Theme.fs(15); font.weight: Font.Medium
                                             color: row.focused ? root.paperA(0.75) : root.inkSoft
                                             Behavior on color { ColorAnimation { duration: 120 } }
                                         }
@@ -759,7 +759,7 @@ Popup {
                                                 Behavior on border.color { ColorAnimation { duration: 120 } }
                                             }
                                             Text {
-                                                anchors.centerIn: parent; text: row.act.icon; font.pixelSize: 13
+                                                anchors.centerIn: parent; text: row.act.icon; font.pixelSize: Theme.fs(13)
                                                 color: row.focused ? root.paperA(0.95) : root.ink
                                                 Behavior on color { ColorAnimation { duration: 120 } }
                                             }
@@ -767,12 +767,12 @@ Popup {
                                         Column {
                                             anchors.verticalCenter: parent.verticalCenter; spacing: 3
                                             Text {
-                                                text: row.act.label; font.pixelSize: 12; font.letterSpacing: 1.2; font.weight: Font.Medium
+                                                text: row.act.label; font.pixelSize: Theme.fs(12); font.letterSpacing: 1.2; font.weight: Font.Medium
                                                 color: row.focused ? root.paper : root.ink
                                                 Behavior on color { ColorAnimation { duration: 120 } }
                                             }
                                             Text {
-                                                text: row.act.desc; font.pixelSize: 9; font.letterSpacing: 0.8
+                                                text: row.act.desc; font.pixelSize: Theme.fs(9); font.letterSpacing: 0.8
                                                 color: row.focused ? root.paperA(0.55) : root.inkSoft
                                                 Behavior on color { ColorAnimation { duration: 120 } }
                                             }
@@ -781,7 +781,7 @@ Popup {
                                     Text {
                                         anchors { right: parent.right; rightMargin: 26 - 4 * root.pulse * (row.focused ? 1 : 0)
                                                   verticalCenter: parent.verticalCenter }
-                                        text: "▸"; font.pixelSize: 14; color: root.light
+                                        text: "▸"; font.pixelSize: Theme.fs(14); color: root.light
                                         opacity: row.focused ? 1 : 0
                                         Behavior on opacity { NumberAnimation { duration: 120 } }
                                     }
@@ -801,9 +801,9 @@ Popup {
                             y: listArea.acts.length * listArea.rowH + 14
                             anchors { left: parent.left; leftMargin: 28 }
                             spacing: 10
-                            Text { text:"⚠"; font.pixelSize:11; color:root.accent; anchors.verticalCenter:parent.verticalCenter }
+                            Text { text:"⚠"; font.pixelSize:Theme.fs(11); color:root.accent; anchors.verticalCenter:parent.verticalCenter }
                             Text { text:"請安裝 wf-recorder：  sudo pacman -S wf-recorder"
-                                font.pixelSize:9; font.letterSpacing:1; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
+                                font.pixelSize:Theme.fs(9); font.letterSpacing:1; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
                         }
                     }
 
@@ -824,13 +824,13 @@ Popup {
                                 Row {
                                     anchors { left:parent.left; verticalCenter:parent.verticalCenter }
                                     spacing:8
-                                    Text { text:"◂"; font.pixelSize:12; color:root.accent; anchors.verticalCenter:parent.verticalCenter }
-                                    Text { text:"錄影選項"; font.pixelSize:11; font.letterSpacing:3; color:root.inkStrong; anchors.verticalCenter:parent.verticalCenter }
+                                    Text { text:"◂"; font.pixelSize:Theme.fs(12); color:root.accent; anchors.verticalCenter:parent.verticalCenter }
+                                    Text { text:"錄影選項"; font.pixelSize:Theme.fs(11); font.letterSpacing:3; color:root.inkStrong; anchors.verticalCenter:parent.verticalCenter }
                                 }
                                 Text {
                                     anchors { right:parent.right; verticalCenter:parent.verticalCenter }
                                     text:root.recMode==="full"?"FULL SCREEN":"REGION"
-                                    font.pixelSize:9; font.letterSpacing:2; color:root.inkSoft
+                                    font.pixelSize:Theme.fs(9); font.letterSpacing:2; color:root.inkSoft
                                 }
                                 MouseArea { anchors.fill:parent; onClicked:root.showRecOpts=false }
                             }
@@ -856,7 +856,7 @@ Popup {
                             Item { width:1; height:16 }
 
                             // Format selector
-                            Text { text:"FORMAT · フォーマット"; font.pixelSize:9; font.letterSpacing:2.5; color:root.inkSoft }
+                            Text { text:"FORMAT · フォーマット"; font.pixelSize:Theme.fs(9); font.letterSpacing:2.5; color:root.inkSoft }
                             Item { width:1; height:10 }
                             Row {
                                 spacing:8
@@ -872,7 +872,7 @@ Popup {
                                         }
                                         Text {
                                             anchors.centerIn:parent; text:modelData.toUpperCase()
-                                            font.pixelSize:10; font.letterSpacing:2
+                                            font.pixelSize:Theme.fs(10); font.letterSpacing:2
                                             color:root.recFmt===modelData?root.inkStrong:root.inkSoft
                                             Behavior on color { ColorAnimation { duration:150 } }
                                         }
@@ -890,7 +890,7 @@ Popup {
                                 Behavior on border.color { ColorAnimation { duration:120 } }
                                 Text {
                                     anchors.centerIn:parent; text:"▸  START  開始錄影"
-                                    font.pixelSize:10; font.letterSpacing:2; color:root.paper
+                                    font.pixelSize:Theme.fs(10); font.letterSpacing:2; color:root.paper
                                 }
                                 MouseArea {
                                     id:startMA; anchors.fill:parent; hoverEnabled:true; cursorShape:Qt.PointingHandCursor
@@ -923,7 +923,7 @@ Popup {
                             border.color:root.accent; border.width:1
                             Text {
                                 id:stopLbl; anchors.centerIn:parent; text:"■  停止錄影"
-                                font.pixelSize:9; font.letterSpacing:2; color:root.accent
+                                font.pixelSize:Theme.fs(9); font.letterSpacing:2; color:root.accent
                             }
                             MouseArea { anchors.fill:parent; onClicked:root.stopRecording() }
                         }
@@ -941,7 +941,7 @@ Popup {
                                 width: fzKey.implicitWidth + 8; height: 16; color: "transparent"
                                 border.color: root.lineSoft; border.width: 1
                                 anchors.verticalCenter: parent.verticalCenter
-                                Text { id: fzKey; anchors.centerIn: parent; text: "F"; font.pixelSize: 9; font.letterSpacing: 1; color: root.ink }
+                                Text { id: fzKey; anchors.centerIn: parent; text: "F"; font.pixelSize: Theme.fs(9); font.letterSpacing: 1; color: root.ink }
                             }
                             Rectangle {
                                 width: 7; height: 7; rotation: 45; anchors.verticalCenter: parent.verticalCenter
@@ -952,7 +952,7 @@ Popup {
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: root.freeze ? "凍結畫面 · 開" : "凍結畫面 · 關"
-                                font.pixelSize: 9; font.letterSpacing: 2
+                                font.pixelSize: Theme.fs(9); font.letterSpacing: 2
                                 color: root.freeze ? root.inkStrong : root.inkSoft
                             }
                         }
@@ -971,12 +971,12 @@ Popup {
                                 width: stKey.implicitWidth + 8; height: 16; color: "transparent"
                                 border.color: root.lineSoft; border.width: 1
                                 anchors.verticalCenter: parent.verticalCenter
-                                Text { id: stKey; anchors.centerIn: parent; text: "S"; font.pixelSize: 9; font.letterSpacing: 1; color: root.ink }
+                                Text { id: stKey; anchors.centerIn: parent; text: "S"; font.pixelSize: Theme.fs(9); font.letterSpacing: 1; color: root.ink }
                             }
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: "開場 · " + root.styles[root.styleIndex].label
-                                font.pixelSize: 9; font.letterSpacing: 2; color: root.inkStrong
+                                font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: root.inkStrong
                             }
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.replayNextStyle() }
@@ -993,9 +993,9 @@ Popup {
                             Rectangle {
                                 width:kbdT.implicitWidth+8; height:16; color:"transparent"
                                 border.color:root.lineSoft; border.width:1
-                                Text { id:kbdT; anchors.centerIn:parent; text:modelData[0]; font.pixelSize:9; font.letterSpacing:1; color:root.ink }
+                                Text { id:kbdT; anchors.centerIn:parent; text:modelData[0]; font.pixelSize:Theme.fs(9); font.letterSpacing:1; color:root.ink }
                             }
-                            Text { text:modelData[1]; anchors.verticalCenter:parent.verticalCenter; font.pixelSize:9; font.letterSpacing:2; color:root.inkSoft }
+                            Text { text:modelData[1]; anchors.verticalCenter:parent.verticalCenter; font.pixelSize:Theme.fs(9); font.letterSpacing:2; color:root.inkSoft }
                         }
                     }
                 }
@@ -1055,9 +1055,9 @@ Popup {
             id: hintTop
             anchors { top: parent.top; left: parent.left; margins: 22 }
             spacing: 12
-            Text { text: "REGION SELECT · 區域選取"; font.pixelSize: 10; font.letterSpacing: 3; font.weight: Font.Medium; color: root.paper }
+            Text { text: "REGION SELECT · 區域選取"; font.pixelSize: Theme.fs(10); font.letterSpacing: 3; font.weight: Font.Medium; color: root.paper }
             Rectangle { width: 5; height: 5; rotation: 45; color: root._selFrozen ? root.accent : root.paper; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: root._selFrozen ? "凍結畫面" : "即時畫面"; font.pixelSize: 9; font.letterSpacing: 2; color: root.paperA(0.75); anchors.verticalCenter: parent.verticalCenter }
+            Text { text: root._selFrozen ? "凍結畫面" : "即時畫面"; font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: root.paperA(0.75); anchors.verticalCenter: parent.verticalCenter }
         }
         Row {
             id: hintBot
@@ -1070,9 +1070,9 @@ Popup {
                     Rectangle {
                         width: hk.implicitWidth + 8; height: 16; color: "transparent"
                         border.color: root.paperA(0.4); border.width: 1
-                        Text { id: hk; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: 8; font.letterSpacing: 1; color: root.paper }
+                        Text { id: hk; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: Theme.fs(8); font.letterSpacing: 1; color: root.paper }
                     }
-                    Text { text: modelData[1]; font.pixelSize: 9; font.letterSpacing: 2; color: root.paper; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: modelData[1]; font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: root.paper; anchors.verticalCenter: parent.verticalCenter }
                 }
             }
         }
@@ -1152,17 +1152,17 @@ Popup {
                 Rectangle { width: 5; height: 5; rotation: 45; color: root.light; anchors.verticalCenter: parent.verticalCenter }
                 Text {
                     text: root.phys(root.selRect.width) + " × " + root.phys(root.selRect.height)
-                    font.pixelSize: 12; font.weight: Font.Medium; font.letterSpacing: 1; color: root.paper
+                    font.pixelSize: Theme.fs(12); font.weight: Font.Medium; font.letterSpacing: 1; color: root.paper
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
                     text: root.ratioLabel(root.selRect.width, root.selRect.height)
-                    font.pixelSize: 9; font.letterSpacing: 1; color: root.light
+                    font.pixelSize: Theme.fs(9); font.letterSpacing: 1; color: root.light
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
                     text: "X " + root.phys(root.selRect.x) + "  Y " + root.phys(root.selRect.y)
-                    font.pixelSize: 9; font.letterSpacing: 1; color: root.paperA(0.6)
+                    font.pixelSize: Theme.fs(9); font.letterSpacing: 1; color: root.paperA(0.6)
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -1195,7 +1195,7 @@ Popup {
                     spacing: 4
                     Text {
                         text: "X " + root.phys(root.curX) + "   Y " + root.phys(root.curY)
-                        font.pixelSize: 10; font.letterSpacing: 1; color: root.paper
+                        font.pixelSize: Theme.fs(10); font.letterSpacing: 1; color: root.paper
                     }
                     Row {
                         spacing: 6
@@ -1204,7 +1204,7 @@ Popup {
                             color: root.pickHex !== "" ? root.pickHex : "transparent"
                             border.color: root.paperA(0.6); border.width: 1
                         }
-                        Text { text: root.pickHex !== "" ? root.pickHex : "—"; font.pixelSize: 10; font.letterSpacing: 1; color: root.paper }
+                        Text { text: root.pickHex !== "" ? root.pickHex : "—"; font.pixelSize: Theme.fs(10); font.letterSpacing: 1; color: root.paper }
                     }
                 }
             }
@@ -1255,8 +1255,8 @@ Popup {
             anchors { left:parent.left; right:parent.right; verticalCenter:parent.verticalCenter }
             Column {
                 anchors.verticalCenter:parent.verticalCenter; spacing:2
-                Text { text:tLabel; font.pixelSize:10; font.letterSpacing:1.5; color:root.inkStrong }
-                Text { text:tSub;   font.pixelSize:8;  font.letterSpacing:1;   color:root.inkSoft }
+                Text { text:tLabel; font.pixelSize:Theme.fs(10); font.letterSpacing:1.5; color:root.inkStrong }
+                Text { text:tSub;   font.pixelSize:Theme.fs(8);  font.letterSpacing:1;   color:root.inkSoft }
             }
             Item { width:parent.width-180; height:1 }
             Item {
