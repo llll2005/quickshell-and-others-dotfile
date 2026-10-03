@@ -1,0 +1,49 @@
+#!/bin/bash
+# boot-void-rescue — an initramfs whose emergency shell can repair (dotfiles/system/boot-void):
+# btrfs, lsblk (and nano, when installed) on top of busybox, and a note when the shell opens with the commands
+# for this machine's root. Limine's Recovery > Emergency shell boots straight into it
+# (rd.systemd.unit=emergency.target; SYSTEMD_SULOGIN_FORCE lets the locked root in).
+# Installed as /etc/initcpio/install/boot-void-rescue, enabled by
+# /etc/mkinitcpio.conf.d/boot-void-rescue.conf (HOOKS+=).
+
+build() {
+    add_binary btrfs
+    add_binary lsblk
+    # an editor: nano when it's installed, else busybox's vi (always there)
+    local edit=vi
+    if command -v nano >/dev/null; then add_binary nano; edit=nano; fi
+    local uuid dev
+    uuid=$(findmnt -n -o UUID /)
+    dev=/dev/disk/by-uuid/${uuid:-<root uuid>}
+    # the note: printed by emergency.service itself, above "Press Enter" (sulogin's
+    # busybox shell reads no profile)
+    # (the service resets the tty as the shell starts: give the note a moment to go out)
+    printf '[Service]\nExecStartPre=-/usr/bin/busybox sh -c "cat /etc/boot-void-note; sleep 1"\n' |
+        add_file - /etc/systemd/system/emergency.service.d/boot-void-note.conf 0644
+    cat <<PROFILE | add_file - /etc/boot-void-note 0644
+
+  *  E M E R G E N C Y   S H E L L
+     the initramfs, before the system's root is mounted
+
+  lsblk -f                                     disks and filesystems
+  btrfs check --readonly $dev
+                                               look for damage (changes nothing)
+  mount -o subvol=@ $dev /sysroot
+                                               mount the root by hand
+  mount -o subvol=@,ro,rescue=usebackuproot $dev /sysroot
+                                               if that fails: an older tree root, read-only
+  $(printf '%-45s' "$edit /sysroot/etc/fstab")fix a bad fstab, then: umount /sysroot
+  exit                                         carry on booting
+  reboot -f                                    restart
+
+  Snapshots of the whole system are in the boot menu: CachyOS > Snapshots.
+  Press Enter below for the shell.
+
+PROFILE
+}
+
+help() {
+    cat <<HELPEOF
+Repair tools (btrfs, lsblk, nano if installed) and a note for the initramfs emergency shell.
+HELPEOF
+}

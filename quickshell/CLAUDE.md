@@ -180,7 +180,19 @@ Two geometry rules the input mask depends on:
   as `/etc/boot/hooks/post.d/80-boot-void-look` after each tool write, and at boot from the
   guard service. Plymouth starts on simpledrm (the boot loader's mode) and moves to i915's
   native one: `void.script` re-lays out whenever the window size changes, and Limine pins
-  `interface_resolution` to the panel's mode. Limine (a black menu over a backdrop —
+  `interface_resolution` to the panel's mode.
+  **Repairs without a USB:** `limine-look` also keeps a `/Recovery` folder at the end of the
+  menu, built from this machine's kernel and command line (no quiet/splash; Limine's font is
+  CP437, so ASCII only): *Rescue console* boots the real system into rescue.target with
+  `void.rescue`, and `/etc/profile.d/boot-void-rescue.sh` opens `void-rescue` (roll back via
+  CachyOS › Snapshots + `limine-snapper-restore`, rebuild boot, last boot's errors, network,
+  scrub, shell; voidbox cards, ASCII on a VT); *Emergency shell* lands in the initramfs's
+  emergency.target, where the `boot-void-rescue` mkinitcpio hook (enabled by
+  `/etc/mkinitcpio.conf.d/boot-void-rescue.conf`) adds btrfs / lsblk and prints a note with
+  this root's commands from emergency.service (sulogin's busybox shell reads no profile).
+  Both pass `SYSTEMD_SULOGIN_FORCE=1`: root is locked. Verified in QEMU with `-kernel` /
+  `-initrd` and a serial socket; mkinitcpio won't read hooks from $HOME (copy them to /tmp
+  for `-D`). Limine (a black menu over a backdrop —
   diamond, SELECT SYSTEM, hairline, keys — in Operator Mono drawn into its 8×16 cells by
   `gen-art.py`; box drawing / arrows drawn so lines join, `term_font_spacing 0`; a too-big
   `term_margin` with the 2× font leaves too few rows and Limine silently falls back to the

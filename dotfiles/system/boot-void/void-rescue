@@ -1,0 +1,93 @@
+#!/bin/bash
+# void-rescue — the rescue console. Limine's Recovery > Rescue console boots the real system
+# single-user with no desktop (rescue.target) and /etc/profile.d/boot-void-rescue.sh opens
+# this as root; `sudo void-rescue` opens it any time. A text console draws no CJK: English.
+#   ROLL BACK     the snapshots, and how to boot one and make it the system again
+#   REBUILD BOOT  every initramfs, the boot menu, the snapshot entries (limine tools)
+#   LAST BOOT     the errors from the boot that failed
+#   NETWORK       NetworkManager up, then nmtui
+#   CHECK DISK    a btrfs scrub and the device error counters
+#   DESKTOP       carry on into the normal desktop · SHELL · REBOOT · FIRMWARE
+# VOID_RESCUE_DRY=1 prints the commands instead of running them (to try the menu).
+VB=/usr/local/lib/boot-void/voidbox
+[ -x "$VB" ] || VB=$(command -v voidbox 2>/dev/null)
+DRY=${VOID_RESCUE_DRY:-}
+
+run() {
+    printf '\n  $ %s\n\n' "$*"
+    [ -n "$DRY" ] && return 0
+    "$@"
+}
+pause() { printf '\n'; read -rp "  Enter: back to the menu " _; }
+
+# pick TITLE "LABEL<TAB>NOTE"…: prints the picked label (voidbox's card, or a numbered list)
+pick() {
+    if [ -n "$VB" ]; then "$VB" choose "$@"; return; fi
+    local title=$1 i=1 it n; shift
+    printf '\n  *  %s\n\n' "$title"
+    for it in "$@"; do printf '  %d  %-14s %s\n' "$i" "${it%%$'\t'*}" "${it#*$'\t'}"; i=$((i + 1)); done
+    read -rp $'\n  > ' n
+    [[ $n =~ ^[0-9]+$ ]] && (( n >= 1 && n <= $# )) || return 1
+    it=${!n}; printf '%s\n' "${it%%$'\t'*}"
+}
+
+banner() {
+    clear
+    local os; os=$(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-Linux}")
+    printf '\n  *  R E S C U E   C O N S O L E\n'
+    printf '     %s  .  kernel %s  .  %s\n' "$os" "$(uname -r)" \
+        "$(systemctl is-active -q graphical.target && echo 'desktop running' || echo 'single user, no desktop')"
+}
+
+while :; do
+    banner
+    choice=$(pick "what needs fixing" \
+        $'ROLL BACK\tgo back to a snapshot from before an update' \
+        $'REBUILD BOOT\trebuild every initramfs and the boot menu' \
+        $'LAST BOOT\tthe errors from the boot that failed' \
+        $'NETWORK\tbring up Wi-Fi / Ethernet (then nmtui)' \
+        $'CHECK DISK\tscrub the btrfs filesystem for damage' \
+        $'DESKTOP\tcarry on into the normal desktop' \
+        $'SHELL\ta root shell (void-rescue brings this back)' \
+        $'REBOOT\trestart' \
+        $'FIRMWARE\trestart into the BIOS / UEFI setup') || choice=SHELL
+    case $choice in
+        "ROLL BACK")
+            printf '\n  Snapshots of / (snap-pac takes one before and after every pacman run):\n\n'
+            run snapper -c root list | tail -n 15
+            cat <<'EOF'
+
+  To go back to one:
+    1. REBOOT, and in the boot menu open  CachyOS > Snapshots
+    2. boot the snapshot from before the trouble (it starts read-only, nothing changes)
+    3. if that system works, make it the system again:   sudo limine-snapper-restore
+       (or accept the notification it shows), then reboot
+EOF
+            pause ;;
+        "REBUILD BOOT")
+            run limine-mkinitcpio
+            run limine-snapper-sync
+            pause ;;
+        "LAST BOOT")
+            run journalctl -b -1 -p 3 --no-pager -o short-monotonic | tail -n 40
+            printf '\n  The whole log of that boot:  journalctl -b -1\n'
+            pause ;;
+        "NETWORK")
+            run systemctl start NetworkManager
+            [ -z "$DRY" ] && sleep 3
+            command -v nmtui >/dev/null && run nmtui
+            ;;
+        "CHECK DISK")
+            run btrfs scrub start -Bd /
+            run btrfs device stats /
+            pause ;;
+        "DESKTOP")
+            run systemctl isolate graphical.target
+            exit 0 ;;
+        "SHELL")
+            printf '\n  A root shell. void-rescue brings the menu back; exit ends rescue mode.\n\n'
+            exit 0 ;;
+        "REBOOT")   run systemctl reboot; exit 0 ;;
+        "FIRMWARE") run systemctl reboot --firmware-setup; exit 0 ;;
+    esac
+done

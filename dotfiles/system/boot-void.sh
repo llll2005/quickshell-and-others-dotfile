@@ -31,6 +31,12 @@
 #      every write, so the look is a block that /etc/boot/hooks/post.d/80-boot-void-look
 #      (boot-void/limine-look) puts back after each one, and at boot
 #   6. the boot-order guard: Limine back in front at each boot (Windows updates move theirs)
+#   7. repairs without a USB: Limine's Recovery folder (kept by the same hook) has
+#      · Rescue console — the real system, single user, no desktop, opening void-rescue
+#        (roll back / rebuild boot / last boot's errors / network / disk check / shell)
+#      · Emergency shell — the initramfs's root shell for a root that won't mount, with
+#        btrfs, lsblk and a note (the boot-void-rescue mkinitcpio hook)
+#      and the snapshots (CachyOS > Snapshots, limine-snapper-sync) to go back to
 #
 # GRUB stays installed, behind Limine and Windows in the boot order; its copies of the
 # kernels in /boot stop being refreshed at the first kernel update (Limine's hook replaces
@@ -67,14 +73,34 @@ look() {
     /usr/local/lib/boot-void/limine-look
 }
 
+# ── repairs without a USB (step 7) ──
+rescue() {
+    install -Dm 755 "$SRC/void-rescue" /usr/local/lib/boot-void/void-rescue
+    ln -sf /usr/local/lib/boot-void/void-rescue /usr/local/bin/void-rescue
+    install -Dm 644 "$SRC/rescue-profile.sh" /etc/profile.d/boot-void-rescue.sh
+    install -Dm 644 "$SRC/initcpio/install/boot-void-rescue" /etc/initcpio/install/boot-void-rescue
+    install -d /etc/mkinitcpio.conf.d
+    printf '# boot-void: repair tools and a note in the initramfs emergency shell\nHOOKS+=(boot-void-rescue)\n' \
+        > /etc/mkinitcpio.conf.d/boot-void-rescue.conf
+    # the menu's cards: voidbox, from the user running this (root has no ~/.local/bin)
+    local home vb
+    home=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
+    vb="$home/.local/bin/voidbox"
+    [ -x "$vb" ] && install -Dm 755 "$vb" /usr/local/lib/boot-void/voidbox
+    return 0
+}
+
 if [ "$1" = "--update" ]; then
     art
     plymouth-set-default-theme void
     look
-    limine-mkinitcpio          # the Plymouth theme rides in the initramfs; the hook restores the look after
+    rescue
+    limine-mkinitcpio          # the Plymouth theme and the rescue hook ride in the initramfs
+    limine-snapper-sync || true    # the snapshots into the menu now, not at the next one
     /usr/local/lib/boot-void/limine-look
     say "boot chain up to date"
     grep -q '^# ── boot-void: the look' "$ESP/limine.conf" && say "Limine's look is in $ESP/limine.conf"
+    grep -q '^/Recovery' "$ESP/limine.conf" && say "Recovery folder: Rescue console · Emergency shell"
     exit 0
 fi
 
@@ -209,7 +235,9 @@ art
 plymouth-set-default-theme void
 touch "$ESP/limine.conf"
 look                       # the block now, and the hook that puts it back after every write
+rescue
 limine-mkinitcpio
+limine-snapper-sync || true
 if [ -n "$win" ] && ! grep -q '^/Windows' "$ESP/limine.conf"; then
     printf '\n/Windows\n    comment: Windows Boot Manager, on its own EFI partition\n    protocol: efi\n    path: guid(%s):/EFI/Microsoft/Boot/bootmgfw.efi\n' "$win" >> "$ESP/limine.conf"
 fi

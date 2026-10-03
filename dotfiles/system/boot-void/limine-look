@@ -1,23 +1,69 @@
 #!/bin/sh
-# limine-look — put the Void look back at the top of limine.conf. limine-entry-tool rewrites
-# the file's global section from its own template on every write (a kernel update, a
-# snapshot, limine-install), keeping the entries but dropping options it didn't write.
+# limine-look — keep boot-void's two blocks in limine.conf. limine-entry-tool rewrites the
+# file's global section from its own template on every write (a kernel update, a snapshot,
+# limine-install), keeping the entries but dropping options it didn't write, so:
+#   · the Void look (limine-head.conf) goes back at the top
+#   · the Recovery folder goes back at the end, built from this machine's kernel and
+#     command line: a rescue console (the real system, single user, a repair menu) and an
+#     emergency shell (the initramfs, for a root that won't mount) — repairs without a USB
 # Installed by dotfiles/system/boot-void.sh as /etc/boot/hooks/post.d/80-boot-void-look (the
 # Limine tools run it after each write) and run at boot by boot-void-bootorder.service.
+# Limine's font is code page 437: everything written here is ASCII.
 ESP_PATH=/boot
 [ -r /etc/default/limine ] && eval "$(grep '^ESP_PATH=' /etc/default/limine)"
 conf=$ESP_PATH/limine.conf
 head=/usr/local/lib/boot-void/limine-head.conf
 [ -f "$conf" ] && [ -f "$head" ] || exit 0
+
+recovery() {
+    mid=$(cat /etc/machine-id 2>/dev/null)
+    dir=$ESP_PATH/$mid
+    k=""
+    for c in linux-cachyos $(ls "$dir" 2>/dev/null); do
+        [ -f "$dir/$c/vmlinuz" ] && { k=$c; break; }
+    done
+    [ -n "$k" ] || return 0
+    img=initramfs-fallback            # every module: whatever autodetect missed
+    [ -f "$dir/$k/$img" ] || img=initramfs
+    base=$(sed -n 's/^KERNEL_CMDLINE\[default\]+\{0,1\}=//p' /etc/default/limine 2>/dev/null | tail -1)
+    [ -n "$base" ] || base=$(sed 's/BOOT_IMAGE=[^ ]*//; s/initrd=[^ ]*//g' /proc/cmdline)
+    # a repair boot talks: no quiet, no splash, the console cursor back
+    base=$(printf ' %s ' "$base" | sed -e 's/ quiet / /g; s/ splash / /g; s/ loglevel=[0-9] / /g' \
+        -e 's/ vt\.global_cursor_default=0 / /g; s/  */ /g; s/^ //; s/ $//')
+    p="boot():/$mid/$k"
+    cat <<EOF
+# ── boot-void: recovery ──
+/Recovery
+    comment: Repairs without a USB. Older systems: CachyOS > Snapshots
+    //Rescue console
+    comment: The real system, text only: a repair menu (roll back, rebuild, logs)
+    protocol: linux
+    path: $p/vmlinuz
+    module_path: $p/$img
+    cmdline: $base plymouth.enable=0 systemd.unit=rescue.target systemd.setenv=SYSTEMD_SULOGIN_FORCE=1 void.rescue
+    //Emergency shell
+    comment: A root shell in the initramfs, for a root that won't mount
+    protocol: linux
+    path: $p/vmlinuz
+    module_path: $p/$img
+    cmdline: $base plymouth.enable=0 rd.systemd.unit=emergency.target systemd.setenv=SYSTEMD_SULOGIN_FORCE=1
+# ── end boot-void recovery ──
+EOF
+}
+
 tmp=$(mktemp) || exit 0
 {
     cat "$head"
-    # the old copy of the block, wherever it ended up
-    sed '/^# ── boot-void: the look/,/^# ── end boot-void ──/d' "$conf" | sed '/./,$!d'   # and the blank lines it left
+    # the rest without our old blocks, its leading and trailing blank lines trimmed
+    sed -e '/^# ── boot-void: the look/,/^# ── end boot-void ──/d' \
+        -e '/^# ── boot-void: recovery ──/,/^# ── end boot-void recovery ──/d' "$conf" |
+        awk 'NF { started = 1 } started { line[++n] = $0; if (NF) last = n } END { for (i = 1; i <= last; i++) print line[i] }'
+    echo
+    recovery
 } > "$tmp"
 if ! cmp -s "$tmp" "$conf"; then
     cat "$tmp" > "$conf"     # in place: the ESP is FAT, keep it simple
-    echo "boot-void: Limine's look restored in $conf"
+    echo "boot-void: Limine's look and Recovery folder restored in $conf"
 fi
 rm -f "$tmp"
 exit 0

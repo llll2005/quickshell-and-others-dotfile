@@ -92,6 +92,10 @@ func (m chooseModel) View() string {
 		w = 80
 	}
 	key := func(k, v string) string { return l.faint.Render(k+" ") + l.dim.Render(spaced(v)) }
+	arrowsV, arrowsH, enter, digits, marker := "↑↓", "←→", "↵", "1–9", "▸ "
+	if l.pal.ascii { // a Linux VT's default font has no arrows or triangles
+		arrowsV, arrowsH, enter, digits, marker = "UP/DN", "LT/RT", "ENTER", "1-9", "> "
+	}
 	head := l.fg.Render(l.dia) + "  " + l.bold.Render(spaced(strings.ToUpper(m.title)))
 	if m.cancelled {
 		return l.faint.Render(l.hollow) + "  " + l.dim.Render(spaced(strings.ToUpper(m.title))) + "    " + l.faint.Render(spaced("CANCELLED")) + "\n"
@@ -108,7 +112,7 @@ func (m chooseModel) View() string {
 			return l.dim.Render("[ " + spaced(label) + " ]")
 		}
 		out = append(out, "   "+button("YES", m.sel == 0)+"   "+button("NO", m.sel == 1), "",
-			"   "+key("←→", "SELECT")+"    "+key("Y / N", "ANSWER")+"    "+key("↵", "CONFIRM")+"    "+key("ESC", "CANCEL"))
+			"   "+key(arrowsH, "SELECT")+"    "+key("Y / N", "ANSWER")+"    "+key(enter, "CONFIRM")+"    "+key("ESC", "CANCEL"))
 		return strings.Join(out, "\n") + "\n"
 	}
 	wide := 0
@@ -125,7 +129,7 @@ func (m chooseModel) View() string {
 		label, note := splitItem(m.items[i])
 		mark, lab := "  ", l.dim.Render(label)
 		if i == m.sel {
-			mark, lab = l.fg.Render("▸ "), l.fg.Render(label)
+			mark, lab = l.fg.Render(marker), l.fg.Render(label)
 		}
 		row := "   " + mark + l.faint.Render(fmt.Sprintf("%d  ", i+1)) + lab
 		if note != "" {
@@ -133,7 +137,7 @@ func (m chooseModel) View() string {
 		}
 		out = append(out, ansi.Truncate(row, w-1, "…"))
 	}
-	out = append(out, "", "   "+key("↑↓", "SELECT")+"    "+key("1–9", "PICK")+"    "+key("↵", "CONFIRM")+"    "+key("ESC", "CANCEL"))
+	out = append(out, "", "   "+key(arrowsV, "SELECT")+"    "+key(digits, "PICK")+"    "+key(enter, "CONFIRM")+"    "+key("ESC", "CANCEL"))
 	return strings.Join(out, "\n") + "\n"
 }
 
