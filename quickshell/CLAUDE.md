@@ -168,6 +168,18 @@ Two geometry rules the input mask depends on:
   · a socket request with no terminal: `setsid -w voidbox-askpass "Password:" </dev/null`
   (cancel with `qs ipc call auth cancel`) · the login screen:
   `sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/void`.
+- **The boot chain** (`dotfiles/system/boot-void.sh` + `boot-void/`, run with sudo; `--undo`
+  goes back to GRUB, `--art` redraws the pictures): Limine (a black menu over a backdrop —
+  diamond, SELECT SYSTEM, hairline, keys — in Operator Mono drawn into its 8×16 cells by
+  `gen-art.py`; box drawing / arrows drawn so lines join, `term_font_spacing 0`; a too-big
+  `term_margin` with the 2× font leaves too few rows and Limine silently falls back to the
+  firmware's text console) → Plymouth (`void.script`: the power exit's column, the hairline
+  growing with the boot's progress; shutdown / reboot show the exit's title and command, so
+  the shell's exit hands over unmoved) → SDDM (`sddm-void`). i915 loads first in the
+  initramfs (the panel is on the iGPU). Limine is also the ESP's fallback loader, and
+  `boot-void-bootorder.service` puts it back in front at each boot. limine-mkinitcpio-hook
+  replaces mkinitcpio's pacman hook: GRUB's kernel copies go stale after the first update.
+  The Limine look can be checked in QEMU/OVMF with a `fat:rw:` directory as the disk.
 - **The Void everywhere a password is asked**: the lock (`lock.qml`), polkit and every socket
   request (`widgets/AuthPrompt.qml`), sudo / ssh / git in a terminal (`voidbox-askpass`), gpg
   (`pinentry-void`), pacman's questions (`voidbox pacman`), the CC's Wi-Fi password (paper,
@@ -408,10 +420,14 @@ pacman — never test with the real password: faillock locks the account after 3
 
 ### The terminal (kitty + zsh)
 
-`~/.zshrc` (not in the repo) sources `~/.config/zsh/`: `prompt.zsh` (the prompt, pure zsh:
-`◆ path  branch ↑↓●✚…  ◇ env  took  ✕ code` over `▸`, git read in the background with
-`zle -F`, transient — an entered line folds to `▸ command` — kitty's 133 mark kept in both,
-no `prompt_subst` so a branch name can't run code; the long-command HUD card) and
+`~/.zshrc` (not in the repo) sources `~/.config/zsh/`: `prompt.zsh` (the prompt, pure zsh: a
+frame `╭─◆ path  branch ↑↓●✚…  ◇ env ─── took  ✕ code  time ─╮` over `╰─▸`, the hairline
+filling the width (`_qs_w` measures the visible width, `(m)` for wide characters; rebuilt on
+SIGWINCH; the time goes first when narrow) in `QS[line]`; git read in the background with
+`zle -F`; the diamond arrives ◇ → ◈ → ◆ on a `zselect` timer (`QS_PROMPT_ARRIVE`) and then
+blinks with kitty's cursor (SGR 5, `QS_PROMPT_PULSE`); transient — an entered line folds to
+`▸ command` with its start time as RPROMPT — kitty's 133 mark kept in both, no
+`prompt_subst` so a branch name can't run code; the long-command HUD card) and
 `tools.zsh` (zoxide, fzf's Ctrl+T / Alt+C, atuin's Ctrl+R, delta as GIT_PAGER, `kitten ssh`
 inside kitty, a `command_not_found_handler` that asks pkgfile, `manual` = `MANUAL.md`, the
 user's cheat sheet; every tool's init script is cached in ~/.cache/zsh). Plugins load with

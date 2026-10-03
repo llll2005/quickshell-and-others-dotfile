@@ -1,0 +1,106 @@
+# void.script — Plymouth in the Void (dotfiles/system/boot-void; quickshell/CLAUDE.md,
+# "Design language"): black, a diamond, the title, one hairline — laid out as the shell's
+# power exit (quickshell widgets/ControlCenter.qml, exitLayer), so a shutdown goes from the
+# shell to here without anything moving. Booting, the hairline grows with the boot's
+# progress; a password question shows a diamond per character. The pictures come from
+# gen-art.py, at the exit's size on the laptop panel (×1.1).
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+mode = Plymouth.GetMode();
+name = "boot";
+has_cmd = 0;
+if (mode == "shutdown") { name = "shutdown"; has_cmd = 1; }
+if (mode == "reboot") { name = "reboot"; has_cmd = 1; }
+if (mode == "updates" || mode == "system-upgrade" || mode == "firmware-upgrade") { name = "updates"; }
+
+dia_img = Image("dia.png");
+core_img = Image("core.png");
+title_img = Image("title-" + name + ".png");
+pass_img = Image("title-password.png");
+rule_img = Image("rule.png");
+bullet_img = Image("bullet.png");
+
+# ── the column, as the exit's: diamond row · 18 · title · 18 · hairline · 18 · command ──
+W = Window.GetWidth();
+H = Window.GetHeight();
+cx = Window.GetX() + W / 2;
+sp = 18;
+row = 20;                  # the diamond's row
+title_h = 42;              # a line of the 34 px title face, as Qt lays it out
+cmd_h = 0;
+if (has_cmd) cmd_h = sp + 17;
+top = Window.GetY() + (H - (row + sp + title_h + sp + 1 + cmd_h)) / 2;
+
+dia = Sprite(dia_img);
+dia.SetPosition(cx - dia_img.GetWidth() / 2, top + row / 2 - dia_img.GetHeight() / 2, 2);
+core = Sprite(core_img);
+core.SetPosition(cx - core_img.GetWidth() / 2, top + row / 2 - core_img.GetHeight() / 2, 3);
+
+ty = top + row + sp;
+title = Sprite(title_img);
+title.SetPosition(cx - title_img.GetWidth() / 2, ty + (title_h - title_img.GetHeight()) / 2, 2);
+
+ry = ty + title_h + sp;
+rule = Sprite();
+rule_w = 0;
+
+cy = ry + 1 + sp;
+if (has_cmd) {
+    cmd_img = Image("cmd-" + name + ".png");
+    cmd = Sprite(cmd_img);
+    cmd.SetPosition(cx - cmd_img.GetWidth() / 2, cy, 2);
+}
+
+# ── time: everything fades in, the core pulses, the hairline draws out ──
+t = 0;
+progress = 0;
+asking = 0;
+fun refresh_cb() {
+    t++;
+    fade = Math.Min(1, t / 25);
+    dia.SetOpacity(fade);
+    title.SetOpacity(fade);
+    core.SetOpacity(fade * (0.35 + 0.65 * (0.5 + 0.5 * Math.Cos(t * 0.06))));
+    if (has_cmd) cmd.SetOpacity(fade * (1 - asking));
+    k = fade;
+    if (mode == "boot") k = Math.Max(0.02, progress);
+    w = Math.Int(286 * k);
+    if (w < 1) w = 1;
+    if (w != rule_w) {
+        rule.SetImage(rule_img.Scale(w, 1));
+        rule.SetPosition(cx - w / 2, ry, 2);
+        rule_w = w;
+    }
+    rule.SetOpacity(fade);
+}
+Plymouth.SetRefreshFunction(refresh_cb);
+
+fun progress_cb(duration, p) { progress = p; }
+Plymouth.SetBootProgressFunction(progress_cb);
+
+# ── a password (a disk to unlock): AUTHORIZATION REQUIRED, a diamond per character ──
+nb = 0;
+fun display_password_cb(prompt, bullets) {
+    asking = 1;
+    title.SetImage(pass_img);
+    title.SetPosition(cx - pass_img.GetWidth() / 2, ty + (title_h - pass_img.GetHeight()) / 2, 2);
+    n = Math.Min(bullets, 24);
+    step = bullet_img.GetWidth() + 10;
+    x0 = cx - (n * step - 10) / 2;
+    for (i = 0; i < n; i++) {
+        if (i >= nb) { bullet[i] = Sprite(bullet_img); nb = i + 1; }
+        bullet[i].SetPosition(x0 + i * step, cy, 3);
+        bullet[i].SetOpacity(1);
+    }
+    for (i = n; i < nb; i++) bullet[i].SetOpacity(0);
+}
+fun display_normal_cb() {
+    asking = 0;
+    title.SetImage(title_img);
+    title.SetPosition(cx - title_img.GetWidth() / 2, ty + (title_h - title_img.GetHeight()) / 2, 2);
+    for (i = 0; i < nb; i++) bullet[i].SetOpacity(0);
+}
+Plymouth.SetDisplayPasswordFunction(display_password_cb);
+Plymouth.SetDisplayNormalFunction(display_normal_cb);

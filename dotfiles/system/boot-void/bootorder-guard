@@ -1,0 +1,19 @@
+#!/bin/sh
+# bootorder-guard — keep Limine first in the UEFI boot order. A Windows feature update
+# puts Windows Boot Manager back in front; a firmware reset can drop the entry altogether
+# (then limine-install registers it again). Run at every boot by
+# boot-void-bootorder.service (dotfiles/system/boot-void.sh).
+command -v efibootmgr >/dev/null || exit 0
+list=$(efibootmgr) || exit 0
+lim=$(printf '%s\n' "$list" | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\{0,1\} Limine[[:space:]].*/\1/p' | head -1)
+if [ -z "$lim" ]; then
+    echo "no Limine boot entry: registering it again"
+    limine-install >/dev/null 2>&1 || exit 1
+    list=$(efibootmgr)
+    lim=$(printf '%s\n' "$list" | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\{0,1\} Limine[[:space:]].*/\1/p' | head -1)
+    [ -n "$lim" ] || exit 1
+fi
+order=$(printf '%s\n' "$list" | sed -n 's/^BootOrder: *//p')
+[ "${order%%,*}" = "$lim" ] && exit 0
+rest=$(printf '%s\n' "$order" | tr ',' '\n' | grep -vix "$lim" | paste -sd, -)
+efibootmgr -o "$lim${rest:+,$rest}" >/dev/null && echo "Limine back in front (boot order was $order)"

@@ -1,0 +1,10 @@
+[Unit]
+Description=Keep Limine first in the UEFI boot order (dotfiles/system/boot-void)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/boot-void/bootorder-guard
+
+[Install]
+WantedBy=multi-user.target

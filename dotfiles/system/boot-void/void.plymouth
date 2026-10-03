@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Void
+Description=The boot and shutdown splash in the Void, laid out as the Quickshell power exit
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/void
+ScriptFile=/usr/share/plymouth/themes/void/void.script
