@@ -124,6 +124,10 @@ Third-party artwork isn't redistributed. To get it back, put your own files here
 - `quickshell/assets/{2b,mai,amazon}.gif`: the companion sprites (`[companions] enabled`).
 - `quickshell/assets/nier-arrow.png`: the Control Center's direction glyph (a drawn
   diamond and chevron stand in without it).
+- A display font for the Void (the lock, the polkit prompt, the power exit), e.g. Joel
+  Carrouche's *Norse*: install it, then set `[font] void = Norse` in
+  `quickshell/config/shell.conf` (restart `qs`: fonts are read at startup). Without it the
+  Void uses the theme's mono.
 
 ## Maintaining your own copy
 

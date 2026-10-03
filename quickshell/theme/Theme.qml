@@ -54,6 +54,14 @@ QtObject {
     // ── fonts ──
     readonly property string mono: Config.tstr("font.mono", "Share Tech Mono")
     readonly property string cjk:  Config.tstr("font.cjk",  "jf金萱那提2.0")
+    // the Void's voice (lock, polkit, the power exit): `[font] void` in shell.conf (your
+    // choice, any theme), else the theme's, else mono. A display face like Norse lacks
+    // ◆ ▸ ░ …: the scramble then uses its own letters (voidGlyphs), and the clock sets its
+    // digits in fixed cells (components/FixedDigits.qml) since its figures aren't tabular.
+    readonly property string voidFont: Config.str("font.void", "") || Config.tstr("font.void", mono)
+    // a display face is lighter and narrower than the mono: small Void text grows with it
+    function voidPx(px) { return Math.round(px * (voidFont === mono ? 1 : 1.2)) }
+    readonly property string voidGlyphs: voidFont === mono ? "▸◆▪▫░▒▓█/\\|-_=+*" : "ABCDEFGHJKLMNPRSTUVWXYZ0123456789/=+-"
 
     // ── helpers ──
     function alpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }

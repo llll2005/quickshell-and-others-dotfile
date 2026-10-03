@@ -14,7 +14,7 @@ Item {
     property string phase: "idle"
     property string hint: "TYPE TO UNLOCK"
     property real   u: 1
-    property string mono: Theme.mono
+    property string mono: Theme.voidFont
     property real   blink: 1           // the owner's stepped blink (0.15 · 1)
 
     readonly property bool  busy: phase === "verifying" || phase === "authorized"
@@ -49,7 +49,7 @@ Item {
                 visible: vf.echo && vf.text !== ""
                 anchors.verticalCenter: parent.verticalCenter
                 text: vf.text
-                font.family: vf.mono; font.pixelSize: Math.round(13 * vf.u); font.letterSpacing: 2 * vf.u
+                font.family: vf.mono; font.pixelSize: Theme.voidPx(13 * vf.u); font.letterSpacing: 2 * vf.u
                 color: vf.fg
             }
             Rectangle {  // caret
@@ -63,7 +63,7 @@ Item {
                 visible: vf.text === "" && vf.phase === "idle"
                 anchors.verticalCenter: parent.verticalCenter
                 text: vf.hint
-                font.family: vf.mono; font.pixelSize: Math.round(10 * vf.u); font.letterSpacing: 3 * vf.u
+                font.family: vf.mono; font.pixelSize: Theme.voidPx(10 * vf.u); font.letterSpacing: 3 * vf.u
                 color: Theme.alpha(Theme.light, 0.22)
             }
         }

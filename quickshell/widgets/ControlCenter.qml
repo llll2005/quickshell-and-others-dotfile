@@ -1250,9 +1250,19 @@ Popup {
         exitKey = key
         collapse = true
         folded = true
-        if (_sleepKind) { _slept = false; _sleepSince = Math.floor(Date.now() / 1000); sleepWatch.running = true }
+        if (_sleepKind && !_exitPreview) { _slept = false; _sleepSince = Math.floor(Date.now() / 1000); sleepWatch.running = true }
         exitAnim.restart()
     }
+    // `qs ipc call ctrl exitPreview <key>`: the exit's look, nothing run — it fades back
+    property bool _exitPreview: false
+    function previewExit(key) {
+        var k = (key in powerActs) && powerActs[key].exit ? key : "poweroff"
+        if (!isOpen) { openPower(); previewT.key = k; previewT.start(); return }
+        _exitPreview = true
+        _powerGo(k)
+    }
+    Timer { id: previewT; property string key: ""; interval: 1000; onTriggered: { root._exitPreview = true; root._powerGo(key) } }
+    Timer { id: previewBackT; interval: 1800; onTriggered: { root._exitPreview = false; root._exitBack(true) } }
     SequentialAnimation {
         id: exitAnim
         ParallelAnimation {
@@ -1264,7 +1274,13 @@ Popup {
             }
         }
         PauseAnimation { duration: 120 }
-        ScriptAction { script: { powerProc.command = root.powerActs[root.exitKey].cmd; powerProc.running = true } }
+        ScriptAction {
+            script: {
+                if (root._exitPreview) { previewBackT.start(); return }
+                powerProc.command = root.powerActs[root.exitKey].cmd
+                powerProc.running = true
+            }
+        }
     }
     property int _exitCode: 0
     Process {
@@ -1346,7 +1362,7 @@ Popup {
     function _resetPower() {
         morphT.stop(); cHitAnim.stop(); exitAnim.stop(); exitBackAnim.stop()
         exitCheckT.stop(); exitFailT.stop(); exitStuckT.stop(); sleepStartT.stop(); sleepBackT.stop()
-        sleepWatch.running = false; _hibAsk = false
+        sleepWatch.running = false; _hibAsk = false; _exitPreview = false; previewT.stop(); previewBackT.stop()
         mode = "main"; folded = false; confirmKey = ""; confirmYes = false
         exitKey = ""; exitError = ""; exitFade = 0; cHitT = 0
     }
@@ -1383,6 +1399,7 @@ Popup {
         target: "ctrl"
         function toggle(): void { root.toggle() }
         function power(): void  { root.openPower() }
+        function exitPreview(key: string): void { root.previewExit(key) }
         function show(): void   { root.open() }
         function hide(): void   { root.close() }
     }
@@ -2127,9 +2144,12 @@ Popup {
                 property string targetText: root.exitError !== "" ? "FAILED" : exitLayer.line
                 text: targetText
                 onTargetTextChanged: if (targetText !== "") exitScramble.start()
-                font.pixelSize: 18; font.letterSpacing: 8; font.weight: Font.Medium
+                font.family: Theme.voidFont
+                // a face with only Regular / Bold (Norse) falls back to another family on Medium
+                font.pixelSize: Theme.voidPx(18); font.letterSpacing: 8
+                font.weight: Theme.voidFont === Theme.mono ? Font.Medium : Font.Normal
                 color: root.exitError !== "" ? Theme.warn : Theme.light
-                ScrambleAnim { id: exitScramble; target: exitTitle; duration: 520 }
+                ScrambleAnim { id: exitScramble; target: exitTitle; duration: 520; chars: Theme.voidGlyphs }
             }
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter

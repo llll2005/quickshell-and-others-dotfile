@@ -24,7 +24,7 @@ Item {
     readonly property color dim:   Theme.alpha(Theme.light, 0.55)
     readonly property color faint: Theme.alpha(Theme.light, 0.22)
     readonly property color warn:  Theme.warn
-    readonly property string mono: Theme.mono
+    readonly property string mono: Theme.voidFont      // the Void's voice ([font] void)
 
     focus: true
     Component.onCompleted: forceActiveFocus()
@@ -97,13 +97,13 @@ Item {
     Text {
         x: 72 * face.u; y: 48 * face.u
         text: "SYSTEM LOCKED"
-        font.family: face.mono; font.pixelSize: Math.round(11 * face.u); font.letterSpacing: 4 * face.u
+        font.family: face.mono; font.pixelSize: Theme.voidPx(11 * face.u); font.letterSpacing: 4 * face.u
         color: face.dim; opacity: face.inT
     }
     Text {
         anchors.right: parent.right; anchors.rightMargin: 72 * face.u; y: 48 * face.u
         text: face.now.getFullYear() + "." + face.pad(face.now.getMonth() + 1) + "." + face.pad(face.now.getDate())
-        font.family: face.mono; font.pixelSize: Math.round(11 * face.u); font.letterSpacing: 4 * face.u
+        font.family: face.mono; font.pixelSize: Theme.voidPx(11 * face.u); font.letterSpacing: 4 * face.u
         color: face.dim; opacity: face.inT
     }
 
@@ -119,24 +119,29 @@ Item {
         Row {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 10 * face.u
-            ScrambleText {
+            ScrambleText {      // drives the clock's scramble-in; FixedDigits draws it
                 id: clock
+                visible: false
                 playOnChange: false
+                glyphs: "0123456789"
                 target: face.pad(face.now.getHours()) + ":" + face.pad(face.now.getMinutes())
+            }
+            FixedDigits {
+                text: clock.text
                 font.family: face.mono; font.pixelSize: Math.round(118 * face.u); font.letterSpacing: 4 * face.u
                 color: face.fg
             }
-            Text {
+            FixedDigits {
                 y: 22 * face.u
                 text: face.pad(face.now.getSeconds())
-                font.family: face.mono; font.pixelSize: Math.round(22 * face.u)
+                font.family: face.mono; font.pixelSize: Theme.voidPx(22 * face.u)
                 color: face.dim
             }
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: face.days[face.now.getDay()] + "  ·  " + face.pad(face.now.getDate()) + " " + face.months[face.now.getMonth()] + " " + face.now.getFullYear()
-            font.family: face.mono; font.pixelSize: Math.round(13 * face.u); font.letterSpacing: 4 * face.u
+            font.family: face.mono; font.pixelSize: Theme.voidPx(13 * face.u); font.letterSpacing: 4 * face.u
             color: face.dim
         }
 
@@ -165,7 +170,8 @@ Item {
             target: ({ idle: "AUTHORIZATION REQUIRED", verifying: "VERIFYING", failed: "FAILED",
                        authorized: "AUTHORIZED" })[face.st.phase] || ""
             duration: 360
-            font.family: face.mono; font.pixelSize: Math.round(12 * face.u); font.letterSpacing: 6 * face.u
+            glyphs: Theme.voidGlyphs
+            font.family: face.mono; font.pixelSize: Theme.voidPx(12 * face.u); font.letterSpacing: 6 * face.u
             color: face.st.phase === "failed" ? face.warn : face.fg
         }
 
@@ -190,7 +196,7 @@ Item {
             text: face.st.caps ? "CAPS LOCK ON"
                 : wait > 0 ? "RETRY IN " + wait + " S"
                 : face.st.fails > 0 ? face.st.fails + (face.st.fails === 1 ? " FAILED ATTEMPT" : " FAILED ATTEMPTS") : " "
-            font.family: face.mono; font.pixelSize: Math.round(10 * face.u); font.letterSpacing: 3 * face.u
+            font.family: face.mono; font.pixelSize: Theme.voidPx(10 * face.u); font.letterSpacing: 3 * face.u
             color: face.st.caps || wait > 0 ? face.warn : face.dim
         }
     }
@@ -199,7 +205,7 @@ Item {
     Text {
         x: 72 * face.u; anchors.bottom: parent.bottom; anchors.bottomMargin: 48 * face.u
         text: "USER " + face.user.toUpperCase() + (face.host ? "   ·   HOST " + face.host.toUpperCase() : "")
-        font.family: face.mono; font.pixelSize: Math.round(10 * face.u); font.letterSpacing: 3 * face.u
+        font.family: face.mono; font.pixelSize: Theme.voidPx(10 * face.u); font.letterSpacing: 3 * face.u
         color: face.dim; opacity: face.inT
     }
     Text {
@@ -207,7 +213,7 @@ Item {
         anchors.bottom: parent.bottom; anchors.bottomMargin: 48 * face.u
         visible: Battery.available
         text: "BAT " + Battery.percent + "%" + (Battery.charging ? "  ·  CHARGING" : "")
-        font.family: face.mono; font.pixelSize: Math.round(10 * face.u); font.letterSpacing: 3 * face.u
+        font.family: face.mono; font.pixelSize: Theme.voidPx(10 * face.u); font.letterSpacing: 3 * face.u
         color: Battery.percent <= 15 && !Battery.charging ? face.warn : face.dim
         opacity: face.inT
     }

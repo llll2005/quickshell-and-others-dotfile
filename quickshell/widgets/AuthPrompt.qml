@@ -162,7 +162,8 @@ Popup {
                 playOnChange: true
                 target: ({ idle: "AUTHORIZATION REQUIRED", verifying: "VERIFYING", failed: "FAILED", authorized: "AUTHORIZED" })[root.authPhase] || ""
                 duration: 360
-                font.family: Theme.mono; font.pixelSize: Math.round(13 * root.u); font.letterSpacing: 6 * root.u
+                glyphs: Theme.voidGlyphs
+                font.family: Theme.voidFont; font.pixelSize: Theme.voidPx(13 * root.u); font.letterSpacing: 6 * root.u
                 color: root.authPhase === "failed" ? Theme.warn : Theme.light
             }
             Item { width: 1; height: 18 * root.u }
@@ -195,11 +196,11 @@ Popup {
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: 12 * root.u
                 readonly property bool many: !!root.flow && !!root.flow.identities && root.flow.identities.length > 1
-                Text { text: "AS"; font.family: Theme.mono; font.pixelSize: Math.round(10 * root.u); font.letterSpacing: 3 * root.u; color: Theme.alpha(Theme.light, 0.45) }
+                Text { text: "AS"; font.family: Theme.voidFont; font.pixelSize: Theme.voidPx(10 * root.u); font.letterSpacing: 3 * root.u; color: Theme.alpha(Theme.light, 0.45) }
                 Text { visible: parent.many; text: "◂"; font.pixelSize: Math.round(10 * root.u); color: Theme.alpha(Theme.light, 0.6) }
                 Text {
                     text: root.flow ? root.idName(root.flow.selectedIdentity) : ""
-                    font.family: Theme.mono; font.pixelSize: Math.round(10 * root.u); font.letterSpacing: 3 * root.u
+                    font.family: Theme.voidFont; font.pixelSize: Theme.voidPx(10 * root.u); font.letterSpacing: 3 * root.u
                     color: Theme.light
                 }
                 Text { visible: parent.many; text: "▸"; font.pixelSize: Math.round(10 * root.u); color: Theme.alpha(Theme.light, 0.6) }
@@ -236,11 +237,11 @@ Popup {
                         Rectangle {
                             width: kk.implicitWidth + 8 * root.u; height: 15 * root.u
                             color: "transparent"; border.color: Theme.alpha(Theme.light, 0.35); border.width: 1
-                            Text { id: kk; anchors.centerIn: parent; text: modelData[0]; font.family: Theme.mono; font.pixelSize: Math.round(8 * root.u); color: Theme.light }
+                            Text { id: kk; anchors.centerIn: parent; text: modelData[0]; font.family: Theme.voidFont; font.pixelSize: Theme.voidPx(8 * root.u); color: Theme.light }
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: modelData[1]; font.family: Theme.mono; font.pixelSize: Math.round(9 * root.u); font.letterSpacing: 2 * root.u
+                            text: modelData[1]; font.family: Theme.voidFont; font.pixelSize: Theme.voidPx(9 * root.u); font.letterSpacing: 2 * root.u
                             color: Theme.alpha(Theme.light, 0.55)
                         }
                     }

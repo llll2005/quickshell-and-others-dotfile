@@ -131,7 +131,18 @@ Two geometry rules the input mask depends on:
   `ALT 1–9`/`1–9 RUN`, `←→ <tab noun>`, `↑↓ SELECT`, `↵ <verb>`, `ESC CLOSE`.
 - **Words**: titles and labels in English caps (the system's voice), explanations in
   Chinese. **Type**: mono (`Theme.mono`) for system labels and numbers, `Theme.cjk` for
-  Chinese; a 5-step size scale (to be settled with the mono choice).
+  Chinese; a 5-step size scale (to be settled with the mono choice). The Void's voice is
+  `Theme.voidFont` (`[font] void` in shell.conf, e.g. Norse — not in the repo, a font the
+  user installs): `Theme.voidPx()` grows small text for a lighter display face,
+  `Theme.voidGlyphs` gives the scramble letters the face has, `components/FixedDigits.qml`
+  sets clock digits in fixed cells (Norse's figures aren't tabular), and no `Font.Medium`
+  on it (Regular/Bold only → Qt falls back to another family). A font installed while
+  `qs` runs isn't seen until it restarts (fontconfig is read at startup).
+- **Previews** (nothing locks, nothing runs): `QS_LOCK_PREVIEW=1 qs -p lock.qml` (click to
+  close) · `qs ipc call ctrl exitPreview <poweroff|reboot|firmware|hibernate|sleep|logout>`
+  · the polkit prompt: `pkcheck --action-id org.freedesktop.policykit.exec --process $$ -u`
+  · `voidbox render <askpass|yesno|choice|auth>` or
+  `VOIDBOX_TEST_CMD=tui/fake-pacman.sh voidbox pacman -S x` (password "secret").
 - **Colour**: Theme tokens only (see Configuration and themes); theme-sync carries them to
   fcitx5, Hyprland borders and the fallback hyprlock.
 

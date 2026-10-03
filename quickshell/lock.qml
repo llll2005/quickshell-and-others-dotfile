@@ -54,6 +54,7 @@ ShellRoot {
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         color: "black"
         LockFace { anchors.fill: parent; st: st; scr: null }
+        MouseArea { anchors.fill: parent; onClicked: Qt.quit() }   // a click closes the preview
     }
     IpcHandler {
         target: "lockpreview"
