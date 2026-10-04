@@ -301,24 +301,30 @@ def sync_fcitx5(r, on):
 
 
 # ── Hyprland ──
-# the glass behind translucent windows: a dark theme dims what shows through, a light one
-# frosts it (brighter, flatter, less colour) so a pale terminal reads as frosted paper
-BLUR_DARK = {'brightness': 0.92, 'contrast': 1.05, 'vibrancy': 0.28}
-BLUR_LIGHT = {'brightness': 1.35, 'contrast': 0.85, 'vibrancy': 0.06}
+# the glass behind translucent windows: a dark theme dims what shows through; a light one,
+# by `[terminal] glass`:
+#   mac    macOS's light materials — the blur keeps (raises) the wallpaper's colour and a
+#          ~75 % pale layer carries the brightness, so the glass is tinted, never grey
+#   frost  brighter, flatter, nearly colourless: frosted paper
+BLUR_DARK = {'brightness': 0.92, 'contrast': 1.05, 'vibrancy': 0.28, 'opacity': 0.8}
+BLUR_LIGHT = {'mac':   {'brightness': 1.1, 'contrast': 1.0, 'vibrancy': 0.3, 'opacity': 0.78},
+              'frost': {'brightness': 1.35, 'contrast': 0.85, 'vibrancy': 0.06, 'opacity': 0.88}}
 
 
-def theme_blur(r):
-    return BLUR_DARK if oklch(r['panel'])[0] < 0.5 else BLUR_LIGHT
+def theme_blur(r, glass='mac'):
+    if oklch(r['panel'])[0] < 0.5:
+        return BLUR_DARK
+    return BLUR_LIGHT.get(glass, BLUR_LIGHT['mac'])
 
 
-def sync_hyprland(r, on, name, window_fx):
+def sync_hyprland(r, on, name, window_fx, glass='mac'):
     """Colours (when `on`) and the window-effects flag: with the shell's close melt on,
     ui/animations.lua turns Hyprland's own close slide off (it would slide the closing
     window out from under the melt). A flag change needs a config reload."""
     old = read(HYPR_QS)
     fx_changed = ('windowFx = true' in old) != window_fx
     if on:
-        blur = theme_blur(r)
+        blur = theme_blur(r, glass)
         active = [hypr_rgba(c) for c in r['border']]
         inactive = hypr_rgba(r['inactive'], '66')
         shadow = '0x2a' + rgb(r['shadow'])
@@ -525,7 +531,6 @@ def term_palette(r):
     # themes' muted colours were made for the HUD's dark-on-light chips, not a terminal
     for k, floor in (('muted', 4.5), ('br_black', 4.5), ('suggest', 3.0), ('line', 2.6)):
         p[k] = ensure_contrast(p[k], bg, fg, floor)
-    p['opacity'] = 0.8 if dark else 0.88       # kitty: light themes sit on frosted glass (theme_blur)
     return p
 
 
@@ -1027,11 +1032,12 @@ def sync_firefox(r, on, shell):
     return changed
 
 
-def sync_terminal(r, on, name, shell=None):
+def sync_terminal(r, on, name, shell=None, glass='mac'):
     """kitty follows the theme only while [sync] terminal is on; the tools always get a palette
     (the theme's, or nier's when off) so the prompt and colours never go missing."""
     changed = []
     p = term_palette(r if on else resolve({}))
+    p['opacity'] = theme_blur(r if on else resolve({}), glass)['opacity']   # kitty on the glass
     tag = name if on else 'nier (sync off)'
     kitty = kitty_conf(p, name) if on else '# [sync] terminal = false: kitty keeps the colours in kitty.conf\n'
     reload_kitty = False
@@ -1070,11 +1076,12 @@ def main():
     if sync_fcitx5(r, shell.get('sync.fcitx5', True) is not False):
         done.append('fcitx5')
     window_fx = shell.get('effects.windowClose', True) is not False
-    if sync_hyprland(r, shell.get('sync.hyprland', True) is not False, name, window_fx):
+    glass = str(shell.get('terminal.glass') or 'mac')
+    if sync_hyprland(r, shell.get('sync.hyprland', True) is not False, name, window_fx, glass):
         done.append('hyprland')
     if sync_hyprlock(r, name, shell):
         done.append('hyprlock')
-    done += sync_terminal(r, shell.get('sync.terminal', True) is not False, name, shell)
+    done += sync_terminal(r, shell.get('sync.terminal', True) is not False, name, shell, glass)
     if write_if_changed(FONTCONFIG_QS, fontconfig_conf(shell, r)):
         done.append('fontconfig')
     if sync_firefox(r, shell.get('sync.firefox', True) is not False, shell):
