@@ -1,0 +1,130 @@
+@import url("qs-theme.css");
+/* userContent.css — the pages Firefox draws itself, and the small things every page shares,
+   in the shell's design language (see userChrome.css; colours and fonts from qs-theme.css,
+   written by scripts/theme-sync.py, which copies this file into the profile — a link outside
+   it is skipped by the web pages' sandbox; Firefox reads it at start). */
+
+/* ── every page: the scrollbar and the selection in the theme's colours ── */
+:root {
+  scrollbar-color: color-mix(in srgb, var(--qs-muted) 70%, transparent) transparent !important;
+}
+::selection {
+  background-color: var(--qs-sel);
+  color: var(--qs-text);
+}
+
+/* ── the new tab and home pages: the HUD's ink, a paper search field, the tiles as cells ── */
+@-moz-document url("about:newtab"), url("about:home"), url("about:privatebrowsing") {
+  :root {
+    color-scheme: var(--qs-scheme) !important;
+    --newtab-background-color: var(--qs-panel) !important;
+    --newtab-background-color-secondary: var(--qs-raised) !important;
+    --newtab-background-card: var(--qs-raised) !important;
+    --newtab-text-primary-color: var(--qs-text) !important;
+    --newtab-contextual-text-primary-color: var(--qs-text) !important;
+    --newtab-text-secondary-text: var(--qs-muted) !important;
+    --newtab-text-secondary-color: var(--qs-muted) !important;
+    --newtab-primary-action-background: var(--qs-light) !important;
+    --newtab-primary-element-text-color: var(--qs-on-light) !important;
+    --newtab-element-hover-color: var(--qs-raised) !important;
+    --newtab-element-active-color: var(--qs-sel) !important;
+    --newtab-element-secondary-color: var(--qs-raised) !important;
+    --newtab-weather-background-color: var(--qs-raised) !important;
+    --newtab-wordmark-color: var(--qs-text) !important;
+    --newtab-overlay-color: color-mix(in srgb, var(--qs-panel) 85%, transparent) !important;
+    --background-color-canvas: var(--qs-panel) !important;
+    --text-color: var(--qs-text) !important;
+    --border-radius-large: 0 !important;
+    --border-radius-medium: 0 !important;
+    --border-radius-small: 0 !important;
+    --focus-outline-color: var(--qs-light) !important;
+  }
+  body, input, button {
+    font-family: var(--qs-mono), var(--qs-cjk), monospace !important;
+  }
+  body {
+    background-color: var(--qs-panel) !important;
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--qs-text) 4%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--qs-text) 4%, transparent) 1px, transparent 1px) !important;
+    background-size: 24px 24px !important;
+  }
+
+  /* the wordmark gives way to the system's voice: a diamond, the label, a hairline */
+  .logo-and-wordmark { flex-direction: column !important; align-items: center !important; gap: 12px; }
+  .logo-and-wordmark > * { display: none !important; }
+  .logo-and-wordmark::before {
+    content: "";
+    width: 11px; height: 11px;
+    transform: rotate(45deg);
+    border: 1px solid var(--qs-light);
+    animation: qs-dia-in 600ms cubic-bezier(.2, 1.6, .4, 1) both;
+  }
+  .logo-and-wordmark::after {
+    content: "N E W   T A B";
+    font-size: 15px;
+    letter-spacing: .3em;
+    color: var(--qs-light);
+    padding-bottom: 10px;
+    border-bottom: 1px solid color-mix(in srgb, var(--qs-light) 40%, transparent);
+    min-width: 260px;
+    text-align: center;
+    animation: qs-fade-in 700ms 120ms ease both;
+  }
+
+  /* the search field is operated: paper, ink text, the accent edge */
+  .search-handoff-button, .search-wrapper input {
+    background-color: var(--qs-paper) !important;
+    color: var(--qs-ink) !important;
+    border: 1px solid var(--qs-ink) !important;
+    border-radius: 0 !important;
+    box-shadow: inset 3px 0 0 var(--qs-accent), 0 0 0 4px color-mix(in srgb, var(--qs-paper) 18%, transparent) !important;
+  }
+  .search-handoff-button .fake-textbox, .search-wrapper input::placeholder { color: var(--qs-ink-soft) !important; }
+
+  /* the shortcuts: cells with hairline edges, a light block under the pointer */
+  .top-site-outer .tile {
+    border-radius: 0 !important;
+    background-color: var(--qs-raised) !important;
+    box-shadow: inset 0 0 0 1px var(--qs-line) !important;
+    transition: transform 160ms cubic-bezier(.2, 1.4, .4, 1), background-color 120ms ease !important;
+  }
+  .top-site-outer:is(:hover, :focus-within) .tile {
+    background-color: var(--qs-light) !important;
+    box-shadow: inset 3px 0 0 var(--qs-accent) !important;
+    transform: scale(1.06);
+  }
+  .top-site-outer .tile .icon-wrapper, .top-site-outer .top-site-icon { border-radius: 0 !important; }
+  .top-site-outer .title { color: var(--qs-muted) !important; letter-spacing: .04em; }
+  .top-site-outer:hover .title { color: var(--qs-text) !important; }
+
+  @keyframes qs-dia-in { from { transform: rotate(45deg) scale(0); opacity: 0; } }
+  @keyframes qs-fade-in { from { opacity: 0; letter-spacing: .5em; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+}
+
+/* ── about: pages (settings, add-ons, downloads…): the theme's ink and the font pair ── */
+@-moz-document url-prefix("about:preferences"), url-prefix("about:addons"), url-prefix("about:downloads"),
+               url-prefix("about:config"), url-prefix("about:profiles"), url-prefix("about:support") {
+  :root {
+    color-scheme: var(--qs-scheme) !important;
+    --background-color-canvas: var(--qs-panel) !important;
+    --background-color-box: var(--qs-raised) !important;
+    --text-color: var(--qs-text) !important;
+    --text-color-deemphasized: var(--qs-muted) !important;
+    --color-accent-primary: var(--qs-light) !important;
+    --color-accent-primary-hover: var(--qs-light) !important;
+    --color-accent-primary-active: var(--qs-light) !important;
+    --button-text-color-primary: var(--qs-on-light) !important;
+    --border-color: var(--qs-line) !important;
+    --border-color-card: var(--qs-line) !important;
+    --focus-outline-color: var(--qs-light) !important;
+    --border-radius-small: 0 !important;
+    --border-radius-medium: 0 !important;
+    --border-radius-large: 0 !important;
+  }
+  body {
+    background-color: var(--qs-panel) !important;
+    font-family: var(--qs-mono), var(--qs-cjk), monospace !important;
+  }
+}

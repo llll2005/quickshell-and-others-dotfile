@@ -1,0 +1,218 @@
+@import url("qs-theme.css");
+/* userChrome.css — Firefox's own UI in the shell's design language (quickshell/CLAUDE.md,
+   "Design language"). Symlinked into the profile's chrome/ by scripts/theme-sync.py, which
+   writes the colours and the font pair beside it (qs-theme.css); Firefox reads both at start.
+     Ink   — what stays: the tab strip, the toolbar, the sidebar (the HUD's dark panel)
+     Paper — what you operate: the address bar while it's open, menus, panels (the launcher's
+             card: ink text, the grid, diamond corners, the picked row an ink block with the
+             accent edge)
+   Copied into the profile by theme-sync (edit this one, then run scripts/theme-sync.py).
+   Effects: the picked tab springs in under a ◆; a loading tab spins a diamond and a hairline
+   grows under the toolbar (the boot's progress line); menus and panels open with a wipe.
+   Firefox's own variables first (they survive releases), structure only where needed. */
+
+/* ── the type: the system's pair, everywhere in the chrome ── */
+:root, menupopup, panel, tooltip, .tabbrowser-tab, #urlbar, .urlbarView {
+  font-family: var(--qs-mono), var(--qs-cjk), monospace !important;
+}
+
+/* ── Ink: tab strip and toolbar ── */
+:root {
+  --toolbox-background-color: var(--qs-panel) !important;
+  --toolbox-background-color-inactive: var(--qs-panel) !important;
+  --toolbox-text-color: var(--qs-text) !important;
+  --toolbox-text-color-inactive: var(--qs-muted) !important;
+  --toolbox-background-image: none !important;
+  --toolbar-background-color: var(--qs-panel) !important;
+  --toolbar-text-color: var(--qs-text) !important;
+  --toolbar-color-scheme: var(--qs-scheme) !important;
+  --toolbarbutton-icon-fill: var(--qs-text) !important;
+  --toolbarbutton-background-color-hover: var(--qs-raised) !important;
+  --toolbarbutton-background-color-active: var(--qs-sel) !important;
+  --toolbarbutton-border-radius: 0 !important;
+  --toolbarseparator-color: var(--qs-line) !important;
+  --tabs-navbar-separator-color: var(--qs-line) !important;
+  --chrome-content-separator-color: var(--qs-line) !important;
+  --lwt-accent-color: var(--qs-panel) !important;
+  --lwt-accent-color-inactive: var(--qs-panel) !important;
+  --lwt-text-color: var(--qs-text) !important;
+  --focus-outline-color: var(--qs-light) !important;
+
+  --tab-border-radius: 0 !important;
+  --tab-background-color: transparent !important;
+  --tab-background-color-hover: var(--qs-raised) !important;
+  --tab-background-color-selected: var(--qs-light) !important;
+  --tab-border-color-selected: transparent !important;
+  --tab-box-shadow-selected: inset 3px 0 0 var(--qs-accent) !important;
+  --tab-text-color: var(--qs-muted) !important;
+  --tab-text-color-hover: var(--qs-text) !important;
+  --tab-text-color-selected: var(--qs-on-light) !important;
+  --tab-selected-color-scheme: var(--qs-on-light-scheme) !important;
+  --tab-loading-fill: var(--qs-light) !important;
+
+  --toolbar-field-background-color: var(--qs-raised) !important;
+  --toolbar-field-text-color: var(--qs-text) !important;
+  --toolbar-field-border-color: var(--qs-line) !important;
+  /* the address bar turns to paper while it's being used */
+  --toolbar-field-background-color-focus: var(--qs-paper) !important;
+  --toolbar-field-text-color-focus: var(--qs-ink) !important;
+  --toolbar-field-border-color-focus: var(--qs-ink) !important;
+  --urlbar-background-color: var(--qs-raised) !important;
+  --urlbar-background-color-focus: var(--qs-paper) !important;
+  --urlbar-background-border-radius: 0 !important;
+  --urlbarview-border-radius: 0 !important;
+  --urlbarview-background-color-selected: var(--qs-ink-strong) !important;
+  --urlbarview-text-color-selected: var(--qs-paper) !important;
+  --urlbar-box-background-color-hover: color-mix(in srgb, var(--qs-ink) 12%, transparent) !important;
+
+  --sidebar-background-color: var(--qs-panel) !important;
+  --sidebar-text-color: var(--qs-text) !important;
+  --sidebar-border-color: var(--qs-line) !important;
+  --tabpanel-background-color: var(--qs-panel) !important;
+}
+/* an image theme left active paints over the toolbox: take it away */
+:root[lwtheme] #navigator-toolbox { background-image: none !important; }
+#navigator-toolbox { border-bottom: 1px solid var(--qs-line) !important; }
+
+/* ── tabs: the picked one a light block with the accent edge, under a ◆ ── */
+.tab-background { margin-block: 3px !important; }
+.tab-background:is([selected], [multiselected]) {
+  transform-origin: left center;
+  animation: qs-tab-in 380ms cubic-bezier(.2, 1.5, .4, 1);
+}
+.tabbrowser-tab:is([selected], [visuallyselected]) .tab-label {
+  font-weight: 600 !important;
+}
+.tabbrowser-tab:is([selected], [visuallyselected]):not([pinned]) .tab-content::before {
+  content: "";
+  flex: none;
+  width: 6px; height: 6px;
+  margin-inline: 1px 9px;
+  transform: rotate(45deg);
+  background: var(--qs-on-light);
+  animation: qs-dia-pop 300ms cubic-bezier(.2, 1.8, .4, 1);
+}
+.tabbrowser-tab:not([selected], [visuallyselected]) .tab-content { opacity: .9; }
+@keyframes qs-tab-in { from { transform: scaleX(.72); opacity: .4; } }
+@keyframes qs-dia-pop { from { transform: rotate(45deg) scale(0); } 60% { transform: rotate(45deg) scale(1.5); } }
+
+/* a loading tab: a diamond turning where the throbber was */
+:root[sessionrestored] .tab-throbber[busy]::before {
+  background-image: none !important;
+  animation: qs-spin 1.1s cubic-bezier(.6, 0, .4, 1) infinite !important;
+  width: 8px !important; height: 8px !important;
+  inset: 4px !important;
+  border: 1px solid var(--qs-muted);
+  transform: rotate(45deg);
+}
+:root[sessionrestored] .tab-throbber[progress]::before { border-color: currentColor; background: var(--qs-accent) !important; }
+@keyframes qs-spin { from { transform: rotate(45deg); } to { transform: rotate(405deg); } }
+
+/* the page's progress: a hairline under the toolbar, growing while the picked tab loads */
+#nav-bar::after {
+  content: "";
+  position: absolute;
+  left: 0; bottom: -1px;
+  height: 1px; width: 100%;
+  background: var(--qs-light);
+  transform-origin: left center;
+  transform: scaleX(0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 500ms ease, transform 300ms ease;
+}
+:root:has(.tabbrowser-tab[selected][busy]) #nav-bar::after {
+  opacity: 1;
+  animation: qs-hairline 6s cubic-bezier(.1, .7, .2, 1) forwards;
+}
+:root:has(.tabbrowser-tab[selected][progress]) #nav-bar::after { background: var(--qs-light); }
+@keyframes qs-hairline { from { transform: scaleX(0); } to { transform: scaleX(.92); } }
+
+/* ── the address bar: square, like every card; paper while it's open ── */
+#urlbar, .urlbar, #searchbar {
+  --urlbar-border-radius: 0px !important;
+  --urlbar-inner-border-radius: 0px !important;
+  --urlbar-background-border-radius: 0px !important;
+  --urlbarview-border-radius: 0px !important;
+  --urlbar-background-border-top-radius-open: 0px !important;
+}
+.urlbar:is([focused], [open]) > .urlbar-background,
+.urlbarView-background {
+  background-image:
+    linear-gradient(var(--qs-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--qs-grid) 1px, transparent 1px) !important;
+  background-size: 16px 16px !important;
+}
+.urlbar[open] .urlbarView:popover-open { animation: qs-wipe 220ms cubic-bezier(.16, 1, .3, 1); }
+.urlbarView-row { border-radius: 0 !important; }
+.urlbarView-row[selected] { box-shadow: inset 3px 0 0 var(--qs-accent) !important; }
+.urlbarView-row[selected] .urlbarView-title::before { content: "◆  "; }
+
+/* ── Paper: menus, context menus, panels ── */
+menupopup, panel {
+  --panel-background-color: var(--qs-paper) !important;
+  --panel-text-color: var(--qs-ink) !important;
+  --panel-border-color: var(--qs-ink) !important;
+  --panel-border-radius: 0 !important;
+  --panel-separator-color: color-mix(in srgb, var(--qs-ink) 25%, transparent) !important;
+  --panel-icon-fill: var(--qs-ink) !important;
+  --menuitem-border-radius: 0 !important;
+  --panel-menuitem-border-radius: 0 !important;
+  --text-color-disabled: var(--qs-ink-soft) !important;
+  color-scheme: var(--qs-paper-scheme) !important;
+}
+/* panels draw their pages (panelview) over the content box: let the card show through */
+panel panelview, panel .panel-subview-body, panel .panel-header { background: transparent !important; }
+#appMenu-fxa-label2, #appMenu-fxa-sign-in-promo, .panel-banner-item, #fxa-manage-account-button {
+  background-color: color-mix(in srgb, var(--qs-ink) 8%, transparent) !important;
+  color: var(--qs-ink) !important;
+  border-radius: 0 !important;
+}
+#appMenu-fxa-sign-in-promo button, #appMenu-fxa-sign-in-promo moz-button {
+  --button-background-color-primary: var(--qs-ink-strong) !important;
+  --button-text-color-primary: var(--qs-paper) !important;
+  --button-border-radius: 0 !important;
+}
+/* (a user sheet reaches into shadow trees directly — ::part() doesn't match from here:
+   a menu's box is its .menupopup-arrowscrollbox, a panel's its content slot) */
+.menupopup-arrowscrollbox, slot[part~="content"] {
+  background-image:
+    var(--qs-dia), var(--qs-dia), var(--qs-dia), var(--qs-dia),
+    linear-gradient(var(--qs-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--qs-grid) 1px, transparent 1px) !important;
+  background-position: left 2px top 2px, right 2px top 2px, left 2px bottom 2px, right 2px bottom 2px, 0 0, 0 0 !important;
+  background-size: 7px 7px, 7px 7px, 7px 7px, 7px 7px, 16px 16px, 16px 16px !important;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat !important;
+  outline: 1px solid color-mix(in srgb, var(--qs-ink) 30%, transparent);
+  outline-offset: -4px;
+  animation: qs-wipe 200ms cubic-bezier(.16, 1, .3, 1);
+}
+/* the picked row: an ink block, the accent edge */
+menupopup > :is(menuitem, menu):where([_moz-menuactive]:not([disabled])),
+menupopup menu[_moz-menuactive]:not([disabled]) {
+  color: var(--qs-paper) !important;
+  background-color: var(--qs-ink-strong) !important;
+  box-shadow: inset 3px 0 0 var(--qs-accent) !important;
+  animation: qs-row 160ms cubic-bezier(.2, 1.4, .4, 1);
+}
+panel :is(.subviewbutton, toolbarbutton):not([disabled]):hover {
+  color: var(--qs-paper) !important;
+  background-color: var(--qs-ink-strong) !important;
+  box-shadow: inset 3px 0 0 var(--qs-accent) !important;
+}
+menuseparator, toolbarseparator { border-color: color-mix(in srgb, var(--qs-ink) 25%, transparent) !important; }
+@keyframes qs-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes qs-row { from { transform: scaleX(.94); transform-origin: left center; } }
+
+/* tooltips: ink, like the nav bars */
+tooltip {
+  appearance: none !important;
+  background: var(--qs-ink-strong) !important;
+  color: var(--qs-paper) !important;
+  border: 1px solid color-mix(in srgb, var(--qs-paper) 30%, transparent) !important;
+  border-radius: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; }
+}
