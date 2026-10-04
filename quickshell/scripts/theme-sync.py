@@ -1032,11 +1032,14 @@ def sync_firefox(r, on, shell):
     return changed
 
 
-def sync_terminal(r, on, name, shell=None, glass='mac'):
+def sync_terminal(r, on, name, shell=None, glass='mac', light_bg='theme'):
     """kitty follows the theme only while [sync] terminal is on; the tools always get a palette
     (the theme's, or nier's when off) so the prompt and colours never go missing."""
     changed = []
-    p = term_palette(r if on else resolve({}))
+    src = r if on else resolve({})
+    if light_bg == 'white' and oklch(src['panel'])[0] >= 0.5:
+        src = dict(src, panel='#ffffff')    # [terminal] lightBg = white: a white page, the theme's inks
+    p = term_palette(src)
     p['opacity'] = theme_blur(r if on else resolve({}), glass)['opacity']   # kitty on the glass
     tag = name if on else 'nier (sync off)'
     kitty = kitty_conf(p, name) if on else '# [sync] terminal = false: kitty keeps the colours in kitty.conf\n'
@@ -1081,7 +1084,8 @@ def main():
         done.append('hyprland')
     if sync_hyprlock(r, name, shell):
         done.append('hyprlock')
-    done += sync_terminal(r, shell.get('sync.terminal', True) is not False, name, shell, glass)
+    done += sync_terminal(r, shell.get('sync.terminal', True) is not False, name, shell, glass,
+                          str(shell.get('terminal.lightBg') or 'theme'))
     if write_if_changed(FONTCONFIG_QS, fontconfig_conf(shell, r)):
         done.append('fontconfig')
     if sync_firefox(r, shell.get('sync.firefox', True) is not False, shell):

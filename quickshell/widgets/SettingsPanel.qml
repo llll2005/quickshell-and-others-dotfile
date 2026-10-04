@@ -141,6 +141,7 @@ Popup {
         look: [
             { type: "choice", key: "general.theme", def: "nier", options: root.themeNames, preview: "theme", label: "主題", desc: "整個 shell 的配色；fcitx5、視窗邊框、終端機也會跟著換（見下方）。↵ 打開時，選到哪個主題整個桌面就先換成那樣。" },
             { type: "num", key: "font.size", def: 0, min: -2, max: 6, step: 1, preview: "size", signed: true, label: "全域字級", desc: "虛空以外所有文字的大小，一級 ×1.09（11 px 大約多 1 px）。虛空（鎖屏、授權、關機）有自己的字級。" },
+            { type: "choice", key: "terminal.lightBg", def: "theme", options: ["theme", "white"], label: "淺色主題的 kitty 底色", desc: "theme 用主題的淺色當底；white 改成白底，文字與各色仍跟著主題。深色主題不受影響。" },
             { type: "choice", key: "terminal.glass", def: "mac", options: ["mac", "frost"], label: "淺色主題的玻璃", desc: "淺色主題時 kitty 與半透明視窗後面的模糊：mac 像 macOS，透出桌布的顏色；frost 是霧白的磨砂紙。深色主題一律壓暗。" },
             { type: "num", key: "terminal.fontSize", def: 13, min: 8, max: 24, step: 0.5, unit: "pt", preview: "kitty", label: "kitty 字級", desc: "kitty 自己的字級，不跟全域字級連動。開著的終端機會即時重排；Ctrl+Backspace 回到這個大小。" },
             { type: "choice", key: "font.mono", def: "Operator Mono", options: root.monoFonts, fonts: "mono", preview: "font", label: "系統字型", desc: "標籤、數字與內文的等寬字（只列已安裝的）；kitty 也會換成這套。" },
