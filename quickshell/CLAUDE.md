@@ -335,6 +335,7 @@ Two geometry rules the input mask depends on:
   - `nier` (default), `yorha-noir`;
   - requested: `lilac` 粉紫, `mono` 黑灰白, `crimson` 紅黑白, `jirai` 地雷系, `jirai-light` 淺色地雷系 (the only light HUD), `aha` 阿哈 (crimson/ivory/gold, from the Honkai: Star Rail card);
   - suggested: `matcha`, `abyss`, `amber`.
+  - macOS-style: `mac-light`, `mac-dark` (system blue), `mac-lightpink`, `mac-darkpink` (system pink) — macOS's surfaces and labels, the HUD's `active` one step deeper than the system colour so white text on it reads.
 
   A theme lists only the keys it changes; the rest fall back to the defaults in Theme.qml.
 - **`settings/Config.qml`** (singleton) parses both, INI style:
