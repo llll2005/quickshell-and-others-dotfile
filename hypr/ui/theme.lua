@@ -68,9 +68,10 @@ hl.config({
 			-- cutting these down.
 			size = 8,
 			passes = 3,
-			vibrancy = 0.28,
-			contrast = 1.05,
-			brightness = 0.92,
+			-- theme-sync sets these by the theme's lightness (dim for dark, frost for light)
+			vibrancy = QS and QS.blur and QS.blur.vibrancy or 0.28,
+			contrast = QS and QS.blur and QS.blur.contrast or 1.05,
+			brightness = QS and QS.blur and QS.blur.brightness or 0.92,
 		},
 		motion_blur = {
 			enabled = false,

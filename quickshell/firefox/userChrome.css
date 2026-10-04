@@ -94,13 +94,13 @@
 #navigator-toolbox::before {
   height: calc(100% + 120px);
   background: var(--qs-float-a) repeat 0 0 / 240px 120px;
-  animation: qs-rise-a 26s linear infinite;
+  animation: qs-rise-a 9s linear infinite;
 }
 #navigator-toolbox::after {
   height: calc(100% + 150px);
   background: var(--qs-float-b) repeat 70px 0 / 300px 150px;
   opacity: .6;
-  animation: qs-rise-b 44s linear infinite;
+  animation: qs-rise-b 16s linear infinite;
 }
 /* the fades: over the squares (z -1), under the tabs and buttons */
 #TabsToolbar, #nav-bar { position: relative; }
