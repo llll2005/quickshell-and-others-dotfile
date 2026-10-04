@@ -74,6 +74,52 @@
 :root[lwtheme] #navigator-toolbox { background-image: none !important; }
 #navigator-toolbox { border-bottom: 1px solid var(--qs-line) !important; }
 
+/* ── the strip's life: hairline squares drifting up behind the tabs and the toolbar ──
+   Two layers at two speeds (the patterns come from qs-theme.css, in the theme's light
+   colour). They move by transform only — the compositor's work, no repaint — and stop
+   while the window is in the background. A gradient over them lets the squares rise out
+   of the toolbar and fade before the top edge. */
+#navigator-toolbox { position: relative; isolation: isolate; overflow: clip; }
+
+#navigator-toolbox > toolbar { background-color: transparent !important; background-image: none !important; }
+#navigator-toolbox::before, #navigator-toolbox::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: -2;
+  will-change: transform;
+}
+#navigator-toolbox::before {
+  height: calc(100% + 120px);
+  background: var(--qs-float-a) repeat 0 0 / 240px 120px;
+  animation: qs-rise-a 26s linear infinite;
+}
+#navigator-toolbox::after {
+  height: calc(100% + 150px);
+  background: var(--qs-float-b) repeat 70px 0 / 300px 150px;
+  opacity: .6;
+  animation: qs-rise-b 44s linear infinite;
+}
+/* the fades: over the squares (z -1), under the tabs and buttons */
+#TabsToolbar, #nav-bar { position: relative; }
+#TabsToolbar::before, #nav-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+#TabsToolbar::before { background: linear-gradient(to bottom, var(--qs-panel) 0, transparent 85%); }
+#nav-bar::before { background: linear-gradient(to bottom, transparent 30%, color-mix(in srgb, var(--qs-panel) 80%, transparent) 100%); }
+@keyframes qs-rise-a { to { transform: translateY(-120px); } }
+@keyframes qs-rise-b { to { transform: translateY(-150px); } }
+:root:-moz-window-inactive #navigator-toolbox::before,
+:root:-moz-window-inactive #navigator-toolbox::after,
+:root[inDOMFullscreen] #navigator-toolbox::before,
+:root[inDOMFullscreen] #navigator-toolbox::after { animation-play-state: paused; }
+
 /* ── tabs: the picked one a light block with the accent edge, under a ◆ ── */
 .tab-background { margin-block: 3px !important; }
 .tab-background:is([selected], [multiselected]) {
