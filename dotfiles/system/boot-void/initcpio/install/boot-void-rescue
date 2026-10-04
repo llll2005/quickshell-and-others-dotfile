@@ -15,10 +15,17 @@ build() {
     local uuid dev
     uuid=$(findmnt -n -o UUID /)
     dev=/dev/disk/by-uuid/${uuid:-<root uuid>}
+    # the Void's colours, as console-void.service sets them on the real system
+    local vt=
+    if [ -f /usr/local/lib/boot-void/void.vtrgb ] && command -v setvtrgb >/dev/null; then
+        add_binary setvtrgb
+        add_file /usr/local/lib/boot-void/void.vtrgb /etc/boot-void.vtrgb 0644
+        vt='ExecStartPre=-/usr/bin/setvtrgb /etc/boot-void.vtrgb\n'
+    fi
     # the note: printed by emergency.service itself, above "Press Enter" (sulogin's
     # busybox shell reads no profile)
     # (the service resets the tty as the shell starts: give the note a moment to go out)
-    printf '[Service]\nExecStartPre=-/usr/bin/busybox sh -c "cat /etc/boot-void-note; sleep 1"\n' |
+    printf "[Service]\n${vt}ExecStartPre=-/usr/bin/busybox sh -c \"cat /etc/boot-void-note; sleep 1\"\n" |
         add_file - /etc/systemd/system/emergency.service.d/boot-void-note.conf 0644
     cat <<PROFILE | add_file - /etc/boot-void-note 0644
 

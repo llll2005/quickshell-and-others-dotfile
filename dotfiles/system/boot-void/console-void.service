@@ -1,0 +1,13 @@
+[Unit]
+Description=The text console's colours in the Void (dotfiles/system/boot-void)
+DefaultDependencies=no
+After=systemd-vconsole-setup.service
+Before=sysinit.target getty.target rescue.service emergency.service
+ConditionPathExists=/usr/local/lib/boot-void/void.vtrgb
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/setvtrgb /usr/local/lib/boot-void/void.vtrgb
+
+[Install]
+WantedBy=sysinit.target

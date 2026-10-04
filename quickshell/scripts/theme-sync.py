@@ -20,6 +20,12 @@
               bat    ~/.config/bat/themes/qs.tmTheme (+ `bat cache --build`), which delta uses
               delta  ~/.config/git/qs-delta.gitconfig (included by ~/.gitconfig)
               atuin  ~/.config/atuin/themes/qs.toml
+              yazi   ~/.config/yazi/theme.toml
+              btop   ~/.config/btop/themes/qs.theme (btop.conf's color_theme = "qs")
+              lazygit ~/.config/lazygit/qs-theme.yml (LG_CONFIG_FILE, set in qs-theme.zsh)
+  fonts     ~/.config/fontconfig/conf.d/60-quickshell.conf: the Quickshell process's fallback
+            chain from `[font] mono` / `cjk` (written whatever [sync] says; a running qs sees
+            it after a restart)
 
     theme-sync.py [theme]        default: `[general] theme` from config/shell.conf
 
@@ -49,6 +55,10 @@ ZSH_QS = os.path.expanduser('~/.config/zsh/qs-theme.zsh')
 BAT_QS = os.path.expanduser('~/.config/bat/themes/qs.tmTheme')
 DELTA_QS = os.path.expanduser('~/.config/git/qs-delta.gitconfig')
 ATUIN_QS = os.path.expanduser('~/.config/atuin/themes/qs.toml')
+YAZI_QS = os.path.expanduser('~/.config/yazi/theme.toml')
+BTOP_QS = os.path.expanduser('~/.config/btop/themes/qs.theme')
+LAZYGIT_QS = os.path.expanduser('~/.config/lazygit/qs-theme.yml')
+FONTCONFIG_QS = os.path.expanduser('~/.config/fontconfig/conf.d/60-quickshell.conf')
 HEX = re.compile(r'^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$')
 
 
@@ -572,6 +582,7 @@ def zsh_conf(p, name):
            'export LS_COLORS=' + _q(ls_colors(p)),
            'export GREP_COLORS=' + _q(grep),
            'export BAT_THEME=qs',
+           'export LG_CONFIG_FILE=' + _q(os.path.expanduser('~/.config/lazygit/config.yml') + ',' + LAZYGIT_QS),
            'QS_FZF_COLORS=' + _q(fzf),
            'ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE=' + _q('fg=' + p['suggest']),
            'typeset -gA QS_FSH',
@@ -655,21 +666,186 @@ def atuin_theme(p, name):
             '[theme]\nname = "qs"\n\n[colors]\n' % name + ''.join('%s = "%s"\n' % kv for kv in rows))
 
 
+def yazi_theme(p, name):
+    """yazi in the shell's terms: the mode and tab chips are blocks in the light colour with
+    the background's text (the HUD's picked item), borders hairlines, the hovered row the
+    selection colour, code previews through bat's qs theme"""
+    s = lambda **kw: '{ ' + ', '.join('%s = %s' % (k, ('"%s"' % v) if isinstance(v, str) else str(v).lower())
+                                     for k, v in kw.items()) + ' }'
+    chip = lambda c: (s(fg=p['bg'], bg=c, bold=True), s(fg=c, bg=p['raised']))
+    nm, na = chip(p['light'])
+    sm, sa = chip(p['red'])
+    um, ua = chip(p['br_red'])
+    rows = [
+        '[mgr]',
+        'cwd = ' + s(fg=p['light']),
+        'find_keyword  = ' + s(fg=p['br_yellow'], bold=True, underline=True),
+        'find_position = ' + s(fg=p['magenta'], bg='reset', bold=True),
+        'marker_copied   = ' + s(fg=p['green'], bg=p['green']),
+        'marker_cut      = ' + s(fg=p['red'], bg=p['red']),
+        'marker_marked   = ' + s(fg=p['cyan'], bg=p['cyan']),
+        'marker_selected = ' + s(fg=p['light'], bg=p['light']),
+        'count_copied   = ' + s(fg=p['bg'], bg=p['green']),
+        'count_cut      = ' + s(fg=p['bg'], bg=p['red']),
+        'count_selected = ' + s(fg=p['bg'], bg=p['light']),
+        'border_symbol = "│"',
+        'border_style  = ' + s(fg=p['line']),
+        'syntect_theme = "%s"' % BAT_QS,
+        '',
+        '[tabs]',
+        'active   = ' + nm,
+        'inactive = ' + s(fg=p['muted'], bg=p['raised']),
+        '',
+        '[mode]',
+        'normal_main = ' + nm, 'normal_alt  = ' + na,
+        'select_main = ' + sm, 'select_alt  = ' + sa,
+        'unset_main  = ' + um, 'unset_alt   = ' + ua,
+        '',
+        '[indicator]',
+        'parent  = ' + s(fg=p['fg'], bg=p['raised']),
+        'current = ' + s(fg=p['fg'], bg=p['sel'], bold=True),
+        'preview = ' + s(underline=True),
+        '',
+        '[status]',
+        'perm_sep   = ' + s(fg=p['line']),
+        'perm_type  = ' + s(fg=p['light']),
+        'perm_read  = ' + s(fg=p['yellow']),
+        'perm_write = ' + s(fg=p['red']),
+        'perm_exec  = ' + s(fg=p['green']),
+        'progress_label  = ' + s(fg=p['fg'], bold=True),
+        'progress_normal = ' + s(fg=p['light'], bg=p['raised']),
+        'progress_error  = ' + s(fg=p['br_red'], bg=p['raised']),
+        '',
+        '[which]',
+        'border = ' + s(fg=p['line']),
+        'cand   = ' + s(fg=p['light']),
+        'rest   = ' + s(fg=p['muted']),
+        'desc   = ' + s(fg=p['fg']),
+        'separator_style = ' + s(fg=p['line']),
+    ]
+    for sec in ('confirm', 'spot', 'pick', 'input', 'cmp', 'tasks', 'help'):
+        rows += ['', '[%s]' % sec, 'border = ' + s(fg=p['line'])]
+        if sec in ('confirm', 'spot', 'input', 'tasks'):
+            rows.append('title  = ' + s(fg=p['light'], bold=True))
+        if sec in ('pick', 'cmp'):
+            rows.append('active = ' + s(fg=p['bg'], bg=p['light'], bold=True))
+        if sec in ('tasks', 'help'):
+            rows.append('hovered = ' + s(fg=p['bg'], bg=p['light'], bold=True))
+        if sec == 'confirm':
+            rows.append('btn_yes = ' + s(fg=p['bg'], bg=p['light'], bold=True))
+        if sec == 'spot':
+            rows += ['tbl_col  = ' + s(fg=p['muted']), 'tbl_cell = ' + s(fg=p['bg'], bg=p['light'])]
+        if sec == 'help':
+            rows.append('chord   = ' + s(fg=p['light']))
+    rows += ['', '[notify]',
+             'title_info  = ' + s(fg=p['light']),
+             'title_warn  = ' + s(fg=p['yellow']),
+             'title_error = ' + s(fg=p['red']),
+             '', '[filetype]', 'rules = [']
+    # the same families as LS_COLORS (ls_colors), so yazi and ls agree
+    rules = [('mime = "**/image/*"', p['magenta']),
+             ('mime = "**/{audio,video}/*"', p['br_magenta']),
+             ('mime = "**/application/{zip,rar,7z*,tar,gzip,xz,zstd,bzip*,lzma,compress,archive,cpio,arj,xar,ms-cab*}"', p['red']),
+             ('mime = "**/application/{pdf,doc,rtf,epub*}"', p['yellow']),
+             ('mime = "vfs/{absent,stale}"', p['muted'])]
+    rows += ['\t{ %s, fg = "%s" },' % rule for rule in rules]
+    rows += ['\t{ url = "*", is = "orphan", fg = "%s", bg = "%s" },' % (p['red'], p['raised']),
+             '\t{ url = "*", is = "exec", fg = "%s" },' % p['br_green'],
+             '\t{ url = "*", is = "link", fg = "%s" },' % p['cyan'],
+             '\t{ url = "*", is = "dummy", fg = "%s", bg = "%s" },' % (p['red'], p['raised']),
+             '\t{ url = "*/", is = "dummy", fg = "%s", bg = "%s" },' % (p['red'], p['raised']),
+             '\t{ url = "*/", fg = "%s", bold = true },' % p['br_blue'],
+             ']']
+    return ('# Generated by ~/.config/quickshell/scripts/theme-sync.py (theme: %s) — never edit by hand;\n'
+            '# yazi reads it at start (open yazis keep the old colours).\n\n' % name + '\n'.join(rows) + '\n')
+
+
+def btop_theme(p, name):
+    """btop: boxes in hairlines, the light colour for titles and the picked row, graphs
+    ramping from the quiet colour to the warning one"""
+    ramp = lambda a, b: (a, mix(a, b, 0.5), b)
+    keys = {'main_bg': p['bg'], 'main_fg': p['fg'], 'title': p['light'], 'hi_fg': p['light'],
+            'selected_bg': p['sel'], 'selected_fg': p['fg'], 'inactive_fg': p['muted'],
+            'graph_text': p['white'], 'meter_bg': p['raised'], 'proc_misc': p['light'],
+            'cpu_box': p['line'], 'mem_box': p['line'], 'net_box': p['line'], 'proc_box': p['line'],
+            'div_line': p['line']}
+    for k, (a, b) in (('temp', (p['green'], p['br_red'])), ('cpu', (p['muted'], p['light'])),
+                      ('free', (p['raised'], p['green'])), ('cached', (p['raised'], p['cyan'])),
+                      ('available', (p['raised'], p['yellow'])), ('used', (p['muted'], p['br_red'])),
+                      ('download', (p['muted'], p['cyan'])), ('upload', (p['muted'], p['magenta'])),
+                      ('process', (p['light'], p['muted']))):
+        for part, c in zip(('start', 'mid', 'end'), ramp(a, b)):
+            keys['%s_%s' % (k, part)] = c
+    return ('# Generated by ~/.config/quickshell/scripts/theme-sync.py (theme: %s)\n' % name
+            + ''.join('theme[%s]="%s"\n' % kv for kv in keys.items()))
+
+
+def lazygit_theme(p, name):
+    """lazygit (LG_CONFIG_FILE adds this after config.yml): the focused panel in the light
+    colour, the rest hairlines, the picked line the selection colour"""
+    c = lambda *v: '[' + ', '.join('"%s"' % x for x in v) + ']'
+    rows = [('activeBorderColor', c(p['light'], 'bold')), ('inactiveBorderColor', c(p['line'])),
+            ('searchingActiveBorderColor', c(p['yellow'], 'bold')), ('optionsTextColor', c(p['muted'])),
+            ('selectedLineBgColor', c(p['sel'])), ('inactiveViewSelectedLineBgColor', c(p['raised'])),
+            ('cherryPickedCommitFgColor', c(p['bg'])), ('cherryPickedCommitBgColor', c(p['cyan'])),
+            ('markedBaseCommitFgColor', c(p['bg'])), ('markedBaseCommitBgColor', c(p['yellow'])),
+            ('unstagedChangesColor', c(p['red'])), ('defaultFgColor', c(p['fg']))]
+    return ('# Generated by ~/.config/quickshell/scripts/theme-sync.py (theme: %s) — read after\n'
+            '# config.yml (LG_CONFIG_FILE in ~/.config/zsh/qs-theme.zsh)\n'
+            'gui:\n  theme:\n' % name + ''.join('    %s: %s\n' % kv for kv in rows))
+
+
 # kitty's CJK: the ideographs, their punctuation, full-width forms and bopomofo
 KITTY_CJK = ('U+2E80-U+2FDF,U+3000-U+303F,U+3100-U+312F,U+31A0-U+31BF,U+3400-U+4DBF,'
              'U+4E00-U+9FFF,U+F900-U+FAFF,U+FE30-U+FE4F,U+FF00-U+FFEF')
 
 
+def font_pair(shell, r):
+    """shell.conf `[font] mono` / `cjk`, else the theme's, else the defaults (as Theme.qml)"""
+    return (str(shell.get('font.mono') or r['mono']).replace('"', ''),
+            str(shell.get('font.cjk') or r['cjk']).replace('"', ''))
+
+
+FONTCONFIG_TEMPLATE = """<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<!-- Generated by ~/.config/quickshell/scripts/theme-sync.py from shell.conf [font] mono / cjk.
+     The shell's type, for the Quickshell process only (prgname is the real executable,
+     "quickshell", also when started as qs), whose fallback chain becomes
+       the face asked for → %(mono)s → %(cjk)s → the system's
+     · text with no family set is the mono face; so are the glyphs a face lacks (fontconfig
+       tags any sans with a generic sans-serif, which is what the first rule tests)
+     · Chinese lands on the CJK face (Qt doesn't pair one on its own: Noto Sans CJK otherwise)
+     Other programs are untouched; a running qs reads it at its next start.
+     quickshell/CLAUDE.md "Design language" · Type. -->
+<fontconfig>
+  <match target="pattern">
+    <test name="prgname" compare="eq"><string>quickshell</string></test>
+    <test name="family" qual="any" compare="eq"><string>sans-serif</string></test>
+    <edit name="family" mode="prepend_first" binding="strong"><string>%(mono)s</string></edit>
+  </match>
+  <match target="pattern">
+    <test name="prgname" compare="eq"><string>quickshell</string></test>
+    <test name="family" qual="first" compare="not_eq"><string>-</string></test>
+    <edit name="family" mode="append" binding="strong"><string>%(cjk)s</string></edit>
+  </match>
+</fontconfig>
+"""
+
+
+def fontconfig_conf(shell, r):
+    from xml.sax.saxutils import escape
+    mono, cjk = (escape(f) for f in font_pair(shell, r))
+    return FONTCONFIG_TEMPLATE % {'mono': mono, 'cjk': cjk}
+
+
 def kitty_font(shell, r=None):
     """the system's font pair (shell.conf `[font] mono` / `cjk`, else the theme's, else the
     defaults — as Theme.qml reads them) and kitty's own size"""
-    r = r or resolve({})
-    mono = str(shell.get('font.mono') or r['mono'])
-    cjk = str(shell.get('font.cjk') or r['cjk'])
-    lines = ['# Generated by ~/.config/quickshell/scripts/theme-sync.py from shell.conf — included by',
+    mono, cjk = font_pair(shell, r or resolve({}))
+    lines =['# Generated by ~/.config/quickshell/scripts/theme-sync.py from shell.conf — included by',
              '# kitty.conf. The face and the Chinese are the system\'s ([font] mono / cjk); the',
              '# size is kitty\'s own ([terminal] fontSize, the settings panel\'s kitty 字級).',
-             'font_family      family="%s"' % mono.replace('"', ''),
+             'font_family      family="%s"' % mono,
              'bold_font        auto',
              'italic_font      auto',
              'bold_italic_font auto',
@@ -708,6 +884,10 @@ def sync_terminal(r, on, name, shell=None):
         changed.append('delta')
     if write_if_changed(ATUIN_QS, atuin_theme(p, tag)):
         changed.append('atuin')
+    for path, fn, label in ((YAZI_QS, yazi_theme, 'yazi'), (BTOP_QS, btop_theme, 'btop'),
+                            (LAZYGIT_QS, lazygit_theme, 'lazygit')):
+        if write_if_changed(path, fn(p, tag)):
+            changed.append(label)
     return changed
 
 
@@ -724,6 +904,8 @@ def main():
     if sync_hyprlock(r, name, shell):
         done.append('hyprlock')
     done += sync_terminal(r, shell.get('sync.terminal', True) is not False, name, shell)
+    if write_if_changed(FONTCONFIG_QS, fontconfig_conf(shell, r)):
+        done.append('fontconfig')
     print('theme-sync %s: %s' % (name, ', '.join(done) if done else 'up to date'))
 
 

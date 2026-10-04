@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A NieR:Automata-themed desktop shell built with [Quickshell](https://quickshell.hyprland.org/) for Hyprland/Wayland. All UI is QML; system data comes from Quickshell's native modules (Pipewire, MPRIS, UPower, NetworkManager, BlueZ, Hyprland IPC) wherever they exist, and from `Process`/`FileView` otherwise. `nierlock/` is a git submodule (xendak/nierlock, the F4 lockscreen).
+A NieR:Automata-themed desktop shell built with [Quickshell](https://quickshell.hyprland.org/) for Hyprland/Wayland. All UI is QML; system data comes from Quickshell's native modules (Pipewire, MPRIS, UPower, NetworkManager, BlueZ, Hyprland IPC) wherever they exist, and from `Process`/`FileView` otherwise.
 
 **Repository:** this folder is `quickshell/` of the dotfiles repo
 `git@github.com:llll2005/quickshell-and-others-dotfile.git`, together with `~/.config/hypr`
@@ -36,9 +36,6 @@ qs -p ~/.config/quickshell/lock.qml ipc call lockpreview type x   # · submit ·
 
 # The Hyprland plugin (hypr-plugin/imecaret): swap a fresh build into the running Hyprland
 make -C ~/.config/quickshell/hypr-plugin/imecaret reload
-
-# Run the nierlock variant directly
-QT_MEDIA_BACKEND=ffmpeg qs -p nierlock/shell.qml
 ```
 
 ## IPC commands
@@ -141,16 +138,19 @@ Two geometry rules the input mask depends on:
   (launcher, clipboard), and Alt works everywhere. Key-hint footers use the same words:
   `ALT 1–9`/`1–9 RUN`, `←→ <tab noun>`, `↑↓ SELECT`, `↵ <verb>`, `ESC CLOSE`.
 - **Words**: titles and labels in English caps (the system's voice), explanations in
-  Chinese. **Size**: every Paper / Ink text size goes through `Theme.fs(px)` — `[font] size`
-  steps of ×1.09 (the settings panel's 全域字級; kitty keeps its own `font_size` but follows the
-  face and the CJK font); never a bare
-  `font.pixelSize: N`. The Void keeps `voidStep()`. **Type**: one pair for the whole system, kitty included: `Theme.mono`
+  Chinese. **Size**: every Paper / Ink text size is a step of one type
+  scale, `Theme.ts(k)`: a minor third (×1.2) from 8 px — 0 caption (key hints, tags) ·
+  1 label · 2 body · 3 heading · 4 title · 5/6/8 display — times `[font] size` steps of ×1.09
+  (the settings panel's 全域字級; kitty keeps its own `font_size` but follows the face and the
+  CJK font). Never a bare `font.pixelSize: N` nor a new in-between size; `Theme.fs(px)` is
+  only for sizes that follow geometry and the watermark numerals (art, not type). The Void keeps `voidStep()`. **Type**: one pair for the whole system, kitty included: `Theme.mono`
   (`[font] mono` = Operator Mono) for system labels, numbers and body text, `Theme.cjk`
-  (`[font] cjk` = jf金萱那提2.0) for Chinese; a 5-step size scale (still to be settled).
+  (`[font] cjk` = jf金萱那提2.0) for Chinese.
   Never hardcode a family. Fontconfig does the pairing for the shell process only
-  (`~/.config/fontconfig/conf.d/60-quickshell.conf`, prgname `quickshell`): any face falls
-  back to Operator Mono, then 金萱 (Qt would pick Noto Sans CJK), and unset text is
-  Operator Mono. `20-operator-mono-weights.conf` corrects Operator's weights as they're
+  (`~/.config/fontconfig/conf.d/60-quickshell.conf`, prgname `quickshell`, written by
+  theme-sync from `[font] mono` / `cjk` — not in the repo; a running qs reads it at its next
+  start): any face falls back to the mono face, then the CJK one (Qt would pick Noto Sans
+  CJK), and unset text is the mono face. `20-operator-mono-weights.conf` corrects Operator's weights as they're
   scanned (its files say Book = 80, so "regular" got Bold; run `fc-cache -f` after a
   change). Operator Mono is commercial: it is not in the repo. The Void's voice is
   `Theme.voidFont` / `voidWeight` (`[font] void` = Josefin Sans Light here, installed in
@@ -191,13 +191,19 @@ Two geometry rules the input mask depends on:
   CP437, so ASCII only): *Rescue console* boots the real system into rescue.target with
   `void.rescue`, and `/etc/profile.d/boot-void-rescue.sh` opens `void-rescue` (roll back via
   CachyOS › Snapshots + `limine-snapper-restore`, rebuild boot, last boot's errors, network,
-  scrub, shell; voidbox cards, ASCII on a VT); *Emergency shell* lands in the initramfs's
+  scrub, shell; voidbox cards); *Emergency shell* lands in the initramfs's
   emergency.target, where the `boot-void-rescue` mkinitcpio hook (enabled by
   `/etc/mkinitcpio.conf.d/boot-void-rescue.conf`) adds btrfs / lsblk and prints a note with
   this root's commands from emergency.service (sulogin's busybox shell reads no profile).
   Both pass `SYSTEMD_SULOGIN_FORCE=1`: root is locked. Verified in QEMU with `-kernel` /
   `-initrd` and a serial socket; mkinitcpio won't read hooks from $HOME (copy them to /tmp
-  for `-D`). Limine (a black menu over a backdrop —
+  for `-D`). **The text console** (`--console`, also in `--update`): Operator Mono drawn
+  into a 12×24 PSF2 by `gen-art.py` (`/usr/share/kbd/consolefonts/void.psf`, vconsole.conf
+  `FONT=void`, carried into the initramfs by sd-vconsole; ≤ 256 glyphs or the console loses
+  its bright colours) and the Void's 16 colours (`console-void.service` runs setvtrgb at
+  sysinit; the emergency shell sets them too). voidbox and void-rescue draw ◆ ▸ ↑↓ on a VT
+  only when vconsole.conf says `FONT=void` — the kernel's font lacks them.
+  Limine (a black menu over a backdrop —
   diamond, SELECT SYSTEM, hairline, keys — in Operator Mono drawn into its 8×16 cells by
   `gen-art.py`; box drawing / arrows drawn so lines join, `term_font_spacing 0`; a too-big
   `term_margin` with the 2× font leaves too few rows and Limine silently falls back to the
@@ -349,7 +355,7 @@ Two geometry rules the input mask depends on:
 - **Theme sync — fcitx5 and Hyprland follow the theme:** `scripts/theme-sync.py [theme]`, run by `settings/ThemeManager.qml` (400 ms debounce) at start and whenever `Config.themeName`, the theme file or shell.conf changes (so `theme set` previews sync too). `[sync] fcitx5` / `hyprland` in shell.conf turn each off.
   - fcitx5: writes the classicui theme `~/.local/share/fcitx5/themes/quickshell/` (the nier SVGs recoloured: paper, ink, accent edge, light rim), points `classicui.conf` `Theme`/`DarkTheme` at it and calls `Controller1.ReloadAddonConfig classicui`. Off → back to the static `nier` theme. It only shows when the kimpanel bridge isn't running (`[ime] panel = false`, or the bridge died).
   - Hyprland: writes `~/.config/hypr/ui/qs_theme.lua` (from the theme's `[hyprland]` section: `border` = 2–3 colours, `borderAngle`, `shadow`, optional `inactive`; defaults `light, accent` / panel at 40 % / accent) and applies it live with `hyprctl eval 'hl.config({...})'`. `ui/theme.lua` `pcall(dofile)`s it on every config load, so it survives `hyprctl reload`; off → `{ enabled = false }` + `hyprctl reload config-only`, and theme.lua falls back to its own Holographic Y2K palette.
-  - The terminal (`[sync] terminal`): `term_palette()` derives 16 colours in OKLCH — the HUD's panel / text as background / foreground, and for each ANSI hue the theme's own colour nearest to it (warn → red, good → green, light → yellow…) or the plain hue nudged toward the accent, at one lightness for normal and one for bright, picked for the background — and writes `~/.config/kitty/qs-theme.conf` (kitty.conf includes it last; SIGUSR1 reloads every kitty), `~/.config/zsh/qs-theme.zsh` (the prompt's `QS`, LS_COLORS, GREP_COLORS, fzf colours, fast-syntax-highlighting styles; open shells re-read it at their next prompt), `~/.config/bat/themes/qs.tmTheme` (+ `bat cache --build`; delta uses it), `~/.config/git/qs-delta.gitconfig` (included by ~/.gitconfig) and `~/.config/atuin/themes/qs.toml`. Off → kitty's include is emptied (kitty.conf's own colours come back) and the tools get the nier palette.
+  - The terminal (`[sync] terminal`): `term_palette()` derives 16 colours in OKLCH — the HUD's panel / text as background / foreground, and for each ANSI hue the theme's own colour nearest to it (warn → red, good → green, light → yellow…) or the plain hue nudged toward the accent, at one lightness for normal and one for bright, picked for the background — and writes `~/.config/kitty/qs-theme.conf` (kitty.conf includes it last; SIGUSR1 reloads every kitty), `~/.config/zsh/qs-theme.zsh` (the prompt's `QS`, LS_COLORS, GREP_COLORS, fzf colours, fast-syntax-highlighting styles; open shells re-read it at their next prompt), `~/.config/bat/themes/qs.tmTheme` (+ `bat cache --build`; delta uses it), `~/.config/git/qs-delta.gitconfig` (included by ~/.gitconfig) , `~/.config/atuin/themes/qs.toml`, `~/.config/yazi/theme.toml` (chips in the light colour, hairline borders, bat's theme for code previews), `~/.config/btop/themes/qs.theme` (btop.conf's `color_theme = "qs"`) and `~/.config/lazygit/qs-theme.yml` (read after config.yml through `LG_CONFIG_FILE`, exported by qs-theme.zsh). Off → kitty's include is emptied (kitty.conf's own colours come back) and the tools get the nier palette.
   - Idempotent: nothing is reloaded unless a generated file changed. Its parser and fallbacks mirror Config/Theme.
 - **Theme workshop (web):** https://claude.ai/artifact/77qs2XJC3BrySY1pjNJZsW. It previews the themes on mock components, edits every token live (web only) and copies a ready `.conf`. Its parser and fallbacks mirror Config/Theme (and theme-sync.py for `[hyprland]`); keep them in step when tokens change. Source: `~/.config/dotfiles/palette/template.html`; `dotfiles/palette/build.py <out.html>` injects every `config/themes/*.conf`, then republish the output to the same URL. It also mocks the newer parts (HUD now-playing / lyrics and OSD chips, the clipboard panel, the lock-on reticle): when a part's look or tokens change, update its mock there too. Mock data must stay neutral (it is in the public repo).
 - Popups pick their screen from `Hyprland.focusedMonitor` (`Popup.focusedScreen()`).
@@ -357,7 +363,6 @@ Two geometry rules the input mask depends on:
 ### Singletons
 
 - **`settings/Settings.qml`** / **`settings/Config.qml`** / **`theme/Theme.qml`**: see above. `Settings` also provides the `vw()`, `vh()`, `s()` sizing helpers.
-- **`nierlock/Config.qml`** — Config singleton for the lockscreen: sounds path, font sizes, TODO file path, color palette.
 
 ### Service singletons (`services/`, `import "../services"`)
 
@@ -381,8 +386,8 @@ CornerHud draws all of its pages from these: SYSTEM (cpu/gpu/mem/top-proc) · ME
 
 ### Colours
 
-Every active part draws from `theme/Theme.qml` tokens (see above); the lockscreen keeps its
-own palette in `nierlock/Config.qml`.
+Every active part draws from `theme/Theme.qml` tokens (see above); the Void (lock, polkit,
+the power exit, voidbox, the boot chain) from `[void] light / warn` alone.
 
 ### Python helpers
 
@@ -501,6 +506,4 @@ print the chosen paths one per line on stdout, which `ControlCenter.pickerProc` 
 ## Key customization points
 
 - **Every option**: `config/shell.conf` (live); typed defaults in `settings/Settings.qml`.
-- **Lockscreen TODO path**: `nierlock/Config.qml` — `todoPath` (default: `~/Documents/Notes/TODO.md`)
-- **Lockscreen sounds**: place files in `nierlock/sounds/` (see `nierlock/README.md` for filenames)
 - **Hyprland keybindings**: `~/.config/hypr/binds/dispatchers.lua` (`qs ipc call …`).

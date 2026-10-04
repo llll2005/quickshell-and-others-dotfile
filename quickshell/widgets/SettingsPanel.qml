@@ -143,7 +143,7 @@ Popup {
             { type: "num", key: "font.size", def: 0, min: -2, max: 6, step: 1, preview: "size", signed: true, label: "全域字級", desc: "虛空以外所有文字的大小，一級 ×1.09（11 px 大約多 1 px）。虛空（鎖屏、授權、關機）有自己的字級。" },
             { type: "num", key: "terminal.fontSize", def: 13, min: 8, max: 24, step: 0.5, unit: "pt", preview: "kitty", label: "kitty 字級", desc: "kitty 自己的字級，不跟全域字級連動。開著的終端機會即時重排；Ctrl+Backspace 回到這個大小。" },
             { type: "choice", key: "font.mono", def: "Operator Mono", options: root.monoFonts, fonts: "mono", preview: "font", label: "系統字型", desc: "標籤、數字與內文的等寬字（只列已安裝的）；kitty 也會換成這套。" },
-            { type: "choice", key: "font.cjk", def: "jf金萱那提2.0", options: root.cjkFonts, fonts: "cjk", preview: "font", label: "中文字型", desc: "中文說明與通知的字，kitty 的中文也用它；任何字缺的中文都會落到這裡（fontconfig 規則只認金萱，換別的要改 60-quickshell.conf）。" },
+            { type: "choice", key: "font.cjk", def: "jf金萱那提2.0", options: root.cjkFonts, fonts: "cjk", preview: "font", label: "中文字型", desc: "中文說明與通知的字，kitty 的中文也用它；任何字缺的中文都會落到這裡（fontconfig 規則跟著改，重啟 qs 後生效）。" },
             { type: "choice", key: "font.void", def: "", options: root.voidFonts, fonts: "void", preview: "void", label: "虛空字型", desc: "鎖屏、授權、關機過場的字（只列已安裝的）。新裝的字要重啟 qs 才看得到。" },
             { type: "choice", key: "font.voidWeight", def: "400", options: ["300", "400"], label: "虛空字重", desc: "300 Light · 400 Regular。" },
             { type: "choice", key: "font.voidRatio", def: "1.618", options: ["1.25", "1.333", "1.5", "1.618"], label: "虛空字級比例", desc: "每一級是上一級的幾倍：1.618 黃金比例落差最大，1.25 最平緩。" },
@@ -420,9 +420,9 @@ Popup {
                     Row {
                         anchors { left: parent.left; leftMargin: 28; verticalCenter: parent.verticalCenter }
                         spacing: 14
-                        Text { text: "SETTINGS"; font.pixelSize: Theme.fs(11); font.letterSpacing: 3.5; font.weight: Font.Medium; color: Theme.inkStrong }
+                        Text { text: "SETTINGS"; font.pixelSize: Theme.ts(2); font.letterSpacing: 3.5; font.weight: Font.Medium; color: Theme.inkStrong }
                         Rectangle { width: 24; height: 1; color: Theme.inkSoft; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: "設定"; font.pixelSize: Theme.fs(11); font.letterSpacing: 2; color: Theme.inkSoft; font.family: Theme.cjk }
+                        Text { text: "設定"; font.pixelSize: Theme.ts(2); font.letterSpacing: 2; color: Theme.inkSoft; font.family: Theme.cjk }
                     }
                     Row {
                         anchors { right: parent.right; rightMargin: 28; verticalCenter: parent.verticalCenter }
@@ -437,7 +437,7 @@ Popup {
                                     color: ok ? Theme.ink : "transparent"
                                     border.color: ok ? Theme.ink : Theme.warn; border.width: 1
                                 }
-                                Text { text: modelData[0]; font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: Health[modelData[1]] ? Theme.inkSoft : Theme.warn }
+                                Text { text: modelData[0]; font.pixelSize: Theme.ts(1); font.letterSpacing: 2; color: Health[modelData[1]] ? Theme.inkSoft : Theme.warn }
                             }
                         }
                     }
@@ -507,12 +507,12 @@ Popup {
                                 Rectangle { anchors.bottom: parent.bottom; x: 22; width: parent.width - 44; height: 1; color: Theme.alpha(Theme.ink, 0.12) }
                                 Text {
                                     x: 14; anchors.verticalCenter: parent.verticalCenter; width: 22
-                                    text: String(index + 1).padStart(2, "0"); font.pixelSize: Theme.fs(9); font.letterSpacing: 1.5; color: row.fgSoft
+                                    text: String(index + 1).padStart(2, "0"); font.pixelSize: Theme.ts(1); font.letterSpacing: 1.5; color: row.fgSoft
                                 }
                                 Column {
                                     x: 44; width: parent.width - 44 - ctl.width - 24; anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                                    Text { width: parent.width; elide: Text.ElideRight; text: row.r.label; font.family: Theme.cjk; font.pixelSize: Theme.fs(13); color: row.fg }
-                                    Text { width: parent.width; elide: Text.ElideRight; text: row.r.desc; font.family: Theme.cjk; font.pixelSize: Theme.fs(10); color: row.fgSoft }
+                                    Text { width: parent.width; elide: Text.ElideRight; text: row.r.label; font.family: Theme.cjk; font.pixelSize: Theme.ts(3); color: row.fg }
+                                    Text { width: parent.width; elide: Text.ElideRight; text: row.r.desc; font.family: Theme.cjk; font.pixelSize: Theme.ts(1); color: row.fgSoft }
                                 }
 
                                 // the control on the right
@@ -534,7 +534,7 @@ Popup {
                                         Text {
                                             anchors.verticalCenter: parent.verticalCenter
                                             x: parent.on ? 8 : parent.width - width - 8
-                                            text: parent.on ? "ON" : "OFF"; font.pixelSize: Theme.fs(8); font.letterSpacing: 2
+                                            text: parent.on ? "ON" : "OFF"; font.pixelSize: Theme.ts(0); font.letterSpacing: 2
                                             color: parent.on ? (row.focused ? Theme.ink : Theme.paper) : row.fgSoft
                                         }
                                         Rectangle {
@@ -551,14 +551,14 @@ Popup {
                                         anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                                         spacing: 6
                                         Text {
-                                            text: "‹"; font.pixelSize: Theme.fs(15); color: row.fgSoft; anchors.verticalCenter: parent.verticalCenter
+                                            text: "‹"; font.pixelSize: Theme.ts(4); color: row.fgSoft; anchors.verticalCenter: parent.verticalCenter
                                             MouseArea { anchors.fill: parent; anchors.margins: -6; onClicked: { root.focusIdx = index; root.step(row.r, -1) } }
                                         }
                                         Column {
                                             anchors.verticalCenter: parent.verticalCenter; spacing: 3
                                             Text {
                                                 anchors.horizontalCenter: parent.horizontalCenter
-                                                text: root.textOf(row.r); font.pixelSize: Theme.fs(11); font.letterSpacing: 1; color: row.fg
+                                                text: root.textOf(row.r); font.pixelSize: Theme.ts(2); font.letterSpacing: 1; color: row.fg
                                             }
                                             Rectangle {   // where the value sits in its range
                                                 visible: row.r.type === "num"
@@ -571,7 +571,7 @@ Popup {
                                             }
                                         }
                                         Text {
-                                            text: "›"; font.pixelSize: Theme.fs(15); color: row.fgSoft; anchors.verticalCenter: parent.verticalCenter
+                                            text: "›"; font.pixelSize: Theme.ts(4); color: row.fgSoft; anchors.verticalCenter: parent.verticalCenter
                                             MouseArea { anchors.fill: parent; anchors.margins: -6; onClicked: { root.focusIdx = index; root.step(row.r, 1) } }
                                         }
                                     }
@@ -585,7 +585,7 @@ Popup {
                                         border.color: bad ? Theme.warn : row.fg; border.width: 1
                                         Text {
                                             id: stT; anchors.centerIn: parent
-                                            text: root.textOf(row.r); font.pixelSize: Theme.fs(9); font.letterSpacing: 1.5
+                                            text: root.textOf(row.r); font.pixelSize: Theme.ts(1); font.letterSpacing: 1.5
                                             font.family: Theme.cjk
                                             color: parent.bad ? Theme.warn : row.fg
                                         }
@@ -611,27 +611,27 @@ Popup {
                             spacing: 10
                             Text {
                                 text: root.cur ? (root.cur.type === "status" || root.cur.type === "action" ? "HEALTH" : "[" + root.cur.key.replace(".", "] ")) : ""
-                                font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: Theme.accent
+                                font.pixelSize: Theme.ts(1); font.letterSpacing: 2; color: Theme.accent
                             }
                             Rectangle { width: parent.width; height: 1; color: Theme.alpha(Theme.ink, 0.25) }
                             Text {
                                 width: parent.width; wrapMode: Text.Wrap
-                                text: root.cur ? root.cur.label : ""; font.family: Theme.cjk; font.pixelSize: Theme.fs(16); color: Theme.inkStrong
+                                text: root.cur ? root.cur.label : ""; font.family: Theme.cjk; font.pixelSize: Theme.ts(4); color: Theme.inkStrong
                             }
                             Text {
                                 width: parent.width; wrapMode: Text.Wrap; lineHeight: 1.3
-                                text: root.cur ? root.cur.desc : ""; font.family: Theme.cjk; font.pixelSize: Theme.fs(11); color: Theme.ink
+                                text: root.cur ? root.cur.desc : ""; font.family: Theme.cjk; font.pixelSize: Theme.ts(2); color: Theme.ink
                             }
                             Text {
                                 visible: root.cur !== null && root.cur.type !== "action"
                                 text: root.cur ? root.textOf(root.cur) : ""
-                                font.pixelSize: Theme.fs(22); font.letterSpacing: 2; color: Theme.inkStrong
+                                font.pixelSize: Theme.ts(6); font.letterSpacing: 2; color: Theme.inkStrong
                                 transform: Translate { x: root.shove * 6 }
                             }
                             Text {
                                 visible: root.cur !== null && root.cur.type === "num"
                                 text: root.cur && root.cur.type === "num" ? (root.cur.min + " … " + root.cur.max + "  ·  預設 " + root.cur.def) : ""
-                                font.pixelSize: Theme.fs(9); font.letterSpacing: 1; color: Theme.inkSoft
+                                font.pixelSize: Theme.ts(1); font.letterSpacing: 1; color: Theme.inkSoft
                             }
                         }
                     }
@@ -644,7 +644,7 @@ Popup {
                     Rectangle { width: parent.width; height: 1; color: Theme.alpha(Theme.ink, 0.25) }
                     Text {
                         anchors { left: parent.left; leftMargin: 28; verticalCenter: parent.verticalCenter }
-                        text: "寫入 config/shell.conf · 即時生效"; font.family: Theme.cjk; font.pixelSize: Theme.fs(9); color: Theme.inkSoft
+                        text: "寫入 config/shell.conf · 即時生效"; font.family: Theme.cjk; font.pixelSize: Theme.ts(1); color: Theme.inkSoft
                     }
                     Row {
                         anchors { right: parent.right; rightMargin: 28; verticalCenter: parent.verticalCenter }
@@ -656,9 +656,9 @@ Popup {
                                 Rectangle {
                                     width: kt.implicitWidth + 8; height: 16; color: "transparent"
                                     border.color: Theme.alpha(Theme.ink, 0.25); border.width: 1
-                                    Text { id: kt; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: Theme.fs(9); color: Theme.ink }
+                                    Text { id: kt; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: Theme.ts(1); color: Theme.ink }
                                 }
-                                Text { text: modelData[1]; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: Theme.inkSoft }
+                                Text { text: modelData[1]; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: Theme.ts(1); font.letterSpacing: 2; color: Theme.inkSoft }
                             }
                         }
                     }
@@ -686,8 +686,8 @@ Popup {
             Column {
                 id: paneHead
                 x: 22; y: 18; width: parent.width - 44; spacing: 6
-                Text { text: "[" + pane.r.key.replace(".", "] "); font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: Theme.accent }
-                Text { width: parent.width; elide: Text.ElideRight; text: pane.r.label; font.family: Theme.cjk; font.pixelSize: Theme.fs(16); color: Theme.inkStrong }
+                Text { text: "[" + pane.r.key.replace(".", "] "); font.pixelSize: Theme.ts(1); font.letterSpacing: 2; color: Theme.accent }
+                Text { width: parent.width; elide: Text.ElideRight; text: pane.r.label; font.family: Theme.cjk; font.pixelSize: Theme.ts(4); color: Theme.inkStrong }
                 Rectangle { width: parent.width; height: 1; color: Theme.alpha(Theme.ink, 0.25) }
             }
 
@@ -701,19 +701,19 @@ Popup {
                     x: 22; height: visible ? 22 : 0
                     visible: root.filter !== "" || root.pickAll.length > 10
                     spacing: 8
-                    Text { anchors.verticalCenter: parent.verticalCenter; text: "▸"; font.pixelSize: Theme.fs(11); color: Theme.accent }
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: "▸"; font.pixelSize: Theme.ts(2); color: Theme.accent }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.filter !== "" ? root.filter : "TYPE TO FILTER  ·  " + root.pickAll.length
                         font.family: root.filter !== "" ? Theme.mono : Theme.mono
-                        font.pixelSize: Theme.fs(root.filter !== "" ? 12 : 9); font.letterSpacing: root.filter !== "" ? 0.5 : 2
+                        font.pixelSize: Theme.ts(root.filter !== "" ? 2 : 1); font.letterSpacing: root.filter !== "" ? 0.5 : 2
                         color: root.filter !== "" ? Theme.ink : Theme.inkSoft
                     }
                     Text {
                         visible: root.filter !== ""
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.pickOptions.length + " / " + root.pickAll.length
-                        font.pixelSize: Theme.fs(9); color: Theme.inkSoft
+                        font.pixelSize: Theme.ts(1); color: Theme.inkSoft
                     }
                 }
 
@@ -724,7 +724,7 @@ Popup {
                     model: root.pickOptions
                     currentIndex: root.pickIdx
                     highlightFollowsCurrentItem: false
-                    readonly property real rowH: Math.round(Theme.fs(13) * 2.3)
+                    readonly property real rowH: Math.round(Theme.ts(3) * 2.3)
                     onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
                     SpringSelector {
                         parent: pickList.contentItem
@@ -756,7 +756,7 @@ Popup {
                             text: String(modelData) === "" ? "（主題的 mono）" : String(modelData)
                             // a face is shown in itself
                             font.family: pane.kind === "font" || pane.kind === "void" ? (String(modelData) || Theme.mono) : Theme.mono
-                            font.pixelSize: Theme.fs(13)
+                            font.pixelSize: Theme.ts(3)
                             color: parent.on ? Theme.paper : Theme.ink
                         }
                         MouseArea {
@@ -774,16 +774,16 @@ Popup {
                     color: pane.kind === "void" ? "#010101" : Theme.alpha(Theme.ink, 0.06)
                     border.color: Theme.alpha(Theme.ink, 0.25); border.width: 1
                     Text {
-                        x: 10; y: 8; text: "PREVIEW"; font.pixelSize: Theme.fs(8); font.letterSpacing: 2
+                        x: 10; y: 8; text: "PREVIEW"; font.pixelSize: Theme.ts(0); font.letterSpacing: 2
                         color: pane.kind === "void" ? Theme.alpha(Theme.voidLight, 0.4) : Theme.inkSoft
                     }
                     // a face: the shell's lines in it
                     Column {
                         visible: pane.kind === "font"
                         anchors.centerIn: parent; spacing: 8; width: parent.width - 28
-                        Text { width: parent.width; elide: Text.ElideRight; text: pane.r.fonts === "cjk" ? "中文說明文字 · 通知與選字框" : "SYSTEM  0123456789"; font.family: root.picked; font.pixelSize: Theme.fs(18); color: Theme.inkStrong }
-                        Text { width: parent.width; elide: Text.ElideRight; text: pane.r.fonts === "cjk" ? "繁體　設定面板的說明會是這樣" : "ALT 1–9 RUN · ↑↓ SELECT · ◆ 0O1lI"; font.family: root.picked; font.pixelSize: Theme.fs(12); color: Theme.ink }
-                        Text { width: parent.width; elide: Text.ElideRight; text: pane.r.fonts === "cjk" ? "Latin falls back here too 0123" : "The quick brown fox · 中文落到金萱"; font.family: root.picked; font.pixelSize: Theme.fs(11); color: Theme.inkSoft }
+                        Text { width: parent.width; elide: Text.ElideRight; text: pane.r.fonts === "cjk" ? "中文說明文字 · 通知與選字框" : "SYSTEM  0123456789"; font.family: root.picked; font.pixelSize: Theme.ts(5); color: Theme.inkStrong }
+                        Text { width: parent.width; elide: Text.ElideRight; text: pane.r.fonts === "cjk" ? "繁體　設定面板的說明會是這樣" : "ALT 1–9 RUN · ↑↓ SELECT · ◆ 0O1lI"; font.family: root.picked; font.pixelSize: Theme.ts(2); color: Theme.ink }
+                        Text { width: parent.width; elide: Text.ElideRight; text: pane.r.fonts === "cjk" ? "Latin falls back here too 0123" : "The quick brown fox · 中文落到" + Theme.cjk; font.family: root.picked; font.pixelSize: Theme.ts(2); color: Theme.inkSoft }
                     }
                     // the Void's face: on black, tracked caps
                     Column {
@@ -808,7 +808,7 @@ Popup {
                         Rectangle { width: 64; height: 64; color: root.picked !== "" ? root.picked : "transparent"; border.color: Theme.ink; border.width: 1 }
                         Column {
                             anchors.verticalCenter: parent.verticalCenter; spacing: 6
-                            Text { text: root.picked; font.family: Theme.mono; font.pixelSize: Theme.fs(14); color: Theme.inkStrong }
+                            Text { text: root.picked; font.family: Theme.mono; font.pixelSize: Theme.ts(3); color: Theme.inkStrong }
                             Rectangle {
                                 width: 150; height: 30; color: "#010101"
                                 Text { anchors.centerIn: parent; text: "ACCESS DENIED"; font.family: Theme.voidFont; font.weight: Theme.voidWeight; font.pixelSize: 11; font.letterSpacing: 3; color: root.picked !== "" ? root.picked : "white" }
@@ -819,7 +819,7 @@ Popup {
                     Column {
                         visible: pane.kind === "theme"
                         anchors.centerIn: parent; spacing: 10
-                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.picked.toUpperCase(); font.pixelSize: Theme.fs(14); font.letterSpacing: 3; color: Theme.inkStrong }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.picked.toUpperCase(); font.pixelSize: Theme.ts(3); font.letterSpacing: 3; color: Theme.inkStrong }
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter; spacing: 6
                             Repeater {
@@ -827,12 +827,12 @@ Popup {
                                 Rectangle { width: 30; height: 30; rotation: 45; antialiasing: true; color: modelData; border.color: Theme.alpha(Theme.ink, 0.5); border.width: 1 }
                             }
                         }
-                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "整個桌面正在預覽這個主題 · ↵ 套用 · ESC 還原"; font.family: Theme.cjk; font.pixelSize: Theme.fs(10); color: Theme.inkSoft }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: "整個桌面正在預覽這個主題 · ↵ 套用 · ESC 還原"; font.family: Theme.cjk; font.pixelSize: Theme.ts(1); color: Theme.inkSoft }
                     }
                     Text {
                         visible: pane.kind === ""
                         anchors.centerIn: parent
-                        text: root.picked; font.family: Theme.mono; font.pixelSize: Theme.fs(20); font.letterSpacing: 2; color: Theme.inkStrong
+                        text: root.picked; font.family: Theme.mono; font.pixelSize: Theme.ts(5); font.letterSpacing: 2; color: Theme.inkStrong
                     }
                 }
             }
@@ -848,7 +848,7 @@ Popup {
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: pane.r.type === "num" ? root.textOf(pane.r) : ""
-                        font.pixelSize: Theme.fs(34); font.letterSpacing: 2; color: Theme.inkStrong
+                        font.pixelSize: Theme.ts(8); font.letterSpacing: 2; color: Theme.inkStrong
                         transform: Translate { x: root.shove * 8 }
                     }
                     Item {   // the rail: a tick per step (up to 20), the knob a diamond
@@ -881,16 +881,16 @@ Popup {
                     }
                     Row {
                         width: parent.width
-                        Text { width: parent.width / 2; text: pane.r.type === "num" ? String(pane.r.min) : ""; font.pixelSize: Theme.fs(9); color: Theme.inkSoft }
-                        Text { width: parent.width / 2; horizontalAlignment: Text.AlignRight; text: pane.r.type === "num" ? String(pane.r.max) : ""; font.pixelSize: Theme.fs(9); color: Theme.inkSoft }
+                        Text { width: parent.width / 2; text: pane.r.type === "num" ? String(pane.r.min) : ""; font.pixelSize: Theme.ts(1); color: Theme.inkSoft }
+                        Text { width: parent.width / 2; horizontalAlignment: Text.AlignRight; text: pane.r.type === "num" ? String(pane.r.max) : ""; font.pixelSize: Theme.ts(1); color: Theme.inkSoft }
                     }
                     Text {
                         width: parent.width; wrapMode: Text.Wrap; lineHeight: 1.3
-                        text: pane.r.desc || ""; font.family: Theme.cjk; font.pixelSize: Theme.fs(11); color: Theme.ink
+                        text: pane.r.desc || ""; font.family: Theme.cjk; font.pixelSize: Theme.ts(2); color: Theme.ink
                     }
                     Text {
                         text: pane.r.type === "num" ? "預設 " + pane.r.def + (String(root.editOrig) !== String(root.value(pane.r)) ? "   ·   打開時 " + root.editOrig : "") : ""
-                        font.family: Theme.cjk; font.pixelSize: Theme.fs(10); color: Theme.inkSoft
+                        font.family: Theme.cjk; font.pixelSize: Theme.ts(1); color: Theme.inkSoft
                     }
                     // kitty's size: a terminal's lines at it (pt → px at 96 dpi, as kitty sets it)
                     Rectangle {
@@ -904,7 +904,7 @@ Popup {
                             x: 12; y: 12; width: parent.width - 24; spacing: 2
                             Text { text: "╭─◆ ~/.config ── main ─╮"; font.family: Theme.mono; font.pixelSize: parent.parent.px; color: Theme.panelText }
                             Text { text: "╰─▸ ls -la  0O1lI"; font.family: Theme.mono; font.pixelSize: parent.parent.px; color: Theme.light }
-                            Text { text: "中文落到金萱 · 13:52"; font.family: Theme.mono; font.pixelSize: parent.parent.px; color: Theme.panelMuted }
+                            Text { text: "中文落到" + Theme.cjk + " · 13:52"; font.family: Theme.mono; font.pixelSize: parent.parent.px; color: Theme.panelMuted }
                         }
                     }
                     // the global text size: the shell's lines at that size
@@ -915,9 +915,9 @@ Popup {
                         Column {
                             id: sizeCol
                             x: 12; y: 12; width: parent.width - 24; spacing: 6
-                            Text { text: "SYSTEM  ·  CPU 42%  ·  16:52"; font.pixelSize: Theme.fs(11); font.letterSpacing: 1.5; color: Theme.inkStrong }
-                            Text { text: "通知內文：今晚 9 點開會，記得帶 slides"; font.family: Theme.cjk; font.pixelSize: Theme.fs(12); color: Theme.ink }
-                            Text { text: "ALT 1–9 RUN · ↑↓ SELECT · ESC CLOSE"; font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: Theme.inkSoft }
+                            Text { text: "SYSTEM  ·  CPU 42%  ·  16:52"; font.pixelSize: Theme.ts(2); font.letterSpacing: 1.5; color: Theme.inkStrong }
+                            Text { text: "通知內文：今晚 9 點開會，記得帶 slides"; font.family: Theme.cjk; font.pixelSize: Theme.ts(2); color: Theme.ink }
+                            Text { text: "ALT 1–9 RUN · ↑↓ SELECT · ESC CLOSE"; font.pixelSize: Theme.ts(1); font.letterSpacing: 2; color: Theme.inkSoft }
                         }
                     }
                 }
@@ -939,9 +939,9 @@ Popup {
                             Rectangle {
                                 width: pk.implicitWidth + 8; height: 16; color: "transparent"
                                 border.color: Theme.alpha(Theme.ink, 0.25); border.width: 1
-                                Text { id: pk; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: Theme.fs(9); color: Theme.ink }
+                                Text { id: pk; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: Theme.ts(1); color: Theme.ink }
                             }
-                            Text { text: modelData[1]; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: Theme.inkSoft }
+                            Text { text: modelData[1]; anchors.verticalCenter: parent.verticalCenter; font.pixelSize: Theme.ts(1); font.letterSpacing: 2; color: Theme.inkSoft }
                         }
                     }
                 }

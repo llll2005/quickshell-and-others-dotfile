@@ -37,7 +37,7 @@ downward, and NieR lock-on brackets snap onto the window that takes focus.
 Also: a **clipboard** panel (`SUPER+SHIFT+V`: cliphist history with text / link / image
 tabs, thumbnails and a full preview), an fcitx5 candidate window drawn by the shell (kimpanel bridge, placed at the caret by
 the plugin, with typing sparks), a floating media player with a cava visualiser, a workspace
-mover, and the [nierlock](https://github.com/xendak/nierlock) lockscreen as a submodule.
+mover, and the session lock (`SUPER+L`), which opens like the power exit (hyprlock if it fails).
 
 ## Layout
 
@@ -98,7 +98,7 @@ Take these from `hypr/`:
 | ``SUPER+` `` · ``SUPER+SHIFT+` `` · ``SUPER+CTRL+` `` | HUD workspace grid · stats · show / hide |
 | `SUPER+SHIFT+L` · `SUPER+SHIFT+N` | lyrics on / off · now-playing card |
 | `SUPER+P` | media player |
-| `F4` | lockscreen (nierlock) |
+| `SUPER+L` | lock |
 
 Everything is also an IPC call: `qs ipc show` lists them, e.g. `qs ipc call theme set aha`.
 
@@ -138,7 +138,6 @@ Untracked files stay hidden, so add new ones explicitly.
 ## Credits
 
 - [Quickshell](https://quickshell.org/) and [Hyprland](https://hyprland.org/).
-- [nierlock](https://github.com/xendak/nierlock) by xendak (submodule).
 - Lyrics from [lrclib.net](https://lrclib.net/) and NetEase Cloud Music.
 - Inspired by NieR:Automata (Square Enix / PlatinumGames); not affiliated.
 

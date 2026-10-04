@@ -42,11 +42,6 @@ mkdir -p "$CFG"
 link quickshell
 [ "$WITH_HYPR" = 1 ] && link hypr
 
-# the nierlock submodule (lockscreen)
-if [ -d "$REPO/.git" ] && [ ! -e "$REPO/quickshell/nierlock/shell.qml" ]; then
-    git -C "$REPO" submodule update --init --recursive || warn "  couldn't fetch the nierlock submodule"
-fi
-
 # ── the Hyprland plugin ──
 say "Building the Hyprland plugin (imecaret)"
 if pkg-config --exists hyprland 2>/dev/null; then

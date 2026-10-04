@@ -1,7 +1,7 @@
 <title>NieR Shell 調色台</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Josefin+Sans:wght@300&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
 /* Layout: a workbench — the control rail on the left (themes, colour slots, export),
    a stage of live component mock-ups on the right. The chrome is a deliberately
@@ -123,7 +123,10 @@ textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--b
 .navbar kbd { font-family: var(--mono), var(--font-mono); font-size: 8px; padding: 0 4px; border: 1px solid color-mix(in srgb, var(--paper) 35%, transparent); color: var(--paper); }
 @media (max-width: 700px) { .subs, .navbar { display: none; } .crossgrid { grid-template-columns: repeat(3, minmax(0, 96px)); } .card small { display: none; } }
 /* Control Center, power mode: the turned-over cross (ink centre), the YES / NO card, the dark exit */
-.card.center.inv { background: var(--inkStrong); }
+.card.center.inv, .card.dark { background: var(--inkStrong); }
+.card.dark::before { border-color: color-mix(in srgb, var(--paper) 45%, transparent); }
+.card.dark b { color: var(--paper); } .card.dark small { color: color-mix(in srgb, var(--paper) 65%, transparent); }
+.card.dark .sq, .card.dark .dia { background: var(--paper); }
 .card.center.inv::before { border-color: color-mix(in srgb, var(--paper) 50%, transparent); }
 .card.center.inv b { color: var(--paper); } .card.center.inv small { color: color-mix(in srgb, var(--paper) 70%, transparent); }
 .pdesk .cross { right: 34%; }
@@ -235,6 +238,37 @@ textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--b
 .setp .l-body { grid-template-columns: 104px minmax(0, 1fr) 150px; min-height: 220px; }
 .setp .app { grid-template-columns: 22px minmax(0, 1fr) auto; }
 .setp .tab em { white-space: nowrap; }
+.setwrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 230px); gap: 14px; align-items: start; }
+.setwrap .setp .l-body { grid-template-columns: 104px minmax(0, 1fr); }
+.app.sel.idle { background: color-mix(in srgb, var(--ink) 62%, var(--paper)); }
+.spane { display: flex; flex-direction: column; }
+.sp-head { padding: 11px 14px 8px; border-bottom: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); }
+.sp-head small { display: block; font-size: 8px; letter-spacing: .1em; color: var(--accent); }
+.sp-head b { font-size: 15px; font-weight: 700; color: var(--inkStrong); }
+.sp-filter { font-size: 8px; letter-spacing: .2em; color: var(--inkSoft); padding: 7px 14px; }
+.sp-opts { display: grid; }
+.opt { position: relative; padding: 6px 14px 6px 32px; font-size: 13px; color: var(--ink); }
+.opt.sel { background: var(--inkStrong); color: var(--paper); box-shadow: inset 3px 0 0 var(--accent); }
+.opt.sel i { position: absolute; left: 15px; top: 50%; width: 6px; height: 6px; margin-top: -3px; transform: rotate(45deg); background: var(--paper); }
+.sp-prev { margin: 10px 12px; padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); background: color-mix(in srgb, var(--ink) 6%, transparent); display: grid; gap: 4px; }
+.sp-prev small { font-size: 7.5px; letter-spacing: .2em; color: var(--inkSoft); }
+.sp-prev b { font-size: 15px; font-weight: 400; color: var(--inkStrong); letter-spacing: .06em; }
+.sp-prev span { font-size: 9px; color: var(--ink); }
+.spane .l-foot { margin-top: auto; }
+@media (max-width: 760px) { .setwrap { grid-template-columns: minmax(0, 1fr); } }
+/* the Void keeps its own two inks whatever the theme ([void] light / warn in shell.conf) */
+.vbox { --vl: #ffffff; --vw: #b8403c; background: #000; padding-block: 34px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; font-family: "Josefin Sans", var(--font-ui); }
+.v-dia { width: 11px; height: 11px; transform: rotate(45deg); border: 1px solid var(--vl); }
+.v-title { font-weight: 300; font-size: clamp(14px, 2.6vw, 22px); letter-spacing: .3em; color: var(--vl); padding-left: .3em; }
+.vbox hr { width: min(260px, 70%); border: 0; border-top: 1px solid color-mix(in srgb, var(--vl) 45%, transparent); margin: 0; }
+.v-msg { margin: 0; font-size: 12px; color: color-mix(in srgb, var(--vl) 80%, transparent); }
+.v-id { font-family: var(--mono), var(--font-mono); font-size: 9px; letter-spacing: .08em; color: color-mix(in srgb, var(--vl) 45%, transparent); }
+.v-field { display: flex; gap: 10px; align-items: center; justify-content: center; width: min(300px, 80%); padding-block: 8px; border-bottom: 1px solid color-mix(in srgb, var(--vl) 40%, transparent); margin-top: 6px; }
+.v-field i { width: 7px; height: 7px; transform: rotate(45deg); background: var(--vl); }
+.v-field i.caret { background: transparent; border: 1px solid var(--vl); animation: vblink 1.1s steps(2) infinite; }
+@keyframes vblink { 50% { opacity: .15; } }
+@media (prefers-reduced-motion: reduce) { .v-field i.caret { animation: none; } }
+.v-keys { font-family: var(--mono), var(--font-mono); font-size: 8px; letter-spacing: .3em; color: color-mix(in srgb, var(--vl) 30%, transparent); }
 .sw2 { position: relative; width: 50px; height: 16px; border: 1px solid currentColor; font-size: 7.5px; letter-spacing: .16em; display: flex; align-items: center; }
 .sw2.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .app.sel .sw2.on { background: var(--paper); color: var(--ink); border-color: var(--paper); }
@@ -366,13 +400,13 @@ textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--b
         <div class="cross">
           <div class="crossgrid">
             <span></span>
-            <div class="card"><b>Connexion</b><small>Wi-Fi · Bluetooth</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <div class="card dark"><b>Connexion</b><small>Wi-Fi · Bluetooth</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
             <span></span>
-            <div class="card"><b>Quickshare</b><small>File transfer</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <div class="card dark"><b>Quickshare</b><small>File transfer</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
             <div class="card center"><b>MENU</b><small>CONTROL CENTER</small></div>
             <div class="card focus"><b>Notifications</b><small>History · DND</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
             <span></span>
-            <div class="card"><b>Audio</b><small>Output · Volume</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <div class="card dark"><b>Audio</b><small>Output · Volume</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
             <span></span>
           </div>
         </div>
@@ -399,7 +433,7 @@ textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--b
             <span></span>
             <div class="card"><b>Session</b><small>Log out</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
             <div class="card center inv"><b>POWER</b><small>↵ BACK TO MENU</small></div>
-            <div class="card focus"><b>Restart</b><small>Reboot · UEFI</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
+            <div class="card focus dark"><b>Restart</b><small>Reboot · UEFI</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
             <span></span>
             <div class="card"><b>Shutdown</b><small>Power off · Hibernate</small><div class="sq"></div><i class="dia tl"></i><i class="dia tr"></i><i class="dia bl"></i><i class="dia br"></i></div>
             <span></span>
@@ -508,25 +542,51 @@ textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--b
     </section>
 
     <section>
-      <p class="cap">SETTINGS · 設定（SUPER+ALT+S）</p>
-      <div class="frame launch setp">
-        <div class="l-head mono"><span>SETTINGS</span><span style="opacity:.5">── 設定</span><span class="sp"></span><span style="font-size:8px">◆ PLUGIN ◆ CLIP ◆ IME</span></div>
-        <div class="l-body">
-          <nav class="l-side mono">
-            <div class="tab"><i></i>STATUS<em>狀態</em></div>
-            <div class="tab on"><i></i>EFFECTS<em>特效</em></div>
-            <div class="tab"><i></i>LOOK<em>外觀</em></div>
-            <div class="tab"><i></i>HUD<em>歌詞</em></div>
-          </nav>
-          <div class="l-list">
-            <div class="app"><span class="no mono">01</span><div><b>點擊爆發</b><small>點擊視窗時的鑽石爆發。</small></div><span class="sw2 on mono"><span>ON</span></span></div>
-            <div class="app"><span class="no mono">02</span><div><b>爆發大小</b><small>點擊、打字、確認時的大小。</small></div><span class="sl mono">‹ 0.70 ›<i></i></span></div>
-            <div class="app sel"><span class="no mono">03</span><div><b>開窗：像素雨</b><small>新視窗的像素由上往下落進位置。</small></div><span class="sw2 on mono"><span>ON</span></span></div>
-            <div class="app"><span class="no mono">04</span><div><b>滑鼠移過也鎖定</b><small>焦點跟著滑鼠換時也顯示準星。</small></div><span class="sw2 off mono"><span>OFF</span></span></div>
+      <p class="cap">SETTINGS · 設定（SUPER+ALT+S）· 選項上按 ↵ 打開側欄</p>
+      <div class="setwrap">
+        <div class="frame launch setp">
+          <div class="l-head mono"><span>SETTINGS</span><span style="opacity:.5">── 設定</span><span class="sp"></span><span style="font-size:8px">◆ PLUGIN ◆ CLIP ◆ IME</span></div>
+          <div class="l-body">
+            <nav class="l-side mono">
+              <div class="tab"><i></i>STATUS<em>狀態</em></div>
+              <div class="tab"><i></i>EFFECTS<em>特效</em></div>
+              <div class="tab on"><i></i>LOOK<em>外觀</em></div>
+              <div class="tab"><i></i>HUD<em>歌詞</em></div>
+            </nav>
+            <div class="l-list">
+              <div class="app"><span class="no mono">01</span><div><b>主題</b><small>整個 shell 的配色。</small></div><span class="sl mono">‹ nier ›</span></div>
+              <div class="app"><span class="no mono">02</span><div><b>全域字級</b><small>虛空以外所有文字的大小。</small></div><span class="sl mono">‹ +2 ›<i></i></span></div>
+              <div class="app sel idle"><span class="no mono">03</span><div><b>系統字型</b><small>標籤、數字與內文的等寬字。</small></div><span class="sl mono">‹ Operator Mono ›</span></div>
+              <div class="app"><span class="no mono">04</span><div><b>點擊爆發</b><small>點擊視窗時的鑽石爆發。</small></div><span class="sw2 on mono"><span>ON</span></span></div>
+            </div>
           </div>
-          <div class="c-prev"><div class="ph mono">[effects] windowOpen</div><p>開窗：像素雨</p><p style="font-size:20px;letter-spacing:.1em">ON</p></div>
+          <div class="l-foot mono"><span>←→ PAGE</span><span>↑↓ SELECT</span><span>↵ OPEN</span><span>−/+ ADJUST</span></div>
         </div>
-        <div class="l-foot mono"><span>←→ PAGE</span><span>↑↓ SELECT</span><span>↵ TOGGLE</span><span>−/+ ADJUST</span></div>
+        <div class="frame launch spane" aria-label="side panel">
+          <div class="sp-head"><small class="mono">[font] mono</small><b>系統字型</b></div>
+          <div class="sp-filter mono">▸ TYPE TO FILTER · 5</div>
+          <div class="sp-opts">
+            <div class="opt" style="font-family:'Iosevka',var(--font-mono)">Iosevka</div>
+            <div class="opt" style="font-family:'JetBrains Mono',var(--font-mono)">JetBrains Mono</div>
+            <div class="opt sel"><i></i><span style="font-family:var(--mono),var(--font-mono)">Operator Mono</span></div>
+            <div class="opt" style="font-family:'Share Tech Mono',var(--font-mono)">Share Tech Mono</div>
+          </div>
+          <div class="sp-prev"><small class="mono">PREVIEW</small><b class="mono">SYSTEM 0123456789</b><span class="mono">ALT 1–9 RUN · ↑↓ SELECT · ◆</span></div>
+          <div class="l-foot mono"><span>↑↓ PICK</span><span>↵ KEEP</span><span>ESC UNDO</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <p class="cap">VOID · 鎖屏、授權、sudo / ssh 密碼（不跟主題：[void] light / warn）</p>
+      <div class="frame vbox" aria-hidden="true">
+        <i class="v-dia"></i>
+        <b class="v-title">AUTHORIZATION REQUIRED</b>
+        <hr>
+        <p class="v-msg">需要驗證才能變更系統設定。</p>
+        <span class="v-id">org.freedesktop.systemd1.manage-units · AS user</span>
+        <div class="v-field"><i></i><i></i><i></i><i></i><i></i><i></i><i class="caret"></i></div>
+        <span class="v-keys">↵ AUTHORIZE · ESC CANCEL</span>
       </div>
     </section>
 

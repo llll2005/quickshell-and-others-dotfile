@@ -8,6 +8,8 @@
 #   sudo sh boot-void.sh --update  bring an install up to date with this folder: the pictures,
 #                                  the Plymouth theme (into every initramfs), Limine's look
 #   sudo sh boot-void.sh --art     redraw the pictures only (after changing [void] or fonts)
+#   sudo sh boot-void.sh --console the text console only: Operator Mono (vconsole.conf
+#                                  FONT=void) and the Void's 16 colours (console-void.service)
 #   sudo sh boot-void.sh --label NAME  what the firmware's boot menu calls Limine (default
 #                                  "Limine"; the entry is recreated under the new name)
 #   sudo sh boot-void.sh --make-room   free the ESP for snapshot entries: GRUB's leftovers out,
@@ -40,6 +42,8 @@
 #      · Emergency shell — the initramfs's root shell for a root that won't mount, with
 #        btrfs, lsblk and a note (the boot-void-rescue mkinitcpio hook)
 #      and the snapshots (CachyOS > Snapshots, limine-snapper-sync) to go back to
+#   8. the text console in the Void: Operator Mono drawn into a console font (12×24 cells),
+#      black with the [void] light and warn (setvtrgb at boot), in the initramfs too
 #
 # GRUB stays installed, behind Limine and Windows in the boot order; its copies of the
 # kernels in /boot stop being refreshed at the first kernel update (Limine's hook replaces
@@ -61,7 +65,22 @@ art() {
     install -d "$ESP/void" /usr/share/plymouth/themes/void
     install -m 644 "$tmp/limine/void.png" "$tmp/limine/void.f16" "$ESP/void/"
     install -m 644 "$tmp"/plymouth/*.png "$SRC/void.script" "$SRC/void.plymouth" /usr/share/plymouth/themes/void/
+    install -m 644 "$tmp/console/void.psf" /usr/share/kbd/consolefonts/void.psf
+    install -Dm 644 "$tmp/console/void.vtrgb" /usr/local/lib/boot-void/void.vtrgb
     rm -rf "$tmp"
+}
+
+# ── the text console (the Rescue console, Ctrl+Alt+F3): Operator Mono and the Void's colours ──
+console() {
+    if grep -q '^FONT=' /etc/vconsole.conf 2>/dev/null; then
+        sed -i 's/^FONT=.*/FONT=void/' /etc/vconsole.conf
+    else
+        echo 'FONT=void' >> /etc/vconsole.conf
+    fi
+    install -Dm 644 "$SRC/console-void.service" /etc/systemd/system/console-void.service
+    systemctl daemon-reload
+    systemctl enable console-void.service >/dev/null 2>&1
+    systemctl restart systemd-vconsole-setup.service console-void.service 2>/dev/null || true
 }
 
 # ── Limine's look: the block, the hook that keeps it, the guard that runs it at boot ──
@@ -98,7 +117,8 @@ if [ "$1" = "--update" ]; then
     plymouth-set-default-theme void
     look
     rescue
-    limine-mkinitcpio          # the Plymouth theme and the rescue hook ride in the initramfs
+    console
+    limine-mkinitcpio          # the Plymouth theme, the rescue hook, the console font ride in the initramfs
     limine-snapper-sync || true    # the snapshots into the menu now, not at the next one
     /usr/local/lib/boot-void/limine-look
     say "boot chain up to date"
@@ -175,6 +195,14 @@ if [ "$1" = "--drop-grub" ]; then
     exit 0
 fi
 
+if [ "$1" = "--console" ]; then
+    art
+    console
+    limine-mkinitcpio          # the font rides in the initramfs (sd-vconsole)
+    say "the text console: Operator Mono, the Void's colours (Ctrl+Alt+F3 to look)"
+    exit 0
+fi
+
 if [ "$1" = "--art" ]; then
     art
     say "pictures redrawn (Limine: $ESP/void · Plymouth: /usr/share/plymouth/themes/void)"
@@ -191,6 +219,8 @@ if [ "$1" = "--undo" ]; then
         efibootmgr -o "$grub${rest:+,$rest}" >/dev/null && say "GRUB first in the boot order"
     fi
     systemctl disable --now boot-void-bootorder.service 2>/dev/null || true
+    systemctl disable console-void.service 2>/dev/null || true
+    sed -i '/^FONT=void$/d' /etc/vconsole.conf
     if [ -n "$last" ] && [ -f "$last/mkinitcpio.conf" ]; then
         cp "$last/mkinitcpio.conf" "$CONF"
         say "mkinitcpio.conf back from $last"
@@ -273,6 +303,7 @@ plymouth-set-default-theme void
 touch "$ESP/limine.conf"
 look                       # the block now, and the hook that puts it back after every write
 rescue
+console
 size_dropin
 limine-mkinitcpio
 limine-snapper-sync || true

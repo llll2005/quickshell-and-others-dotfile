@@ -24,7 +24,7 @@ const voidBlack = "#010101"
 
 type palette struct {
 	light, warn string
-	ascii       bool // a Linux VT (TERM=linux): plain glyphs
+	ascii       bool // a Linux VT (TERM=linux) with the kernel's font: plain glyphs
 }
 
 func shellDir() string {
@@ -97,8 +97,23 @@ func loadPalette() palette {
 	return palette{
 		light: hexOr(shell["void.light"], "#ffffff"),
 		warn:  hexOr(shell["void.warn"], "#b8403c"),
-		ascii: os.Getenv("TERM") == "linux",
+		ascii: os.Getenv("TERM") == "linux" && !voidConsoleFont(),
 	}
+}
+
+// voidConsoleFont: the console's font is boot-void's Operator Mono (vconsole.conf FONT=void),
+// which has ◆ ◇ ▸ ─ and the arrows — a VT then needs no plain glyphs
+func voidConsoleFont() bool {
+	b, err := os.ReadFile("/etc/vconsole.conf")
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if strings.TrimSpace(line) == "FONT=void" {
+			return true
+		}
+	}
+	return false
 }
 
 // look: the styles and glyphs for one screen (colours degrade on a plain terminal)

@@ -6,6 +6,9 @@
   plymouth/*.png         Plymouth's pieces, laid out by void.script like the shell's power
                          exit (widgets/ControlCenter.qml exitLayer): diamond, title, hairline,
                          the command — so a shutdown goes from the shell to Plymouth unmoved
+  console/void.psf       the text console's font: Operator Mono in 12×24 cells (PSF2, 256
+                         glyphs with ◆ ◇ ▸ ↑↓←→ ↵ and box drawing), and void-psf.png to look at
+  console/void.vtrgb     its 16 colours (setvtrgb): black, [void] warn, faded hues, [void] light
 
     gen-art.py OUT_DIR [--scale 1.1] [--size 1920x1200]
 
@@ -247,6 +250,112 @@ def limine_font(out):
         fh.write(bytes(data))
 
 
+# the text console's glyphs: ≤ 256, so the console keeps its 16 colours (a 512-glyph font
+# takes the bright bit for the glyph index)
+CONSOLE_CHARS = (bytes(range(32, 127)).decode() + bytes(range(160, 256)).decode('latin-1')
+                 + '─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬╭╮╯╰╴╵╶╷'
+                 + '█▀▄▌▐░▒▓←↑→↓↵▲▼►◄▸◆◇◈●○•·…–—‘’“”✓✗⏎�')
+ROUNDED = {'╭': 'dr', '╮': 'dl', '╯': 'ul', '╰': 'ur'}
+
+
+def console_font(out, cw=12, ch=24):
+    """Operator Mono in a PSF2 for the Linux console (vconsole.conf FONT=void), the cells
+    cw×ch; box drawing and the shapes drawn to join across cells, what Operator Mono lacks
+    from DejaVu Sans Mono"""
+    import glob
+    import struct
+    from fontTools.ttLib import TTFont
+    op = (glob.glob(os.path.join(FONTS, 'operator-mono/OperatorMono-Book.otf')) or [None])[0]
+    dv = '/usr/share/fonts/TTF/DejaVuSansMono.ttf'
+    have = set(TTFont(op).getBestCmap()) if op else set()
+    SS = 4
+
+    def fit(src):           # the size whose advance fills the cell, and the baseline
+        size = ch * SS
+        f = ImageFont.truetype(src, size)
+        size = int(size * cw * SS / f.getlength('M'))
+        f = ImageFont.truetype(src, size)
+        asc, desc = f.getmetrics()
+        while asc + desc > ch * SS * 1.04:
+            size -= 1
+            f = ImageFont.truetype(src, size)
+            asc, desc = f.getmetrics()
+        return f, (ch * SS - (asc + desc)) / 2
+    faces = {op: fit(op)} if op else {}
+    faces[dv] = fit(dv)
+
+    def bitmap(c):
+        bits = Image.new('1', (cw, ch), 0)
+        box = _box(c)
+        if box or c in ROUNDED:
+            dirs, double = box if box else (set(ROUNDED[c]), False)
+            heavy = box is not None and 'HEAVY' in __import__('unicodedata').name(c)
+            px = ImageDraw.Draw(bits)
+            mx, my = cw // 2 - 1, ch // 2 - 1
+            for off in ((-2, 2) if double else (0,)):
+                x, y = mx + off, my + off
+                wv = 2 if heavy else 1
+                if 'u' in dirs: px.rectangle([x, 0, x + wv - 1, y], fill=1)
+                if 'd' in dirs: px.rectangle([x, y, x + wv - 1, ch - 1], fill=1)
+                if 'l' in dirs: px.rectangle([0, y, x, y + wv - 1], fill=1)
+                if 'r' in dirs: px.rectangle([x, y, cw - 1, y + wv - 1], fill=1)
+            return bits
+        shape = _shape(c)
+        if shape is not None:
+            return shape.resize((cw, ch), Image.LANCZOS).point(lambda v: 1 if v >= 110 else 0, '1')
+        if not c.strip():
+            return bits
+        src = op if op and ord(c) in have else dv
+        f, top = faces[src]
+        cell = Image.new('L', (cw * SS, ch * SS), 0)
+        d = ImageDraw.Draw(cell)
+        x = (cw * SS - f.getlength(c)) / 2
+        d.text((x, top), c, font=f, fill=255)
+        return cell.resize((cw, ch), Image.LANCZOS).point(lambda v: 1 if v >= 100 else 0, '1')
+
+    chars = list(dict.fromkeys(CONSOLE_CHARS))
+    assert len(chars) <= 256, len(chars)
+    row = (cw + 7) // 8
+    glyphs, table = bytearray(), bytearray()
+    for c in chars:
+        b = bitmap(c)
+        for y in range(ch):
+            v = 0
+            for x in range(cw):
+                if b.getpixel((x, y)):
+                    v |= 1 << (row * 8 - 1 - x)
+            glyphs += v.to_bytes(row, 'big')
+        table += c.encode() + b'\xff'
+    head = struct.pack('<8I', 0x864ab572, 0, 32, 1, len(chars), row * ch, ch, cw)
+    with open(os.path.join(out, 'void.psf'), 'wb') as fh:
+        fh.write(head + glyphs + table)
+    # a picture of it, to look at
+    sheet = Image.new('RGB', (cw * 32, ch * ((len(chars) + 31) // 32)), 0)
+    for i, c in enumerate(chars):
+        sheet.paste(bitmap(c).convert('RGB'), ((i % 32) * cw, (i // 32) * ch))
+    sheet.save(os.path.join(out, 'void-psf.png'))
+
+
+def console_palette(out, light, warn):
+    """the console's 16 colours in the Void: black, the [void] warn for red, the other hues
+    faded toward grey (the Void has two inks), white the [void] light (setvtrgb's format)"""
+    import colorsys
+    lr, lg, lb = (int(light[i:i + 2], 16) for i in (1, 3, 5))
+    wr, wg, wb = (int(warn[i:i + 2], 16) for i in (1, 3, 5))
+
+    def hue(h, l, s):
+        return tuple(round(v * 255) for v in colorsys.hls_to_rgb(h / 360, l, s))
+    cols = [(0, 0, 0), (wr, wg, wb)]
+    cols += [hue(h, 0.62, 0.22) for h in (95, 45, 215, 300, 180)]       # green yellow blue magenta cyan
+    cols += [(round(lr * .78), round(lg * .78), round(lb * .78)), (88, 88, 88),
+             tuple(min(255, round(v * 1.25)) for v in (wr, wg, wb))]
+    cols += [hue(h, 0.76, 0.28) for h in (95, 45, 215, 300, 180)]
+    cols += [(lr, lg, lb)]
+    with open(os.path.join(out, 'void.vtrgb'), 'w') as fh:
+        for k in range(3):
+            fh.write(','.join(str(c[k]) for c in cols) + '\n')
+
+
 def plymouth(out, s, light, warn):
     title_f = font('josefin-sans/*.ttf', int(round(31 * s)), 300)
     mono_f = font('operator-mono/OperatorMono-Book.otf', int(round(12 * s)))
@@ -271,12 +380,14 @@ def main():
     a = ap.parse_args()
     W, H = (int(v) for v in a.size.split('x'))
     light, warn = void_ink()
-    lim, ply = os.path.join(a.out, 'limine'), os.path.join(a.out, 'plymouth')
-    os.makedirs(lim, exist_ok=True)
-    os.makedirs(ply, exist_ok=True)
+    lim, ply, con = (os.path.join(a.out, d) for d in ('limine', 'plymouth', 'console'))
+    for d in (lim, ply, con):
+        os.makedirs(d, exist_ok=True)
     ry = limine_backdrop(lim, W, H, a.scale, light, warn)
     limine_font(lim)
     plymouth(ply, a.scale, light, warn)
+    console_font(con)
+    console_palette(con, light, warn)
     print('rule_y=%d' % ry)
 
 

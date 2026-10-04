@@ -44,7 +44,6 @@ hl.bind(M .. " + ALT + K", hl.dsp.exec_cmd("sh -c 'pkill -x qs; sleep 0.3 && qs 
 -- ── System ──────────────────────────────────────────────────
 hl.bind(M .. " + L", hl.dsp.exec_cmd("~/.config/quickshell/scripts/lock.sh")) -- the shell's lock (hyprlock if it fails)
 -- hl.bind(M .. " + SPACE", hl.dsp.exec_cmd("ags request overview:toggle"))  -- AGS removed
-hl.bind("F4", hl.dsp.exec_cmd("quickshell -p ~/.config/quickshell/nierlock/shell.qml"))
 -- the power key opens the Control Center's power menu (Quickshell holds logind's
 -- handle-power-key inhibitor while it runs; without it, logind's own poweroff applies)
 hl.bind("XF86PowerOff", hl.dsp.exec_cmd("qs ipc call ctrl power"))

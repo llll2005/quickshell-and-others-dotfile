@@ -9,9 +9,12 @@
 #   CHECK DISK    a btrfs scrub and the device error counters
 #   DESKTOP       carry on into the normal desktop · SHELL · REBOOT · FIRMWARE
 # VOID_RESCUE_DRY=1 prints the commands instead of running them (to try the menu).
+# With boot-void's console font (vconsole.conf FONT=void) it draws the diamonds; else ASCII.
 VB=/usr/local/lib/boot-void/voidbox
 [ -x "$VB" ] || VB=$(command -v voidbox 2>/dev/null)
 DRY=${VOID_RESCUE_DRY:-}
+DIA='*'
+grep -qx 'FONT=void' /etc/vconsole.conf 2>/dev/null && DIA='◆'
 
 run() {
     printf '\n  $ %s\n\n' "$*"
@@ -24,7 +27,7 @@ pause() { printf '\n'; read -rp "  Enter: back to the menu " _; }
 pick() {
     if [ -n "$VB" ]; then "$VB" choose "$@"; return; fi
     local title=$1 i=1 it n; shift
-    printf '\n  *  %s\n\n' "$title"
+    printf '\n  %s  %s\n\n' "$DIA" "$title"
     for it in "$@"; do printf '  %d  %-14s %s\n' "$i" "${it%%$'\t'*}" "${it#*$'\t'}"; i=$((i + 1)); done
     read -rp $'\n  > ' n
     [[ $n =~ ^[0-9]+$ ]] && (( n >= 1 && n <= $# )) || return 1
@@ -34,7 +37,7 @@ pick() {
 banner() {
     clear
     local os; os=$(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-Linux}")
-    printf '\n  *  R E S C U E   C O N S O L E\n'
+    printf '\n  %s  R E S C U E   C O N S O L E\n' "$DIA"
     printf '     %s  .  kernel %s  .  %s\n' "$os" "$(uname -r)" \
         "$(systemctl is-active -q graphical.target && echo 'desktop running' || echo 'single user, no desktop')"
 }

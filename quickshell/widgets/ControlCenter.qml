@@ -1781,12 +1781,12 @@ Popup {
                             spacing: 8
                             readonly property bool last: index === root.crumbs().length - 1
                             Text {
-                                visible: index > 0; text: "▸"; font.pixelSize: Theme.fs(9)
+                                visible: index > 0; text: "▸"; font.pixelSize: Theme.ts(1)
                                 color: Theme.alpha(Theme.paper, 0.45)
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                             Text {
-                                text: modelData; font.pixelSize: Theme.fs(10); font.letterSpacing: 2
+                                text: modelData; font.pixelSize: Theme.ts(1); font.letterSpacing: 2
                                 font.weight: parent.last ? Font.Medium : Font.Normal
                                 color: parent.last ? root.colLight : Theme.alpha(Theme.paper, 0.6)
                                 anchors.verticalCenter: parent.verticalCenter
@@ -1803,9 +1803,9 @@ Popup {
                             width: nk.implicitWidth + 8; height: 16; color: "transparent"
                             border.color: Theme.alpha(Theme.paper, 0.35); border.width: 1
                             anchors.verticalCenter: parent.verticalCenter
-                            Text { id: nk; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: Theme.fs(8); font.letterSpacing: 1; color: root.colCard }
+                            Text { id: nk; anchors.centerIn: parent; text: modelData[0]; font.pixelSize: Theme.ts(0); font.letterSpacing: 1; color: root.colCard }
                         }
-                        Text { text: modelData[1]; font.pixelSize: Theme.fs(9); font.letterSpacing: 2; color: Theme.alpha(Theme.paper, 0.75); anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: modelData[1]; font.pixelSize: Theme.ts(1); font.letterSpacing: 2; color: Theme.alpha(Theme.paper, 0.75); anchors.verticalCenter: parent.verticalCenter }
                     }
                 }
             }
@@ -1878,7 +1878,7 @@ Popup {
                         anchors.verticalCenter: parent.verticalCenter
                         scale: 1 + 0.35 * root.pulse
                     }
-                    Text { text: "CONFIRM"; font.pixelSize: Theme.fs(11); font.letterSpacing: 5; font.weight: Font.Medium; color: root.colInk; opacity: 0.6 }
+                    Text { text: "CONFIRM"; font.pixelSize: Theme.ts(2); font.letterSpacing: 5; font.weight: Font.Medium; color: root.colInk; opacity: 0.6 }
                 }
                 Item { width: 1; height: 8 }
                 Rectangle { width: 36; height: 1; color: root.colInk; opacity: 0.5 }
@@ -1887,17 +1887,17 @@ Popup {
                     id: cTitle
                     property string targetText: confirmCard.pa.h3.toUpperCase()
                     text: targetText
-                    font.pixelSize: Theme.fs(20); font.letterSpacing: 6; font.weight: Font.Medium
+                    font.pixelSize: Theme.ts(5); font.letterSpacing: 6; font.weight: Font.Medium
                     color: root.colInk
                     ScrambleAnim { id: cTitleScramble; target: cTitle; duration: 320 }
                 }
                 Item { width: 1; height: 10 }
-                Text { text: confirmCard.pa.ask; font.pixelSize: Theme.fs(15); color: root.colInk }
+                Text { text: confirmCard.pa.ask; font.pixelSize: Theme.ts(4); color: root.colInk }
                 Item { width: 1; height: 4 }
                 Text {
                     width: confirmCol.width
                     text: confirmCard.pa.warn || ""
-                    font.pixelSize: Theme.fs(11); color: root.colInkSoft; wrapMode: Text.WordWrap; lineHeight: 1.2
+                    font.pixelSize: Theme.ts(2); color: root.colInkSoft; wrapMode: Text.WordWrap; lineHeight: 1.2
                 }
                 Item { width: 1; height: 22 }
                 Item {   // YES · NO, one ink selector springing between them (an afterimage trailing)
@@ -2006,7 +2006,7 @@ Popup {
                 // Header
                 Text {
                     text: "QSHARE"
-                    font.pixelSize: Theme.fs(11)
+                    font.pixelSize: Theme.ts(2)
                     font.letterSpacing: 5
                     font.weight: Font.Medium
                     color: root.colInk
@@ -2021,7 +2021,7 @@ Popup {
                     width: parent.width
                     text: (root.qshareMode === "recv" ? "PHONE → PC   " : "PC → PHONE   ")
                           + root.qshareLabel
-                    font.pixelSize: Theme.fs(12)
+                    font.pixelSize: Theme.ts(2)
                     font.weight: Font.Medium
                     color: root.colInk
                     elide: Text.ElideMiddle
@@ -2032,7 +2032,7 @@ Popup {
                     text: root.qshareTunnel
                           ? "Internet · works on mobile data"
                           : "LAN · phone must share this Wi-Fi"
-                    font.pixelSize: Theme.fs(10)
+                    font.pixelSize: Theme.ts(1)
                     color: root.colInkSoft
                 }
 
@@ -2064,7 +2064,7 @@ Popup {
                             text: root.qshareStatus !== ""
                                   ? root.qshareStatus.toUpperCase()
                                   : "GENERATING…"
-                            font.pixelSize: Theme.fs(10)
+                            font.pixelSize: Theme.ts(1)
                             font.letterSpacing: 3
                             color: root.colCard
                             opacity: 0.6
@@ -2079,7 +2079,7 @@ Popup {
                     width: parent.width
                     text: root.qshareUrl
                     font.family: Theme.mono
-                    font.pixelSize: Theme.fs(9)
+                    font.pixelSize: Theme.ts(1)
                     color: root.colInk
                     opacity: 0.55
                     elide: Text.ElideMiddle
@@ -2094,7 +2094,7 @@ Popup {
                     text: root.qshareMode === "recv"
                           ? "Scan, then pick files on your phone"
                           : "Scan to open the file list on your phone"
-                    font.pixelSize: Theme.fs(10)
+                    font.pixelSize: Theme.ts(1)
                     font.letterSpacing: 1.5
                     color: root.colInk
                     opacity: 0.7
@@ -2112,7 +2112,7 @@ Popup {
                             width: parent.width
                             text: "✓ " + modelData
                             font.family: Theme.mono
-                            font.pixelSize: Theme.fs(10)
+                            font.pixelSize: Theme.ts(1)
                             color: root.colInk
                             opacity: 0.85
                             elide: Text.ElideMiddle
@@ -2123,7 +2123,7 @@ Popup {
                         width: parent.width
                         visible: root.qshareTicks.length > 3
                         text: root.qshareTicks.length + " transfers total"
-                        font.pixelSize: Theme.fs(9)
+                        font.pixelSize: Theme.ts(1)
                         color: root.colInkSoft
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -2145,7 +2145,7 @@ Popup {
                     anchors.centerIn: parent
                     // Le serveur tourne tant que ce modal est ouvert
                     text: "× STOP"
-                    font.pixelSize: Theme.fs(10)
+                    font.pixelSize: Theme.ts(1)
                     font.letterSpacing: 2.5
                     font.weight: Font.Medium
                     color: cancelMA.containsMouse ? root.colCard : root.colInk
@@ -2317,7 +2317,7 @@ Popup {
         Text {
             anchors.centerIn: parent
             text: cb.yes ? "YES" : "NO"
-            font.pixelSize: Theme.fs(13); font.letterSpacing: 4; font.weight: Font.Medium
+            font.pixelSize: Theme.ts(3); font.letterSpacing: 4; font.weight: Font.Medium
             color: cb.sel ? root.colCard : root.colInk
             Behavior on color { ColorAnimation { duration: 120 } }
         }
@@ -2554,7 +2554,7 @@ Popup {
                         property string targetText: sl.title
                         text: targetText
                         onTargetTextChanged: titleScramble.start()    // the cross turning over
-                        font.pixelSize: Theme.fs(sl.isCenter ? 15 : 13)
+                        font.pixelSize: Theme.ts(sl.isCenter ? 4 : 3)
                         font.weight: Font.Medium
                         font.letterSpacing: sl.isCenter ? 6 : 0.3
                         color: sl.onFace
@@ -2565,7 +2565,7 @@ Popup {
                     }
                     Text {
                         text: sl.subtitle
-                        font.pixelSize: Theme.fs(sl.isCenter ? 9 : 10)
+                        font.pixelSize: Theme.ts(sl.isCenter ? 1 : 1)
                         color: sl.dark ? Theme.alpha(root.colCard, 0.7) : root.colInkSoft
                         Behavior on color { ColorAnimation { duration: 260 } }
                         font.letterSpacing: sl.isCenter ? 1 : 0.2
@@ -2719,7 +2719,7 @@ Popup {
                     property string targetText: root.detailH3().toUpperCase()
                     text: targetText
                     onTargetTextChanged: scrambleH3.start()
-                    font.pixelSize: Theme.fs(11)
+                    font.pixelSize: Theme.ts(2)
                     font.letterSpacing: 5
                     font.weight: Font.Medium
                     color: root.colInk
@@ -2761,7 +2761,7 @@ Popup {
                         property string targetText: root.detailStatus()
                         text: targetText
                         onTargetTextChanged: scrambleStatus.start()
-                        font.pixelSize: Theme.fs(12)
+                        font.pixelSize: Theme.ts(2)
                         color: root.colInk
                         anchors.verticalCenter: parent.verticalCenter
                         // largeur max : panneau total - dot - margin
@@ -2786,7 +2786,7 @@ Popup {
                     width: detailsCol.width
                     visible: root.detailHint() !== ""
                     text: root.detailHint()
-                    font.pixelSize: Theme.fs(root.power ? 11 : 10)
+                    font.pixelSize: Theme.ts(root.power ? 2 : 1)
                     color: root.colInkSoft
                     lineHeight: 1.25
                     wrapMode: Text.WordWrap
@@ -2812,7 +2812,7 @@ Popup {
                         id: hibTxt
                         width: parent.width - 14
                         text: root.hibLine()
-                        font.pixelSize: Theme.fs(11); lineHeight: 1.2
+                        font.pixelSize: Theme.ts(2); lineHeight: 1.2
                         wrapMode: Text.WordWrap
                         color: hibRow.ok ? root.colInk : Theme.warn
                     }
@@ -2826,7 +2826,7 @@ Popup {
                     readonly property var pa: root.powerActs[root.sub] || ({cmd: [], ask: ""})
                     Text {
                         text: "$ " + parent.pa.cmd.join(" ").replace("sh -c ", "")
-                        font.family: Theme.mono; font.pixelSize: Theme.fs(10)
+                        font.family: Theme.mono; font.pixelSize: Theme.ts(1)
                         color: root.colInk; opacity: 0.7
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -2837,7 +2837,7 @@ Popup {
                         Text {
                             id: askTag; anchors.centerIn: parent
                             text: parent.parent.pa.ask ? "ASKS FIRST" : "RUNS AT ONCE"
-                            font.pixelSize: Theme.fs(8); font.letterSpacing: 1.5; color: root.colInk
+                            font.pixelSize: Theme.ts(0); font.letterSpacing: 1.5; color: root.colInk
                         }
                     }
                 }
@@ -2861,7 +2861,7 @@ Popup {
                             spacing: 6
                             Text {
                                 text: "▪"
-                                font.pixelSize: Theme.fs(9)
+                                font.pixelSize: Theme.ts(1)
                                 color: root.colInk
                                 opacity: 0.55
                             }
@@ -2869,7 +2869,7 @@ Popup {
                                 width: selectedFiles.width - 16
                                 text: root.fileName(modelData)
                                 font.family: Theme.mono
-                                font.pixelSize: Theme.fs(10)
+                                font.pixelSize: Theme.ts(1)
                                 color: root.colInk
                                 opacity: 0.8
                                 elide: Text.ElideMiddle
@@ -2879,7 +2879,7 @@ Popup {
                     Text {
                         visible: root.pendingFiles.length > 4
                         text: "+ " + (root.pendingFiles.length - 4) + " more"
-                        font.pixelSize: Theme.fs(9)
+                        font.pixelSize: Theme.ts(1)
                         color: root.colInkSoft
                         leftPadding: 16
                     }
@@ -2910,7 +2910,7 @@ Popup {
                         spacing: 10
                         visible: actListContainer.isNotifList && actListContainer.actCount === 0
                         Rectangle { width: 6; height: 6; rotation: 45; color: "transparent"; border.color: root.colInkSoft; border.width: 1; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: "ALL CLEAR"; font.pixelSize: Theme.fs(10); font.letterSpacing: 3; color: root.colInkSoft }
+                        Text { text: "ALL CLEAR"; font.pixelSize: Theme.ts(1); font.letterSpacing: 3; color: root.colInkSoft }
                         Rectangle { width: 6; height: 6; rotation: 45; color: "transparent"; border.color: root.colInkSoft; border.width: 1; anchors.verticalCenter: parent.verticalCenter }
                     }
 
@@ -3049,7 +3049,7 @@ Popup {
                         Text {
                             anchors.centerIn: parent
                             text: "× CLEAR ALL"
-                            font.pixelSize: Theme.fs(11)
+                            font.pixelSize: Theme.ts(2)
                             font.letterSpacing: 2.5
                             font.weight: Font.Medium
                             color: clearAllBtn.lit ? root.colCard : root.colInk
@@ -3186,7 +3186,7 @@ Popup {
                         // Indication mute clickable
                         Text {
                             text: root.audioMuted ? "Muted · Click track to unmute" : "Right-click track to mute · Scroll to adjust"
-                            font.pixelSize: Theme.fs(9)
+                            font.pixelSize: Theme.ts(1)
                             color: root.colInk
                             opacity: 0.5
                             font.letterSpacing: 1
@@ -3211,7 +3211,7 @@ Popup {
 
                         Text {
                             text: "PASSWORD · " + root.wifiPromptSSID
-                            font.pixelSize: Theme.fs(10)
+                            font.pixelSize: Theme.ts(1)
                             font.letterSpacing: 3
                             font.weight: Font.Medium
                             color: root.colInk
@@ -3256,7 +3256,7 @@ Popup {
                                     visible: pwInput.length === 0
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "TYPE PASSWORD"
-                                    font.family: Theme.mono; font.pixelSize: Theme.fs(10); font.letterSpacing: 2.5
+                                    font.family: Theme.mono; font.pixelSize: Theme.ts(1); font.letterSpacing: 2.5
                                     color: root.colInk; opacity: 0.35
                                 }
                             }
@@ -3271,7 +3271,7 @@ Popup {
                                 selectionColor: "transparent"
                                 selectedTextColor: "transparent"
                                 cursorDelegate: Item {}
-                                font.pixelSize: Theme.fs(13)
+                                font.pixelSize: Theme.ts(3)
                                 echoMode: TextInput.Password
                                 clip: true
                                 activeFocusOnTab: true
@@ -3315,7 +3315,7 @@ Popup {
                             visible: root.wifiError !== ""
                             text: root.wifiError
                             width: parent.width; elide: Text.ElideRight
-                            font.pixelSize: Theme.fs(10)
+                            font.pixelSize: Theme.ts(1)
                             color: Theme.warn
                         }
 
@@ -3328,7 +3328,7 @@ Popup {
                                 Text {
                                     anchors.centerIn: parent
                                     text: "CONNECT"
-                                    font.pixelSize: Theme.fs(10)
+                                    font.pixelSize: Theme.ts(1)
                                     font.letterSpacing: 2
                                     font.weight: Font.Medium
                                     color: root.colCard
@@ -3346,7 +3346,7 @@ Popup {
                                 Text {
                                     anchors.centerIn: parent
                                     text: "CANCEL"
-                                    font.pixelSize: Theme.fs(10)
+                                    font.pixelSize: Theme.ts(1)
                                     font.letterSpacing: 2
                                     font.weight: Font.Medium
                                     color: root.colInk
@@ -3472,7 +3472,7 @@ Popup {
             text: targetText
             onTargetTextChanged: subScramble.start()
             anchors.centerIn: parent
-            font.pixelSize: Theme.fs(13)
+            font.pixelSize: Theme.ts(3)
             font.weight: Font.Medium
             color: si.isActive ? root.colCard : root.colInk
             Behavior on color { ColorAnimation { duration: 120 } }
@@ -3586,7 +3586,7 @@ Popup {
             anchors.rightMargin: 8
             elide: Text.ElideRight
             anchors.verticalCenter: parent.verticalCenter
-            font.pixelSize: Theme.fs(11)
+            font.pixelSize: Theme.ts(2)
             font.weight: Font.Medium
             font.letterSpacing: 2.5
             color: btn.isFocus ? root.colCard : root.colInk
@@ -3736,7 +3736,7 @@ Popup {
                 width: parent.width; height: 11
                 Text {
                     text: nbtn.notifData.app ? nbtn.notifData.app.toUpperCase() : "—"
-                    font.pixelSize: Theme.fs(8); font.letterSpacing: 1.5
+                    font.pixelSize: Theme.ts(0); font.letterSpacing: 1.5
                     color: nbtn.critical && !nbtn.isFocus ? root.colAccent : nbtn.fg
                     opacity: nbtn.critical ? 0.95 : 0.6
                     width: parent.width - 40; elide: Text.ElideRight
@@ -3744,14 +3744,14 @@ Popup {
                 Text {
                     anchors.right: parent.right
                     text: nbtn.notifData.ts ? root.notifAge(nbtn.notifData.ts) : ""
-                    font.pixelSize: Theme.fs(8); font.letterSpacing: 1
+                    font.pixelSize: Theme.ts(0); font.letterSpacing: 1
                     color: nbtn.fg; opacity: 0.55
                 }
             }
             Text {   // summary
                 width: parent.width
                 text: nbtn.notifData.label
-                font.pixelSize: Theme.fs(11); font.weight: Font.Medium
+                font.pixelSize: Theme.ts(2); font.weight: Font.Medium
                 color: nbtn.fg
                 elide: Text.ElideRight
                 wrapMode: nbtn.expanded ? Text.WordWrap : Text.NoWrap
@@ -3763,7 +3763,7 @@ Popup {
                 visible: nbtn.expanded && text !== ""
                 text: nbtn.notifData.body || ""
                 textFormat: Text.PlainText
-                font.pixelSize: Theme.fs(10)
+                font.pixelSize: Theme.ts(1)
                 color: nbtn.fg; opacity: 0.85
                 wrapMode: Text.WordWrap
                 maximumLineCount: 6
@@ -3779,7 +3779,7 @@ Popup {
                         width: at.implicitWidth + 10; height: 15
                         color: "transparent"; border.color: nbtn.fg; border.width: 1
                         opacity: index === 0 ? 0.9 : 0.5
-                        Text { id: at; anchors.centerIn: parent; text: (index === 0 ? "↵ " : "") + (modelData.text || modelData.id || "").toUpperCase(); font.pixelSize: Theme.fs(7); font.letterSpacing: 1; color: nbtn.fg }
+                        Text { id: at; anchors.centerIn: parent; text: (index === 0 ? "↵ " : "") + (modelData.text || modelData.id || "").toUpperCase(); font.pixelSize: Theme.ts(0); font.letterSpacing: 1; color: nbtn.fg }
                     }
                 }
             }
@@ -3795,7 +3795,7 @@ Popup {
                     if (!d.live) bits.push("read-only")
                     return bits.join(" · ")
                 }
-                font.pixelSize: Theme.fs(8); font.letterSpacing: 1
+                font.pixelSize: Theme.ts(0); font.letterSpacing: 1
                 color: nbtn.fg; opacity: 0.55
                 wrapMode: Text.WordWrap
             }
@@ -3813,7 +3813,7 @@ Popup {
                     Text {
                         anchors.centerIn: parent
                         text: modelData === "exp" ? (nbtn.expanded ? "▾" : "▸") : "×"
-                        font.pixelSize: Theme.fs(modelData === "exp" ? 12 : 14)
+                        font.pixelSize: Theme.ts(modelData === "exp" ? 2 : 3)
                         color: nbtn.fg
                         opacity: bma.containsMouse ? 1 : 0.6
                         scale: bma.containsMouse ? 1.2 : 1

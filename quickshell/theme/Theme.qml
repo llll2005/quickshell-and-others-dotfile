@@ -55,15 +55,30 @@ QtObject {
     // ── fonts ──
     // `[font] mono` / `cjk` in shell.conf, else the theme's, else these. One pair for the
     // whole system: kitty uses the same two. Qt falls from any face to Operator Mono, then
-    // 金萱, for the glyphs it lacks (~/.config/fontconfig/conf.d/60-quickshell.conf).
+    // the CJK face, for the glyphs it lacks (~/.config/fontconfig/conf.d/60-quickshell.conf,
+    // which theme-sync writes from these two keys).
     readonly property string mono: Config.str("font.mono", "") || Config.tstr("font.mono", "Operator Mono")
     readonly property string cjk:  Config.str("font.cjk", "")  || Config.tstr("font.cjk",  "jf金萱那提2.0")
     // the size of all text outside the Void: `[font] size` steps of ×1.09 (about a pixel at
-    // 11 px; +2 ≈ ×1.19). Every Paper / Ink surface sets its sizes through fs(); the Void
-    // (lock, polkit, the power exit, voidbox) keeps its own scale, voidStep().
+    // 11 px; +2 ≈ ×1.19). The Void (lock, polkit, the power exit, voidbox) keeps its own
+    // scale, voidStep().
     readonly property int  fontStep: Config.num("font.size", 0)
     readonly property real fontScale: Math.pow(1.09, fontStep)
     function fs(px) { return Math.max(1, Math.round(px * fontScale)) }
+    // the type scale of every Paper / Ink surface: a minor third (×1.2) from 8 px, five
+    // steps for text and the display sizes above them. ts(k) is step k at the global size;
+    // a size is a step, never a number (fs(px) is left for sizes that follow geometry —
+    // a glyph filling its box — and the giant watermark numerals, which are art, not type).
+    //   0  8   caption   key hints, tags, units, counters
+    //   1  9.6 label     row notes, secondary values, section labels
+    //   2  11.5 body     rows, values, buttons
+    //   3  13.8 heading  a panel's headings, the values that matter
+    //   4  16.6 title    a panel's title
+    //   5  19.9 · 6  23.9 · 8  34.4   display: big readouts, icons, previews
+    readonly property real typeBase:  8
+    readonly property real typeRatio: 1.2
+    function typeSize(k) { return typeBase * Math.pow(typeRatio, k) }
+    function ts(k) { return fs(typeSize(k)) }
     // the Void's voice (lock, polkit, the power exit): `[font] void` in shell.conf (your
     // choice, any theme), else the theme's, else mono. A display face like Norse lacks
     // ◆ ▸ ░ …: the scramble then uses its own letters (voidGlyphs), and the clock sets its

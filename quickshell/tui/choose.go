@@ -93,7 +93,7 @@ func (m chooseModel) View() string {
 	}
 	key := func(k, v string) string { return l.faint.Render(k+" ") + l.dim.Render(spaced(v)) }
 	arrowsV, arrowsH, enter, digits, marker := "↑↓", "←→", "↵", "1–9", "▸ "
-	if l.pal.ascii { // a Linux VT's default font has no arrows or triangles
+	if l.pal.ascii { // a Linux VT's default font has no arrows or triangles (boot-void's has)
 		arrowsV, arrowsH, enter, digits, marker = "UP/DN", "LT/RT", "ENTER", "1-9", "> "
 	}
 	head := l.fg.Render(l.dia) + "  " + l.bold.Render(spaced(strings.ToUpper(m.title)))
