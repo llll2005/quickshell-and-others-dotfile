@@ -494,7 +494,7 @@ func (m pacModel) card(w int) []string {
 	key := func(k, v string) string { return l.faint.Render(k+" ") + l.dim.Render(spaced(v)) }
 	button := func(label string, on bool) string {
 		if on {
-			return l.r.NewStyle().Background(lipgloss.Color(l.pal.light)).Foreground(lipgloss.Color(voidBlack)).Bold(true).Render("  " + spaced(label) + "  ")
+			return l.r.NewStyle().Background(lipgloss.Color(l.pal.light)).Foreground(lipgloss.Color(l.pal.bg)).Bold(true).Render("  " + spaced(label) + "  ")
 		}
 		return l.dim.Render("[ " + spaced(label) + " ]")
 	}

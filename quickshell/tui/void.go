@@ -17,14 +17,19 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// voidBlack: the Void's black, one step off #000000 — kitty draws a cell whose background
-// equals its own default (black, unless a theme sets one) with background_opacity, so a
-// pure black screen would show the desktop through
-const voidBlack = "#010101"
+// The Void's dark is [void] bg (#000000 unless set), nudged one step off pure black: kitty
+// draws a cell whose background equals its own default (black, unless a theme sets one)
+// with background_opacity, so a pure black screen would show the desktop through
+func voidDark(hex string) string {
+	if strings.EqualFold(hex, "#000000") {
+		return "#010101"
+	}
+	return hex
+}
 
 type palette struct {
-	light, warn string
-	ascii       bool // a Linux VT (TERM=linux) with the kernel's font: plain glyphs
+	light, warn, bg string
+	ascii           bool // a Linux VT (TERM=linux) with the kernel's font: plain glyphs
 }
 
 func shellDir() string {
@@ -97,6 +102,7 @@ func loadPalette() palette {
 	return palette{
 		light: hexOr(shell["void.light"], "#ffffff"),
 		warn:  hexOr(shell["void.warn"], "#b8403c"),
+		bg:    voidDark(hexOr(shell["void.bg"], "#000000")),
 		ascii: os.Getenv("TERM") == "linux" && !voidConsoleFont(),
 	}
 }
@@ -238,7 +244,7 @@ func (f voidFrame) String() string { return strings.Join(f.lines, "\n") }
 func (l look) voidPrompt(w, h int, p promptView) string { return l.voidScreen(w, h, p).String() }
 
 func (l look) voidScreen(w, h int, p promptView) voidFrame {
-	black := lipgloss.Color(voidBlack)
+	black := lipgloss.Color(l.pal.bg)
 	bg := func(s lipgloss.Style) lipgloss.Style { return s.Background(black) }
 	fg, dim, faint, warn := bg(l.fg), bg(l.r.NewStyle().Foreground(lipgloss.Color("#9a9a9a"))), bg(l.faint), bg(l.warn)
 	sp := func(n int) string { return bg(l.r.NewStyle()).Render(strings.Repeat(" ", n)) }
@@ -359,7 +365,7 @@ func (l look) voidScreen(w, h int, p promptView) voidFrame {
 	f := voidFrame{lines: out}
 	if big {
 		f.title, f.titleRow, f.titleCol = p.title, top+2, (w-bigWidth(p.title))/2
-		f.titleSGR = sgrRGB(l.pal.light)
+		f.titleSGR = sgrRGB(l.pal.light, l.pal.bg)
 	}
 	return f
 }
@@ -405,12 +411,15 @@ func bigTitle(s, sgr string) string {
 	return b.String()
 }
 
-func sgrRGB(hex string) string {
-	var r, g, b int
+func sgrRGB(hex, bg string) string {
+	var r, g, b, br, bgg, bb int
 	if len(hex) == 7 {
 		fmt.Sscanf(hex[1:], "%02x%02x%02x", &r, &g, &b)
 	}
-	return fmt.Sprintf("\x1b[0;38;2;%d;%d;%d;48;2;1;1;1m", r, g, b)
+	if len(bg) == 7 {
+		fmt.Sscanf(bg[1:], "%02x%02x%02x", &br, &bgg, &bb)
+	}
+	return fmt.Sprintf("\x1b[0;38;2;%d;%d;%d;48;2;%d;%d;%dm", r, g, b, br, bgg, bb)
 }
 
 // sgrFG: the colour alone, on whatever the terminal's background is (the scrollback)

@@ -58,6 +58,13 @@ ESP=/boot
 CONF=/etc/mkinitcpio.conf
 say() { printf '\033[1m◆ %s\033[0m\n' "$*"; }
 
+# [void] bg from the user's shell.conf, as rrggbb (000000 unless set)
+void_bg() {
+    conf="$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)/.config/quickshell/config/shell.conf"
+    v=$(awk '/^\[/{s=$0} s ~ /^\[void\]/ && $1=="bg" { sub(/^[^=]*=[[:space:]]*#?/,""); sub(/[[:space:]].*/,""); print; exit }' "$conf" 2>/dev/null)
+    printf '%s' "$v" | grep -qiE '^[0-9a-f]{6}$' && printf '%s' "$v" | tr A-F a-f || printf '000000'
+}
+
 # ── the pictures ──
 art() {
     tmp=$(mktemp -d)
@@ -65,6 +72,11 @@ art() {
     install -d "$ESP/void" /usr/share/plymouth/themes/void
     install -m 644 "$tmp/limine/void.png" "$tmp/limine/void.f16" "$ESP/void/"
     install -m 644 "$tmp"/plymouth/*.png "$SRC/void.script" "$SRC/void.plymouth" /usr/share/plymouth/themes/void/
+    # Plymouth's dark: [void] bg, as 0–1 floats
+    bg=$(void_bg)
+    rgbf=$(printf '%s' "$bg" | awk '{ printf "%.4f, %.4f, %.4f", strtonum("0x" substr($0,1,2))/255, strtonum("0x" substr($0,3,2))/255, strtonum("0x" substr($0,5,2))/255 }')
+    sed -i "s/^Window.SetBackgroundTopColor(.*/Window.SetBackgroundTopColor($rgbf);/; s/^Window.SetBackgroundBottomColor(.*/Window.SetBackgroundBottomColor($rgbf);/" \
+        /usr/share/plymouth/themes/void/void.script
     install -m 644 "$tmp/console/void.psf" /usr/share/kbd/consolefonts/void.psf
     install -Dm 644 "$tmp/console/void.vtrgb" /usr/local/lib/boot-void/void.vtrgb
     rm -rf "$tmp"
@@ -86,6 +98,9 @@ console() {
 # ── Limine's look: the block, the hook that keeps it, the guard that runs it at boot ──
 look() {
     install -Dm 644 "$SRC/limine-head.conf" /usr/local/lib/boot-void/limine-head.conf
+    # the menu's dark: [void] bg (the backdrop colour and palette slot 0)
+    bg=$(void_bg)
+    sed -i "s/^backdrop: .*/backdrop: $bg/; s/^term_palette: [0-9a-fA-F]\{6\}/term_palette: $bg/" /usr/local/lib/boot-void/limine-head.conf
     install -Dm 755 "$SRC/limine-look" /usr/local/lib/boot-void/limine-look
     install -d /etc/boot/hooks/post.d
     ln -sf /usr/local/lib/boot-void/limine-look /etc/boot/hooks/post.d/80-boot-void-look

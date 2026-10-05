@@ -107,7 +107,7 @@ func (m chooseModel) View() string {
 	if m.items == nil {
 		button := func(label string, on bool) string {
 			if on {
-				return l.r.NewStyle().Background(lipgloss.Color(l.pal.light)).Foreground(lipgloss.Color(voidBlack)).Bold(true).Render("  " + spaced(label) + "  ")
+				return l.r.NewStyle().Background(lipgloss.Color(l.pal.light)).Foreground(lipgloss.Color(l.pal.bg)).Bold(true).Render("  " + spaced(label) + "  ")
 			}
 			return l.dim.Render("[ " + spaced(label) + " ]")
 		}

@@ -99,6 +99,7 @@ QtObject {
     // the Void's ink is its own, not the theme's ([void] in shell.conf): 月白 and a muted red
     readonly property color voidLight: _hex(Config.str("void.light", ""), "#ffffff")
     readonly property color voidWarn:  _hex(Config.str("void.warn", ""), "#b8403c")
+    readonly property color voidBg:    _hex(Config.str("void.bg", ""), "#000000")     // the dark itself
     function _hex(v, d) { return /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v) ? v : d }
 
     // ── helpers ──

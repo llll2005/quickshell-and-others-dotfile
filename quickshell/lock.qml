@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "lockscreen"
+import "theme"
 
 // The session lock (ext-session-lock + PAM), in its own qs process so it holds whatever
 // the shell does: scripts/lock.sh starts it, and falls back to hyprlock if it doesn't
@@ -39,7 +40,7 @@ ShellRoot {
 
         WlSessionLockSurface {
             id: surf
-            color: "black"
+            color: Theme.voidBg
             LockFace { anchors.fill: parent; st: st; scr: surf.screen }
         }
     }
@@ -53,7 +54,7 @@ ShellRoot {
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-        color: "black"
+        color: Theme.voidBg
         LockFace { anchors.fill: parent; st: st; scr: previewWin.screen }
         MouseArea { anchors.fill: parent; onClicked: Qt.quit() }   // a click closes the preview
     }

@@ -2170,7 +2170,7 @@ Popup {
         visible: root.exitKey !== ""
         // nothing behind it reacts any more
         MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; hoverEnabled: true }
-        Rectangle { anchors.fill: parent; color: "black"; opacity: root.exitFade }
+        Rectangle { anchors.fill: parent; color: Theme.voidBg; opacity: root.exitFade }
         property string line: root.exitKey !== "" ? (root.powerActs[root.exitKey] || {exit: ""}).exit : ""
         Column {
             anchors.centerIn: parent

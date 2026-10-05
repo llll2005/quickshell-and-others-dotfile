@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../settings"
+import "../theme"
 
 // Popup — the full-screen glass popup every panel is built on (launcher, capture
 // panel, Control Center, workspace mover, clipboard). It owns what they all share:
@@ -143,7 +144,7 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        color: "black"
+        color: Theme.voidBg
         opacity: pop.underlay
         visible: opacity > 0
     }

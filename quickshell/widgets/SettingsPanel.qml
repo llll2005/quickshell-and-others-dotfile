@@ -48,7 +48,7 @@ Popup {
             var rs = pages[c]
             for (var i = 0; i < rs.length; i++) if (rs[i].key === key) {
                 cat = c; focusIdx = i
-                if (rs[i].type === "choice" || rs[i].type === "num") beginEdit(rs[i])
+                if (rs[i].type === "choice" || rs[i].type === "num" || rs[i].type === "color") beginEdit(rs[i])
                 return
             }
         }
@@ -150,8 +150,9 @@ Popup {
             { type: "choice", key: "font.voidWeight", def: "400", options: ["300", "400"], label: "虛空字重", desc: "300 Light · 400 Regular。" },
             { type: "choice", key: "font.voidRatio", def: "1.618", options: ["1.25", "1.333", "1.5", "1.618"], label: "虛空字級比例", desc: "每一級是上一級的幾倍：1.618 黃金比例落差最大，1.25 最平緩。" },
             { type: "num",  key: "font.voidBase", def: 12, min: 10, max: 18, step: 1, unit: "px", label: "虛空基準字級", desc: "最小一級（標籤）在 1080p 的大小；提示、標題、時鐘都由它乘上比例算出。" },
-            { type: "choice", key: "void.light", def: "#ffffff", preview: "color", options: ["#ffffff", "#d6ecf0", "#f2ecde", "#fff6cf"], label: "虛空文字色", desc: "固定、不跟主題：#ffffff 白 · #d6ecf0 月白 · #f2ecde 米白 · #fff6cf 象牙。" },
-            { type: "choice", key: "void.warn", def: "#b8403c", preview: "color", options: ["#b8403c", "#c3272b", "#9d2933", "#d6ecf0"], label: "虛空警示色", desc: "FAILED 等警示：#b8403c 暗紅 · #c3272b 朱 · #9d2933 胭脂 · 或同文字色。" },
+            { type: "color", key: "void.light", def: "#ffffff", sample: "fg", options: ["#ffffff", "#d6ecf0", "#f2ecde", "#fff6cf"], label: "虛空文字色", desc: "固定、不跟主題：#ffffff 白 · #d6ecf0 月白 · #f2ecde 米白 · #fff6cf 象牙。" },
+            { type: "color", key: "void.warn", def: "#b8403c", sample: "warn", options: ["#b8403c", "#c3272b", "#9d2933", "#d6ecf0"], label: "虛空警示色", desc: "FAILED 等警示：#b8403c 暗紅 · #c3272b 朱 · #9d2933 胭脂 · 或同文字色。" },
+            { type: "color", key: "void.bg", def: "#000000", sample: "bg", options: ["#000000", "#0b0b0d", "#0a0d16", "#120a0c"], label: "虛空背景色", desc: "鎖屏、授權、關機過場與 voidbox 的底：#000000 黑 · #0b0b0d 墨 · #0a0d16 夜藍 · #120a0c 酒黑。登入畫面與開機鏈要重跑 sddm-void.sh / boot-void.sh --update 才換。" },
             { type: "choice", key: "font.voidClockStep", def: "5", options: ["4", "5"], label: "鎖屏時鐘級數", desc: "時鐘用第 4 級（小一號）或第 5 級。" },
             { type: "num",  key: "backdrop.opacity",  def: 0.42, min: 0.1, max: 0.9, step: 0.02, label: "玻璃三角形不透明度", desc: "彈窗背景三角形的濃淡，越小越透。" },
             { type: "num",  key: "backdrop.dim",      def: 0.28, min: 0, max: 0.8, step: 0.02, label: "背景變暗", desc: "彈窗打開時，背後畫面變暗的程度。" },
@@ -241,7 +242,7 @@ Popup {
     function activate(row) {
         if (!row || phase !== "open") return
         if (row.type === "bool") setValue(row, !value(row))
-        else if (row.type === "choice" || row.type === "num") { beginEdit(row); return }
+        else if (row.type === "choice" || row.type === "num" || row.type === "color") { beginEdit(row); return }
         else if (row.type === "status") { if (!value(row)) Health.fix(); else Health.check() }
         else if (row.key === "fix") Health.fix()
         else if (row.key === "rebuild") Health.rebuild()
@@ -254,7 +255,7 @@ Popup {
             var v = Math.max(row.min, Math.min(row.max, Number(value(row)) + d * row.step))
             setValue(row, Number(v.toFixed(decimals(row))))
             nudge(d)
-        } else if (row.type === "choice") {
+        } else if (row.type === "choice" || row.type === "color") {
             var o = optionsFor(row), i = o.indexOf(String(value(row)))
             setValue(row, o[((i < 0 ? 0 : i) + d + o.length) % o.length])
             nudge(d)
@@ -279,6 +280,7 @@ Popup {
     readonly property string picked: pickOptions.length ? String(pickOptions[Math.min(pickIdx, pickOptions.length - 1)]) : ""
     function beginEdit(row) {
         editRow = row; editOrig = value(row); filter = ""
+        if (row.type === "color") { hexBuf = ""; colorFocus = 0; editHue = hsv(String(editOrig))[0]; setColor(String(editOrig)) }
         var i = row.type === "choice" ? optionsFor(row).indexOf(String(editOrig)) : 0
         pickIdx = Math.max(0, i)
         editing = true; editT = 1
@@ -288,7 +290,11 @@ Popup {
     function endEdit(keep) {
         if (!editing) return
         var row = editRow
-        if (row.type === "choice") {
+        if (row.type === "color") {
+            if (keep && hexBuf.length === 3) setColor("#" + hexBuf[0] + hexBuf[0] + hexBuf[1] + hexBuf[1] + hexBuf[2] + hexBuf[2])
+            hexBuf = ""
+            if (keep && editColor !== String(value(row))) setValue(row, editColor)
+        } else if (row.type === "choice") {
             if (row.preview === "theme") Config.themeOverride = ""
             if (keep && picked !== "" && picked !== String(value(row))) setValue(row, picked)
         } else if (!keep && String(value(row)) !== String(editOrig)) setValue(row, editOrig)
@@ -297,6 +303,64 @@ Popup {
     }
     // a theme previews on the whole shell while it's picked
     onPickedChanged: if (editing && editRow && editRow.preview === "theme" && picked !== "") Config.themeOverride = picked
+    // ── a colour: the presets, a palette (hue strip + saturation/value field), #hex typed,
+    //    R G B rails; it's written on ↵, Esc leaves the value as it was ──
+    property string editColor: "#000000"
+    property real   editHue: 0          // kept apart, so a grey keeps its hue while you drag
+    property int    colorFocus: 0       // 0 presets · 1 R · 2 G · 3 B
+    property string hexBuf: ""
+    function _rgb(c) { var x = String(c); return [parseInt(x.substr(1, 2), 16), parseInt(x.substr(3, 2), 16), parseInt(x.substr(5, 2), 16)] }
+    function _h2(n) { n = Math.max(0, Math.min(255, Math.round(n))); return (n < 16 ? "0" : "") + n.toString(16) }
+    function rgbHex(r, g, b) { return "#" + _h2(r) + _h2(g) + _h2(b) }
+    function hsv(c) {
+        var p = _rgb(c), r = p[0] / 255, g = p[1] / 255, b = p[2] / 255
+        var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, h = 0
+        if (d > 0) {
+            if (mx === r) h = ((g - b) / d) % 6
+            else if (mx === g) h = (b - r) / d + 2
+            else h = (r - g) / d + 4
+            h = (h * 60 + 360) % 360
+        }
+        return [h, mx === 0 ? 0 : d / mx, mx]
+    }
+    function fromHsv(h, sat, v) {
+        var c = v * sat, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c, r = 0, g = 0, b = 0
+        if (h < 60) { r = c; g = x } else if (h < 120) { r = x; g = c } else if (h < 180) { g = c; b = x }
+        else if (h < 240) { g = x; b = c } else if (h < 300) { r = x; b = c } else { r = c; b = x }
+        return rgbHex((r + m) * 255, (g + m) * 255, (b + m) * 255)
+    }
+    readonly property var editHsv: hsv(editColor)
+    function setColor(c, keepHue) {
+        editColor = String(c).toLowerCase()
+        var q = hsv(editColor)
+        if (!keepHue && q[1] > 0.02) editHue = q[0]
+    }
+    function setChannel(i, v) { var p = _rgb(editColor); p[i] = Math.max(0, Math.min(255, v)); setColor(rgbHex(p[0], p[1], p[2])) }
+    function setSV(sat, v) { setColor(fromHsv(editHue, Math.max(0, Math.min(1, sat)), Math.max(0, Math.min(1, v))), true) }
+    function setHue(h) { editHue = Math.max(0, Math.min(359.9, h)); setColor(fromHsv(editHue, editHsv[1], editHsv[2]), true) }
+    function stepPreset(d) {
+        var o = editRow ? optionsFor(editRow) : [], n = o.length
+        if (n === 0) return
+        var i = o.indexOf(editColor)
+        i = i < 0 ? (d > 0 ? 0 : n - 1) : (i + d + n) % n
+        setColor(o[i]); nudge(d)
+    }
+    function colorKey(e) {
+        var k = e.key, big = (e.modifiers & Qt.ShiftModifier) ? 16 : 1
+        if (k === Qt.Key_Up) { if (colorFocus > 0) colorFocus--; else bumpAnim.restart() }
+        else if (k === Qt.Key_Down) { if (colorFocus < 3) colorFocus++; else bumpAnim.restart() }
+        else if (k === Qt.Key_Left || k === Qt.Key_Right) {
+            var d = k === Qt.Key_Left ? -1 : 1
+            if (colorFocus === 0) stepPreset(d)
+            else setChannel(colorFocus - 1, _rgb(editColor)[colorFocus - 1] + d * big)
+        }
+        else if (k === Qt.Key_Backspace) hexBuf = hexBuf.slice(0, -1)
+        else if (e.text === "#") hexBuf = ""
+        else if (/^[0-9a-fA-F]$/.test(e.text)) {
+            hexBuf += e.text.toLowerCase()
+            if (hexBuf.length === 6) { setColor("#" + hexBuf); hexBuf = "" }
+        }
+    }
     function movePick(d) {
         var n = pickOptions.length
         if (n === 0) return
@@ -378,6 +442,7 @@ Popup {
                     var r = root.editRow, big = (e.modifiers & Qt.ShiftModifier) ? 5 : 1
                     if (k === Qt.Key_Escape) root.endEdit(false)
                     else if (k === Qt.Key_Return || k === Qt.Key_Enter) root.endEdit(true)
+                    else if (r.type === "color") root.colorKey(e)
                     else if (r.type === "num" && (k === Qt.Key_Left || k === Qt.Key_Minus)) root.step(r, -big)
                     else if (r.type === "num" && (k === Qt.Key_Right || k === Qt.Key_Plus || k === Qt.Key_Equal)) root.step(r, big)
                     else if (r.type === "choice" && k === Qt.Key_Up) root.movePick(-big)
@@ -550,7 +615,7 @@ Popup {
                                     }
                                     // num / choice: ‹ value › with − + targets
                                     Row {
-                                        visible: row.r.type === "num" || row.r.type === "choice"
+                                        visible: row.r.type === "num" || row.r.type === "choice" || row.r.type === "color"
                                         anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                                         spacing: 6
                                         Text {
@@ -559,9 +624,15 @@ Popup {
                                         }
                                         Column {
                                             anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                                            Text {
-                                                anchors.horizontalCenter: parent.horizontalCenter
-                                                text: root.textOf(row.r); font.pixelSize: Theme.ts(2); font.letterSpacing: 1; color: row.fg
+                                            Row {
+                                                anchors.horizontalCenter: parent.horizontalCenter; spacing: 6
+                                                Rectangle {   // a colour shows itself
+                                                    visible: row.r.type === "color"
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    width: 12; height: 12; color: visible ? String(root.value(row.r)) : "transparent"
+                                                    border.color: row.fg; border.width: 1
+                                                }
+                                                Text { text: root.textOf(row.r); font.pixelSize: Theme.ts(2); font.letterSpacing: 1; color: row.fg }
                                             }
                                             Rectangle {   // where the value sits in its range
                                                 visible: row.r.type === "num"
@@ -774,7 +845,7 @@ Popup {
                     id: preview
                     anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 16 }
                     height: pane.kind === "" ? 64 : 150
-                    color: pane.kind === "void" ? "#010101" : Theme.alpha(Theme.ink, 0.06)
+                    color: pane.kind === "void" ? Theme.voidBg : Theme.alpha(Theme.ink, 0.06)
                     border.color: Theme.alpha(Theme.ink, 0.25); border.width: 1
                     Text {
                         x: 10; y: 8; text: "PREVIEW"; font.pixelSize: Theme.ts(0); font.letterSpacing: 2
@@ -840,9 +911,209 @@ Popup {
                 }
             }
 
+            // ── a colour: presets · palette (saturation/value field + hue strip) · #hex · R G B ──
+            Item {
+                id: colorPane
+                visible: pane.r.type === "color"
+                anchors { top: paneHead.bottom; topMargin: 10; left: parent.left; right: parent.right; bottom: paneFoot.top }
+                readonly property var ch: root._rgb(root.editColor)
+                readonly property real cw: width - 44
+                function rowMark(i) { return root.colorFocus === i }
+
+                Column {
+                    x: 22; width: colorPane.cw; spacing: 9
+
+                    // the presets: the swatches the option always had
+                    Item {
+                        width: parent.width; height: 34
+                        Rectangle {   // this row has the keys
+                            visible: colorPane.rowMark(0)
+                            x: -12; anchors.verticalCenter: parent.verticalCenter
+                            width: 6; height: 6; rotation: 45; antialiasing: true; color: Theme.accent
+                        }
+                        Row {
+                            spacing: 8
+                            Repeater {
+                                model: pane.r.options || []
+                                Rectangle {
+                                    readonly property bool on: String(modelData) === root.editColor
+                                    width: 34; height: 34; color: String(modelData)
+                                    border.color: on ? Theme.inkStrong : Theme.alpha(Theme.ink, 0.35); border.width: on ? 2 : 1
+                                    scale: on ? 1.0 : 0.86
+                                    Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 2 } }
+                                    Rectangle {   // picked: a diamond in the swatch's own contrast
+                                        visible: parent.on; anchors.centerIn: parent
+                                        width: 7; height: 7; rotation: 45; antialiasing: true
+                                        color: root.hsv(String(modelData))[2] > 0.6 ? Theme.inkStrong : Theme.paper
+                                    }
+                                    MouseArea { anchors.fill: parent; onClicked: { root.colorFocus = 0; root.setColor(String(modelData)) } }
+                                }
+                            }
+                        }
+                    }
+
+                    // the palette: saturation → right, value ↑, at the hue below
+                    Item {
+                        width: parent.width; height: 92
+                        Rectangle {
+                            anchors.fill: parent
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0; color: "#ffffff" }
+                                GradientStop { position: 1; color: root.fromHsv(root.editHue, 1, 1) }
+                            }
+                        }
+                        Rectangle {
+                            anchors.fill: parent
+                            gradient: Gradient {
+                                GradientStop { position: 0; color: "transparent" }
+                                GradientStop { position: 1; color: "#000000" }
+                            }
+                            border.color: Theme.alpha(Theme.ink, 0.35); border.width: 1
+                        }
+                        Rectangle {   // the knob: a hollow diamond, in whatever reads on that spot
+                            x: root.editHsv[1] * parent.width - 6; y: (1 - root.editHsv[2]) * parent.height - 6
+                            width: 12; height: 12; rotation: 45; antialiasing: true; color: "transparent"
+                            border.color: root.editHsv[2] > 0.55 && root.editHsv[1] < 0.5 ? "#000000" : "#ffffff"; border.width: 2
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            function at(m) { root.setSV(m.x / width, 1 - m.y / height) }
+                            onPressed: (m) => at(m)
+                            onPositionChanged: (m) => { if (pressed) at(m) }
+                        }
+                    }
+                    Item {   // the hue strip
+                        width: parent.width; height: 14
+                        Rectangle {
+                            anchors.fill: parent
+                            border.color: Theme.alpha(Theme.ink, 0.35); border.width: 1
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0.0;   color: "#ff0000" }
+                                GradientStop { position: 0.167; color: "#ffff00" }
+                                GradientStop { position: 0.333; color: "#00ff00" }
+                                GradientStop { position: 0.5;   color: "#00ffff" }
+                                GradientStop { position: 0.667; color: "#0000ff" }
+                                GradientStop { position: 0.833; color: "#ff00ff" }
+                                GradientStop { position: 1.0;   color: "#ff0000" }
+                            }
+                        }
+                        Rectangle {
+                            x: root.editHue / 360 * parent.width - 5; y: -2
+                            width: 10; height: 18; color: "transparent"
+                            border.color: Theme.inkStrong; border.width: 2
+                        }
+                        MouseArea {
+                            anchors.fill: parent; anchors.margins: -4
+                            function at(m) { root.setHue((m.x - 4) / (width - 8) * 360) }
+                            onPressed: (m) => at(m)
+                            onPositionChanged: (m) => { if (pressed) at(m) }
+                        }
+                    }
+
+                    // #hex: type it any time (0–9 a–f; # starts over)
+                    Row {
+                        spacing: 10
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: "HEX"; font.pixelSize: Theme.ts(1); font.letterSpacing: 2; color: Theme.inkSoft }
+                        Rectangle {
+                            width: hexT.implicitWidth + 20; height: 26; color: "transparent"
+                            border.color: root.hexBuf !== "" ? Theme.accent : Theme.alpha(Theme.ink, 0.35); border.width: 1
+                            Text {
+                                id: hexT; anchors.centerIn: parent
+                                text: root.hexBuf !== "" ? "#" + root.hexBuf + "_".repeat(6 - root.hexBuf.length) : root.editColor
+                                font.family: Theme.mono; font.pixelSize: Theme.ts(3); font.letterSpacing: 1.5
+                                color: root.hexBuf !== "" ? Theme.accent : Theme.inkStrong
+                            }
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: root.hexBuf !== "" ? "打滿 6 碼套用 · ⌫ 刪" : "直接打色碼"
+                            font.family: Theme.cjk; font.pixelSize: Theme.ts(1); color: Theme.inkSoft
+                        }
+                    }
+
+                    // R G B rails
+                    Repeater {
+                        model: [["R", "#e5484d"], ["G", "#30a46c"], ["B", "#3e63dd"]]
+                        Item {
+                            width: parent.width; height: 20
+                            readonly property int ci: index
+                            readonly property int cv: colorPane.ch[index]
+                            Rectangle {
+                                visible: colorPane.rowMark(index + 1)
+                                x: -12; anchors.verticalCenter: parent.verticalCenter
+                                width: 6; height: 6; rotation: 45; antialiasing: true; color: Theme.accent
+                            }
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: modelData[0]; font.pixelSize: Theme.ts(2); font.letterSpacing: 1
+                                color: colorPane.rowMark(index + 1) ? Theme.accent : Theme.ink
+                            }
+                            Item {
+                                id: rail
+                                x: 22; width: parent.width - 22 - 44; height: parent.height
+                                Rectangle { y: 9; width: parent.width; height: 2; color: Theme.alpha(Theme.ink, 0.18) }
+                                Rectangle { y: 9; width: parent.width * parent.parent.cv / 255; height: 2; color: modelData[1] }
+                                Rectangle {
+                                    x: parent.width * parent.parent.cv / 255 - 6; y: 4
+                                    width: 12; height: 12; rotation: 45; antialiasing: true
+                                    color: colorPane.rowMark(parent.parent.ci + 1) ? Theme.ink : Theme.paper
+                                    border.color: Theme.ink; border.width: 1
+                                }
+                                MouseArea {
+                                    anchors.fill: parent; anchors.margins: -4
+                                    function at(m) { root.colorFocus = parent.parent.ci + 1; root.setChannel(parent.parent.ci, (m.x - 4) / (width - 8) * 255) }
+                                    onPressed: (m) => at(m)
+                                    onPositionChanged: (m) => { if (pressed) at(m) }
+                                    onWheel: (w) => root.setChannel(parent.parent.ci, parent.parent.cv + (w.angleDelta.y > 0 ? 1 : -1))
+                                }
+                            }
+                            Text {
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                text: parent.cv; font.family: Theme.mono; font.pixelSize: Theme.ts(2); color: Theme.inkStrong
+                            }
+                        }
+                    }
+                }
+
+                // the preview: the colour where it lives — on the Void's dark, or as that dark
+                Rectangle {
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 16 }
+                    height: 64
+                    readonly property string sample: pane.r.sample || "fg"
+                    color: sample === "bg" ? root.editColor : Theme.voidBg
+                    border.color: Theme.alpha(Theme.ink, 0.25); border.width: 1
+                    Text {
+                        x: 10; y: 6; text: "PREVIEW"; font.pixelSize: Theme.ts(0); font.letterSpacing: 2
+                        color: Theme.alpha(parent.sample === "bg" ? Theme.voidLight : root.editColor, 0.45)
+                    }
+                    Column {
+                        anchors.centerIn: parent; anchors.verticalCenterOffset: 4; spacing: 6
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: parent.parent.sample === "warn" ? "ACCESS DENIED" : "SYSTEM LOCKED"
+                            font.family: Theme.voidFont; font.weight: Theme.voidWeight
+                            font.pixelSize: 15; font.letterSpacing: 0.3 * 15
+                            color: parent.parent.sample === "bg" ? Theme.voidLight : root.editColor
+                        }
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter; width: 110; height: 1
+                            color: Theme.alpha(parent.parent.sample === "bg" ? Theme.voidLight : root.editColor, 0.45)
+                        }
+                    }
+                    Text {
+                        anchors { right: parent.right; bottom: parent.bottom; margins: 6 }
+                        visible: root.editColor !== String(root.editOrig)
+                        text: "打開時 " + root.editOrig; font.family: Theme.mono; font.pixelSize: Theme.ts(0)
+                        color: Theme.alpha(parent.sample === "bg" ? Theme.voidLight : root.editColor, 0.45)
+                    }
+                }
+            }
+
             // ── a slider: the value, the rail, the range ──
             Item {
-                visible: !pane.isChoice
+                visible: pane.r.type === "num"
                 anchors { top: paneHead.bottom; left: parent.left; right: parent.right; bottom: paneFoot.top }
                 readonly property real v: pane.r.type === "num" ? Number(root.value(pane.r)) : 0
                 readonly property real k: pane.r.type === "num" ? (v - pane.r.min) / (pane.r.max - pane.r.min) : 0
@@ -936,6 +1207,7 @@ Popup {
                     spacing: 12
                     Repeater {
                         model: pane.isChoice ? [["↑↓", "PICK"], ["A–Z", "FILTER"], ["↵", "KEEP"], ["ESC", "UNDO"]]
+                             : pane.r.type === "color" ? [["↑↓", "ROW"], ["←→", "ADJUST"], ["0–F", "HEX"], ["↵", "KEEP"], ["ESC", "UNDO"]]
                                              : [["←→", "ADJUST"], ["⇧", "×5"], ["↵", "KEEP"], ["ESC", "UNDO"]]
                         Row {
                             spacing: 5; anchors.verticalCenter: parent.verticalCenter

@@ -8,7 +8,7 @@
                          the command — so a shutdown goes from the shell to Plymouth unmoved
   console/void.psf       the text console's font: Operator Mono in 12×24 cells (PSF2, 256
                          glyphs with ◆ ◇ ▸ ↑↓←→ ↵ and box drawing), and void-psf.png to look at
-  console/void.vtrgb     its 16 colours (setvtrgb): black, [void] warn, faded hues, [void] light
+  console/void.vtrgb     its 16 colours (setvtrgb): [void] bg, [void] warn, faded hues, [void] light
 
     gen-art.py OUT_DIR [--scale 1.1] [--size 1920x1200]
 
@@ -28,22 +28,20 @@ SHELL_CONF = os.path.join(HOME, '.config/quickshell/config/shell.conf')
 
 
 def void_ink():
-    light, warn, sect = '#ffffff', '#b8403c', ''
+    """[void] light, warn and bg from shell.conf (white, a muted red, black)"""
+    ink, sect = {'light': '#ffffff', 'warn': '#b8403c', 'bg': '#000000'}, ''
     try:
         for line in open(SHELL_CONF, encoding='utf-8'):
             m = re.match(r'\s*\[([^\]]+)\]', line)
             if m:
                 sect = m.group(1).strip()
                 continue
-            m = re.match(r'\s*(light|warn)\s*=\s*(#[0-9a-fA-F]{6})', line)
+            m = re.match(r'\s*(light|warn|bg)\s*=\s*(#[0-9a-fA-F]{6})', line)
             if m and sect == 'void':
-                if m.group(1) == 'light':
-                    light = m.group(2)
-                else:
-                    warn = m.group(2)
+                ink[m.group(1)] = m.group(2)
     except OSError:
         pass
-    return light, warn
+    return ink['light'], ink['warn'], ink['bg']
 
 
 def rgb(h, a=255):
@@ -114,8 +112,8 @@ def keycap(key, label, fk, fl, s, light):
     return im
 
 
-def limine_backdrop(out, W, H, s, light, warn):
-    im = Image.new('RGB', (W, H), (0, 0, 0)).convert('RGBA')
+def limine_backdrop(out, W, H, s, light, warn, bg='#000000'):
+    im = Image.new('RGB', (W, H), rgb(bg)[:3]).convert('RGBA')
     title_f = font('josefin-sans/*.ttf', int(round(31 * s)), 300)
     # the keycaps' arrows: Josefin has none
     key_f = ImageFont.truetype('/usr/share/fonts/TTF/DejaVuSans.ttf', int(round(11 * s)))
@@ -336,8 +334,8 @@ def console_font(out, cw=12, ch=24):
     sheet.save(os.path.join(out, 'void-psf.png'))
 
 
-def console_palette(out, light, warn):
-    """the console's 16 colours in the Void: black, the [void] warn for red, the other hues
+def console_palette(out, light, warn, bg='#000000'):
+    """the console's 16 colours in the Void: [void] bg, the [void] warn for red, the other hues
     faded toward grey (the Void has two inks), white the [void] light (setvtrgb's format)"""
     import colorsys
     lr, lg, lb = (int(light[i:i + 2], 16) for i in (1, 3, 5))
@@ -345,7 +343,7 @@ def console_palette(out, light, warn):
 
     def hue(h, l, s):
         return tuple(round(v * 255) for v in colorsys.hls_to_rgb(h / 360, l, s))
-    cols = [(0, 0, 0), (wr, wg, wb)]
+    cols = [rgb(bg)[:3], (wr, wg, wb)]
     cols += [hue(h, 0.62, 0.22) for h in (95, 45, 215, 300, 180)]       # green yellow blue magenta cyan
     cols += [(round(lr * .78), round(lg * .78), round(lb * .78)), (88, 88, 88),
              tuple(min(255, round(v * 1.25)) for v in (wr, wg, wb))]
@@ -379,15 +377,15 @@ def main():
     ap.add_argument('--size', default='1920x1200')
     a = ap.parse_args()
     W, H = (int(v) for v in a.size.split('x'))
-    light, warn = void_ink()
+    light, warn, bg = void_ink()
     lim, ply, con = (os.path.join(a.out, d) for d in ('limine', 'plymouth', 'console'))
     for d in (lim, ply, con):
         os.makedirs(d, exist_ok=True)
-    ry = limine_backdrop(lim, W, H, a.scale, light, warn)
+    ry = limine_backdrop(lim, W, H, a.scale, light, warn, bg)
     limine_font(lim)
     plymouth(ply, a.scale, light, warn)
     console_font(con)
-    console_palette(con, light, warn)
+    console_palette(con, light, warn, bg)
     print('rule_y=%d' % ry)
 
 

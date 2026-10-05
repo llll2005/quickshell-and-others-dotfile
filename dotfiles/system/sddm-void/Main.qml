@@ -12,7 +12,7 @@ import QtQuick
 Rectangle {
     id: root
     width: 1920; height: 1080
-    color: "#000000"
+    color: (config && config.bg) || "#000000"
 
     // SDDM's context: sddm, userModel, sessionModel, keyboard, config, primaryScreen
     readonly property bool primary: typeof primaryScreen === "undefined" ? true : primaryScreen
