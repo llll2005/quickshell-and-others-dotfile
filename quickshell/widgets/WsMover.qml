@@ -57,7 +57,7 @@ Popup {
 
     function confirm() {
         var t = parseInt(wsInput.text.trim())
-        if (isNaN(t) || t < 1 || t > 20 || t === root.curWs) {
+        if (isNaN(t) || t < 1 || t > 25 || t === root.curWs) {   // 1–25: the HUD's 5×5 grid
             shakeAnim.restart()
             return
         }
@@ -179,7 +179,7 @@ Popup {
                                 inputMethodHints: Qt.ImhDigitsOnly
                                 verticalAlignment:   TextInput.AlignVCenter
                                 horizontalAlignment: TextInput.AlignHCenter
-                                validator: IntValidator { bottom:1; top:20 }
+                                validator: IntValidator { bottom:1; top:25 }
                                 Keys.onReturnPressed: root.confirm()
                                 Keys.onEnterPressed:  root.confirm()
                                 Keys.onEscapePressed: root.close()
@@ -201,7 +201,7 @@ Popup {
 
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "1 – 20"
+                        text: "1 – 25"
                         font.pixelSize:Theme.ts(0); font.letterSpacing:3; color:root.inkSoft; opacity:0.45
                     }
                 }
