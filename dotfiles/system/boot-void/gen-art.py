@@ -250,9 +250,21 @@ def limine_font(out):
 
 # the text console's glyphs: ≤ 256, so the console keeps its 16 colours (a 512-glyph font
 # takes the bright bit for the glyph index)
-CONSOLE_CHARS = (bytes(range(32, 127)).decode() + bytes(range(160, 256)).decode('latin-1')
-                 + '─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬╭╮╯╰╴╵╶╷'
-                 + '█▀▄▌▐░▒▓←↑→↓↵▲▼►◄▸◆◇◈●○•·…–—‘’“”✓✗⏎�')
+# the text console's glyphs, in code page 437's order: the kernel's default unicode map is
+# CP437's, and fbcon's deferred take-over (i915) can drop the font's own table for it — a
+# font in any other order then shows every blank as '@' and every letter shifted (2026-10).
+# Four slots CP437 wastes on dingbats draw what the shell's terminal voice needs instead,
+# and the table adds aliases (the Void's diamonds, rounded corners, Claude Code's marks).
+CP437 = (' ☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼' + bytes(range(32, 127)).decode() + '⌂'
+         + bytes(range(128, 256)).decode('cp437'))
+CONSOLE_DRAW = {0x01: '◇', 0x02: '◈', 0x0E: '↵', 0x0F: '…'}       # slot → what it shows
+CONSOLE_ALIAS = {                                                   # slot → more code points
+    0x01: '◇◯', 0x02: '◈', 0x04: '◆♦', 0x07: '●⏺', 0x0E: '↵⏎', 0x0F: '…⋯',
+    0x10: '▸▶', 0x11: '◂◀', 0x1E: '▴△', 0x1F: '▾▽', 0xFE: '▪◼◾',
+    0xDA: '╭', 0xBF: '╮', 0xD9: '╯', 0xC0: '╰⎿', 0xC4: '━╴╶', 0xB3: '┃╵╷⎢',
+    0xFB: '✓✔', 0xFA: '·', 0x2D: '–—‐−', 0x27: '‘’', 0x22: '“”', 0x2A: '✻✳✶✢✽', 0x78: '✗✘×',
+    0x3F: '�',
+}
 ROUNDED = {'╭': 'dr', '╮': 'dl', '╯': 'ul', '╰': 'ur'}
 
 
@@ -311,11 +323,11 @@ def console_font(out, cw=12, ch=24):
         d.text((x, top), c, font=f, fill=255)
         return cell.resize((cw, ch), Image.LANCZOS).point(lambda v: 1 if v >= 100 else 0, '1')
 
-    chars = list(dict.fromkeys(CONSOLE_CHARS))
-    assert len(chars) <= 256, len(chars)
+    chars = [CONSOLE_DRAW.get(i, c) for i, c in enumerate(CP437)]
+    assert len(chars) == 256
     row = (cw + 7) // 8
     glyphs, table = bytearray(), bytearray()
-    for c in chars:
+    for i, c in enumerate(chars):
         b = bitmap(c)
         for y in range(ch):
             v = 0
@@ -323,7 +335,9 @@ def console_font(out, cw=12, ch=24):
                 if b.getpixel((x, y)):
                     v |= 1 << (row * 8 - 1 - x)
             glyphs += v.to_bytes(row, 'big')
-        table += c.encode() + b'\xff'
+        # this slot's code points: CP437's own (so the default map agrees), the drawn one, aliases
+        cps = '' if i == 0 else ''.join(dict.fromkeys(CP437[i] + c + CONSOLE_ALIAS.get(i, '')))   # 0: NUL, blank
+        table += cps.encode() + b'\xff'
     head = struct.pack('<8I', 0x864ab572, 0, 32, 1, len(chars), row * ch, ch, cw)
     with open(os.path.join(out, 'void.psf'), 'wb') as fh:
         fh.write(head + glyphs + table)
