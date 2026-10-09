@@ -73,27 +73,41 @@ Popup {
     readonly property var voidFonts: installedFonts(["Josefin Sans", "Jost", "League Spartan", "Raleway", "Outfit", "Urbanist", "Figtree",
                                                      "Novecento sans wide", "Michroma", "Bender", "Rajdhani", "BigNoodleTitling",
                                                      "Barlow Condensed", "D-DIN", "Cinzel", "Norse", Theme.mono], "font.void")
-    // every installed face fontconfig counts as monospace / Traditional Chinese / Latin
+    // every installed face fontconfig counts as monospace / Chinese / Latin. Chinese is any of
+    // zh-tw / zh-cn / zh-hk; a face fontconfig doesn't count as zh-tw is marked 繁體不全 (some
+    // Traditional glyphs fall back to the next face).
+    // A face fontconfig has but Qt doesn't was installed after qs started: listed, marked —
+    // Qt draws it only after a restart.
     property var fontLists: ({ mono: [], cjk: [], void: [] })
+    property var fontSimplified: ({})
+    property var fontFresh: ({})
     Process {
         id: fontScan
         running: true
         command: ["sh", "-c",
             "{ fc-list -f '%{family[0]}\\n' ':spacing=100'; fc-list -f '%{family[0]}\\n' ':spacing=90'; } | sort -u | sed 's/^/M\t/';" +
             "fc-list -f '%{family[0]}\\n' ':lang=zh-tw' | sort -u | sed 's/^/C\t/';" +
+            "{ fc-list -f '%{family[0]}\\n' ':lang=zh-cn'; fc-list -f '%{family[0]}\\n' ':lang=zh-hk'; } | sort -u | sed 's/^/S\t/';" +
             "fc-list -f '%{family[0]}\\n' ':lang=en' | sort -u | sed 's/^/A\t/'"]
         stdout: StdioCollector {
             onStreamFinished: {
                 var have = {}, q = Qt.fontFamilies()
                 for (var i = 0; i < q.length; i++) have[q[i]] = true
-                var out = { mono: [], cjk: [], void: [] }
+                var out = { mono: [], cjk: [], void: [] }, trad = {}, simp = {}, fresh = {}
                 var lines = text.split("\n")
                 for (var j = 0; j < lines.length; j++) {
                     var t = lines[j].split("\t")
                     // icon and emoji faces aren't fonts to read in
-                    if (t.length < 2 || !have[t[1]] || /Emoji|Symbols|SignWriting|Material|Awesome|Icons|Wingdings|Webdings/i.test(t[1])) continue
-                    out[{ M: "mono", C: "cjk", A: "void" }[t[0]]].push(t[1])
+                    if (t.length < 2 || t[1] === "" || /Emoji|Symbols|SignWriting|Material|Awesome|Icons|Wingdings|Webdings/i.test(t[1])) continue
+                    if (!have[t[1]]) fresh[t[1]] = true
+                    if (t[0] === "C") trad[t[1]] = true
+                    if (t[0] === "S") { if (trad[t[1]]) continue; simp[t[1]] = true }
+                    var list = out[{ M: "mono", C: "cjk", S: "cjk", A: "void" }[t[0]]]
+                    if (list.indexOf(t[1]) < 0) list.push(t[1])
                 }
+                out.cjk.sort(function(a, b) { return (simp[a] ? 1 : 0) - (simp[b] ? 1 : 0) })   // Traditional first
+                root.fontSimplified = simp
+                root.fontFresh = fresh
                 root.fontLists = out
             }
         }
@@ -837,8 +851,17 @@ Popup {
                             width: 14; height: 14; color: String(modelData)
                             border.color: parent.on ? Theme.paper : Theme.ink; border.width: 1
                         }
+                        Text {   // 繁體不全: not a full zh-tw face · 重啟 qs 後可用: installed after qs started
+                            id: fontTag
+                            anchors { right: parent.right; rightMargin: 18; verticalCenter: parent.verticalCenter }
+                            readonly property string name: String(modelData)
+                            visible: pane.r.fonts !== undefined && text !== ""
+                            text: [root.fontSimplified[name] ? "繁體不全" : "", root.fontFresh[name] ? "重啟 qs 後可用" : ""].filter(function(x) { return x }).join(" · ")
+                            font.family: Theme.cjk; font.pixelSize: Theme.ts(1)
+                            color: parent.on ? Theme.alpha(Theme.paper, 0.75) : Theme.inkSoft
+                        }
                         Text {
-                            x: pane.kind === "color" ? 64 : 40; width: parent.width - x - 18
+                            x: pane.kind === "color" ? 64 : 40; width: parent.width - x - 18 - (fontTag.visible ? fontTag.implicitWidth + 10 : 0)
                             anchors.verticalCenter: parent.verticalCenter
                             elide: Text.ElideRight
                             text: String(modelData) === "" ? "（主題的 mono）" : String(modelData)
