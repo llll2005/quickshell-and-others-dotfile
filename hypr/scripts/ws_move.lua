@@ -15,6 +15,7 @@ local function get_active_monitor()
 end
 
 local monitor = get_active_monitor()
-local target = (monitor == "DP-2") and (10 + key) or key
+-- the MSI on any connector (HDMI-A-1, DP-2…): anything but the laptop panel (eDP-*)
+local target = (monitor ~= "" and not monitor:match("^eDP")) and (10 + key) or key
 
 os.execute("hyprctl dispatch 'hl.dsp.window.move({ workspace = " .. target .. ", silent = true })'")

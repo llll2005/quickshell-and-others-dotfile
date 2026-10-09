@@ -17,7 +17,7 @@
 -- ~90C while the 4050 idled; NVreg DynamicPowerManagement=0 keeps it awake anyway.
 --
 -- Chosen per login: the 4050 composites only when a screen is plugged into it
--- (the MSI on HDMI, or eDP-1 if the MUX is ever switched to dGPU-only).
+-- (the MSI on HDMI or DP, or eDP-1 if the MUX is ever switched to dGPU-only).
 -- Laptop panel alone → iGPU composites. Hotplugging after login still works
 -- (cross-GPU copy, as before); relogin to switch the render GPU.
 local function exists(path)

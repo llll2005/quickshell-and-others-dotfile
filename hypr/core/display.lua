@@ -20,7 +20,7 @@ local G = require("globals")
 
 -- ┌─────────────────────────────────────────────────────────┐
 -- │  Monitor 1 — MSI MP275Q  (External, Left, 0x0)          │
--- │  HDMI-A-1 · 2560x1440 · 100Hz · 10-bit · 600×330mm      │
+-- │  HDMI-A-1 or DP-2 · 2560x1440 · 100Hz · 10-bit · 600×330 │
 -- └─────────────────────────────────────────────────────────┘
 hl.monitor({
 	output = G.monitor_main,
