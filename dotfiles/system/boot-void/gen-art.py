@@ -36,7 +36,7 @@ def void_ink():
             if m:
                 sect = m.group(1).strip()
                 continue
-            m = re.match(r'\s*(light|warn|bg)\s*=\s*(#[0-9a-fA-F]{6})', line)
+            m = re.match(r'\s*(light|warn|bg)\s*=\s*"?(#[0-9a-fA-F]{6})"?', line)   # quoted or not
             if m and sect == 'void':
                 ink[m.group(1)] = m.group(2)
     except OSError:

@@ -43,7 +43,8 @@ f="$HOME_DIR/.local/share/fonts/operator-mono/OperatorMono-Book.otf"
 
 # the Void's ink from shell.conf [void]
 conf="$HOME_DIR/.config/quickshell/config/shell.conf"
-pick() { awk -v k="$1" '/^\[/{s=$0} s=="[void]" || s ~ /^\[void\][[:space:]]/ { if ($1==k) { sub(/^[^=]*=[[:space:]]*/,""); sub(/[[:space:]].*/,""); print; exit } }' "$conf" 2>/dev/null; }
+# (a value may be quoted: the settings panel quotes one that starts with #)
+pick() { awk -v k="$1" '/^\[/{s=$0} s=="[void]" || s ~ /^\[void\][[:space:]]/ { if ($1==k) { sub(/^[^=]*=[[:space:]]*/,""); sub(/[[:space:]].*/,""); gsub(/"/,""); print; exit } }' "$conf" 2>/dev/null; }
 light=$(pick light); warn=$(pick warn); bg=$(pick bg)
 [ -n "$light" ] && sed -i "s/^light=.*/light=$light/" "$DEST/theme.conf"
 [ -n "$warn" ] && sed -i "s/^warn=.*/warn=$warn/" "$DEST/theme.conf"

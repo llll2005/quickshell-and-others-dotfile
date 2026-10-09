@@ -19,6 +19,7 @@ ShellRoot {
     Player {}           // floating media player
     Companions {}       // sprites (off by default)
     WindowFx {}         // window open / close / focus effects (imecaret plugin)
+    Welcome {}          // sleep and wake in the Void (STANDBY · WELCOME BACK) qs ipc call welcome preview
 
     // ── popups (components/Popup.qml: glass backdrop, focused screen, Overlay) ──
     Menu {}             // app launcher          qs ipc call menu toggle

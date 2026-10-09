@@ -32,6 +32,10 @@ QtObject {
     readonly property real backdropCell:    Config.num("backdrop.cellSize", 180)
     readonly property real backdropFlicker: Config.num("backdrop.flicker", 0.6)
 
+    // ── sleep and wake (widgets/Welcome.qml) ──
+    readonly property bool lockOnSleep: Config.bool("void.lockOnSleep", false)   // lock before every sleep
+    readonly property bool welcomeOnWake: Config.bool("void.welcome", true)      // the Void's welcome when it wakes
+
     // ── effects (components/Fx.qml) ──
     readonly property bool clickFx:   Config.bool("effects.click", true)
     readonly property real burstSize: Config.num("effects.burstSize", 0.7)

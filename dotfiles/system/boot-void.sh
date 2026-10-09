@@ -58,11 +58,17 @@ ESP=/boot
 CONF=/etc/mkinitcpio.conf
 say() { printf '\033[1m◆ %s\033[0m\n' "$*"; }
 
-# [void] bg from the user's shell.conf, as rrggbb (000000 unless set)
-void_bg() {
+# [void] <key> from the user's shell.conf as rrggbb, else the default (a value may be quoted:
+# the settings panel quotes one that starts with #)
+void_col() {
     conf="$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)/.config/quickshell/config/shell.conf"
-    v=$(awk '/^\[/{s=$0} s ~ /^\[void\]/ && $1=="bg" { sub(/^[^=]*=[[:space:]]*#?/,""); sub(/[[:space:]].*/,""); print; exit }' "$conf" 2>/dev/null)
-    printf '%s' "$v" | grep -qiE '^[0-9a-f]{6}$' && printf '%s' "$v" | tr A-F a-f || printf '000000'
+    v=$(awk -v k="$1" '/^\[/{s=$0} s ~ /^\[void\]/ && $1==k { sub(/^[^=]*=[[:space:]]*/,""); sub(/[[:space:]].*/,""); gsub(/["#]/,""); print; exit }' "$conf" 2>/dev/null)
+    printf '%s' "$v" | grep -qiE '^[0-9a-f]{6}$' && printf '%s' "$v" | tr A-F a-f || printf '%s' "$2"
+}
+void_bg() { void_col bg 000000; }
+# a of b over c: rrggbb mixes, for text a little quieter than the ink
+mixhex() {
+    awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { for (i = 1; i <= 5; i += 2) printf "%02x", (1 - t) * strtonum("0x" substr(a, i, 2)) + t * strtonum("0x" substr(b, i, 2)) }'
 }
 
 # ── the pictures ──
@@ -98,9 +104,17 @@ console() {
 # ── Limine's look: the block, the hook that keeps it, the guard that runs it at boot ──
 look() {
     install -Dm 644 "$SRC/limine-head.conf" /usr/local/lib/boot-void/limine-head.conf
-    # the menu's dark: [void] bg (the backdrop colour and palette slot 0)
-    bg=$(void_bg)
-    sed -i "s/^backdrop: .*/backdrop: $bg/; s/^term_palette: [0-9a-fA-F]\{6\}/term_palette: $bg/" /usr/local/lib/boot-void/limine-head.conf
+    # the menu in the Void's own dark and ink ([void] bg / light): the backdrop, the text,
+    # palette slot 0 (the pick's text) and the whites (the pick's block)
+    bg=$(void_bg); fg=$(void_col light ffffff)
+    body=$(mixhex "$fg" "$bg" 0.15); quiet=$(mixhex "$fg" "$bg" 0.4)
+    sed -i -e "s/^backdrop: .*/backdrop: $bg/" \
+        -e "s/^term_foreground: .*/term_foreground: $body/" \
+        -e "s/^term_foreground_bright: .*/term_foreground_bright: $fg/" \
+        -e "s/^interface_help_colour: .*/interface_help_colour: $quiet/" \
+        -e "s/^term_palette: [0-9a-fA-F]\{6\}\(.*\);[0-9a-fA-F]\{6\}$/term_palette: $bg\1;$quiet/" \
+        -e "s/^term_palette_bright: \(.*\);[0-9a-fA-F]\{6\}$/term_palette_bright: \1;$fg/" \
+        /usr/local/lib/boot-void/limine-head.conf
     install -Dm 755 "$SRC/limine-look" /usr/local/lib/boot-void/limine-look
     install -d /etc/boot/hooks/post.d
     ln -sf /usr/local/lib/boot-void/limine-look /etc/boot/hooks/post.d/80-boot-void-look

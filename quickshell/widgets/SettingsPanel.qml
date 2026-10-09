@@ -181,6 +181,8 @@ Popup {
             { type: "num",  key: "notifications.timeout",         def: 5000,  min: 1000, max: 20000, step: 500,  unit: "ms", label: "通知停留", desc: "一般通知的彈窗停留多久（之後仍在歷史裡）。" },
             { type: "num",  key: "notifications.criticalTimeout", def: 10000, min: 2000, max: 30000, step: 1000, unit: "ms", label: "緊急通知停留", desc: "緊急通知的彈窗停留多久。" },
             { type: "num",  key: "notifications.history",         def: 50,    min: 10, max: 200, step: 10, label: "通知歷史則數", desc: "Control Center 保留的通知數量。" },
+            { type: "bool", key: "void.lockOnSleep", def: false, label: "睡前自動鎖定", desc: "闔上螢幕或睡眠前先鎖定（關掉時不鎖，要鎖就在闔上前按 SUPER+L）。" },
+            { type: "bool", key: "void.welcome", def: true, label: "醒來的歡迎頁", desc: "睡前畫上虛空的 STANDBY，醒來顯示 WELCOME BACK、時間與睡了多久；任意鍵或 2 秒後淡出。" },
             { type: "bool", key: "companions.enabled", def: false, label: "角落小人", desc: "右下角的動畫小人（需要自己放 gif，見 README）。" }
         ]
     })
