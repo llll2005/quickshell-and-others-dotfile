@@ -28,7 +28,11 @@ Item {
     readonly property int  wt: Theme.voidWeight
 
     focus: true
-    Component.onCompleted: forceActiveFocus()
+    Component.onCompleted: {
+        forceActiveFocus()
+        // the keys go to st: say if it isn't there (Qt 6.12 once resolved `st: st` to itself)
+        console.log("lock: face up, state " + (face.st ? "bound" : "MISSING — keys will be lost"))
+    }
     // Keep the keys. Waking from sleep reconnects the outputs: the compositor hands the
     // keyboard back to this surface, but Qt doesn't always give it back to this item, so the
     // face kept animating while every key went nowhere (2026-10-08). Take the focus back
@@ -121,7 +125,7 @@ Item {
             Rectangle {
                 anchors.centerIn: parent; width: 5 * face.u; height: width; rotation: 45
                 color: parent.c
-                opacity: face.st.phase === "verifying" ? 0.3 + 0.7 * blink.v : 0.8
+                opacity: face.st.phase === "verifying" ? 0.3 + 0.7 * blinkClock.v : 0.8
             }
         }
         Item { width: 1; height: 16 * face.u }
@@ -155,7 +159,7 @@ Item {
             u: face.u
             text: face.st.text
             phase: face.st.phase
-            blink: blink.v
+            blink: blinkClock.v
             opacity: face.st.text !== "" || face.st.phase !== "idle" ? 1 : 0.55
             Behavior on opacity { NumberAnimation { duration: 220 } }
             Component.onCompleted: burst.backdrop = glass
@@ -175,9 +179,9 @@ Item {
 
     // caret / verifying blink — stepped, not animated: two frames a second while locked
     QtObject {
-        id: blink
+        id: blinkClock
         property real v: 1
-        property var _t: Timer { interval: 530; running: true; repeat: true; onTriggered: blink.v = blink.v > 0.5 ? 0.15 : 1 }
+        property var _t: Timer { interval: 530; running: true; repeat: true; onTriggered: blinkClock.v = blinkClock.v > 0.5 ? 0.15 : 1 }
     }
 
     // ── the glass: unfolds over the black and shatters (lock), closes over the face (unlock) ──

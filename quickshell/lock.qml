@@ -48,7 +48,8 @@ ShellRoot {
     FileView { id: doneFile;  path: shell.run + ".unlocked"; blockWrites: true; printErrors: false }
 
     LockState {
-        id: st
+        id: lockState     // not "st": LockFace's own property is st, and Qt 6.12 resolves
+                          // `st: st` to that property itself (undefined) — every key was lost
         onUnlocked: {
             if (shell.preview) { console.log("lock preview: authorized"); return }
             doneFile.setText(String(Date.now()))
@@ -65,7 +66,7 @@ ShellRoot {
         WlSessionLockSurface {
             id: surf
             color: Theme.voidBg
-            LockFace { anchors.fill: parent; st: st; scr: surf.screen }
+            LockFace { anchors.fill: parent; st: lockState; scr: surf.screen }
         }
     }
 
@@ -79,16 +80,16 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         color: Theme.voidBg
-        LockFace { anchors.fill: parent; st: st; scr: previewWin.screen }
+        LockFace { anchors.fill: parent; st: lockState; scr: previewWin.screen }
         MouseArea { anchors.fill: parent; onClicked: Qt.quit() }   // a click closes the preview
     }
     IpcHandler {
         target: "lockpreview"
         enabled: shell.preview
-        function type(s: string): void { st.type(s) }
-        function submit(): void { st.submit() }
-        function clear(): void { st.clear() }
-        function state(): string { return JSON.stringify({ phase: st.phase, len: st.text.length, fails: st.fails, caps: st.caps }) }
+        function type(s: string): void { lockState.type(s) }
+        function submit(): void { lockState.submit() }
+        function clear(): void { lockState.clear() }
+        function state(): string { return JSON.stringify({ phase: lockState.phase, len: lockState.text.length, fails: lockState.fails, caps: lockState.caps }) }
         function quit(): void { Qt.quit() }
     }
 }
