@@ -205,7 +205,9 @@ Two geometry rules the input mask depends on:
   for `-D`). **The text console** (`--console`, also in `--update`): Operator Mono drawn
   into a 12×24 PSF2 by `gen-art.py` (`/usr/share/kbd/consolefonts/void.psf`, vconsole.conf
   `FONT=void`, carried into the initramfs by sd-vconsole; ≤ 256 glyphs or the console loses
-  its bright colours) and the Void's 16 colours (`console-void.service` runs setvtrgb at
+  its bright colours; **in CP437's slot order** — fbcon's deferred take-over can leave the
+  kernel's default CP437 map in place of the font's table, and a font in any other order
+  showed every blank as `@`; ◇ ◈ ↵ … replace four dingbats, ◆ ▸ ╭ ⏺ ✻ ⎿ ✔ are aliases) and the Void's 16 colours (`console-void.service` runs setvtrgb at
   sysinit; the emergency shell sets them too). voidbox and void-rescue draw ◆ ▸ ↑↓ on a VT
   only when vconsole.conf says `FONT=void` — the kernel's font lacks them.
   Limine (a black menu over a backdrop —
