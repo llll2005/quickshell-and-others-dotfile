@@ -416,11 +416,23 @@ Popup {
     NumberAnimation { id: rowsIn; target: root; property: "rowsEnter"; from: 0; to: 1; duration: 420; easing.type: Easing.OutCubic }
 
     // ── lifecycle (components/Popup.qml) ──
-    onOpening: { cat = "status"; focusIdx = 0; _pending = ({}); editing = false; editT = 0; Health.check(); fontScan.running = true }
+    onOpening: { cat = "status"; focusIdx = 0; _pending = ({}); editing = false; editT = 0; Health.check(); fontScan.running = true; _voidAtOpen = voidSig() }
     onIntro:    { host.reveal(); keys.forceActiveFocus(); if (_editAt !== "") editT0.start() }
     Timer { id: editT0; interval: 380; onTriggered: root._openEdit() }
     onOutro:    { if (editing) endEdit(false); host.conceal() }
-    onFinished: host.reset()
+    onFinished: {
+        host.reset()
+        // the Void changed: the login screen and the boot chain only take it from the
+        // install scripts (sudo) — ask, in the Void, whether to carry it there now
+        if (_voidAtOpen !== "" && voidSig() !== _voidAtOpen) Quickshell.execDetached(["sh", Quickshell.shellDir + "/scripts/void-sync.sh", "ask"])
+        _voidAtOpen = ""
+    }
+    // what the login screen and the boot chain draw from shell.conf (scripts/void-sync.sh)
+    readonly property var voidKeys: ["void.bg", "void.light", "void.warn", "font.voidWeight", "font.voidBase", "font.voidRatio"]
+    property string _voidAtOpen: ""
+    function voidSig() {
+        return JSON.stringify(voidKeys.map(function(k) { return k in _pending ? String(_pending[k]) : String(Config.shell[k]) }))
+    }
 
     // ═══════════════════════════════════
     IrisHost {

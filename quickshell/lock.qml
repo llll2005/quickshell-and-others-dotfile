@@ -20,6 +20,30 @@ ShellRoot {
     readonly property string run: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/qs-lock"
     readonly property bool preview: Quickshell.env("QS_LOCK_PREVIEW") === "1"
 
+    // Waking from sleep with the lock up: the outputs come back and Hyprland may hand the
+    // keyboard to no surface (2026-10-08: the face animated, no key reached it). After
+    // logind's PrepareForSleep(false), put the pointer on the focused monitor's centre, so
+    // the compositor re-picks the lock surface under it (LockFace takes the focus back too).
+    Process {
+        running: !shell.preview
+        command: ["gdbus", "monitor", "--system", "--dest", "org.freedesktop.login1", "--object-path", "/org/freedesktop/login1"]
+        stdout: SplitParser {
+            onRead: (line) => {
+                if (line.indexOf("PrepareForSleep") >= 0 && line.indexOf("false") >= 0) {
+                    console.log("lock: woke from sleep — re-picking the keyboard surface")
+                    refocusT.restart()
+                }
+            }
+        }
+    }
+    Timer { id: refocusT; interval: 400; onTriggered: refocusProc.running = true }
+    Process {
+        id: refocusProc
+        command: ["sh", "-c", "hyprctl monitors -j | python3 -c 'import json,sys; m=[m for m in json.load(sys.stdin) if m[\"focused\"]] or [None]; m=m[0]; " +
+                  "print(\"\" if m is None else \"hl.dsp.cursor.move({x=%d, y=%d})\" % (m[\"x\"] + m[\"width\"] / m[\"scale\"] / 2, m[\"y\"] + m[\"height\"] / m[\"scale\"] / 2))' | " +
+                  "{ read -r d; [ -n \"$d\" ] && hyprctl dispatch \"$d\"; }"]
+    }
+
     FileView { id: readyFile; path: shell.run + ".ready";    blockWrites: true; printErrors: false }
     FileView { id: doneFile;  path: shell.run + ".unlocked"; blockWrites: true; printErrors: false }
 

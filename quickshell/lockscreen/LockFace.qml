@@ -29,6 +29,29 @@ Item {
 
     focus: true
     Component.onCompleted: forceActiveFocus()
+    // Keep the keys. Waking from sleep reconnects the outputs: the compositor hands the
+    // keyboard back to this surface, but Qt doesn't always give it back to this item, so the
+    // face kept animating while every key went nowhere (2026-10-08). Take the focus back
+    // whenever the window turns active, on any click, and once a second if it went missing.
+    function grabKeys(why) {
+        if (face.activeFocus) return
+        face.forceActiveFocus()
+        console.log("lock: keyboard focus taken back (" + why + ") — active:", face.activeFocus)
+    }
+    Connections {
+        target: face.Window.window
+        ignoreUnknownSignals: true
+        function onActiveChanged() {
+            console.log("lock: window active =", face.Window.window ? face.Window.window.active : "?")
+            if (face.Window.window && face.Window.window.active) face.grabKeys("window active")
+        }
+    }
+    Timer {
+        interval: 1000; repeat: true
+        running: face.Window.window !== null && face.Window.window.active
+        onTriggered: face.grabKeys("watchdog")
+    }
+    MouseArea { anchors.fill: parent; z: -1; onPressed: (m) => { face.grabKeys("click"); m.accepted = false } }
     // the surface gets its size a moment after it maps: start once it has one
     property bool _started: false
     onWidthChanged: if (width > 0 && !_started) { _started = true; introT.start() }

@@ -23,6 +23,7 @@ select_theme() {   # both places that name the theme; /etc/sddm.conf wins over c
 
 if [ "$1" = "--undo" ]; then
     prev=$(cat "$DEST/.previous" 2>/dev/null || echo breeze)
+    rm -f /etc/sddm.conf.d/void-x11.conf
     select_theme "$prev"
     echo "SDDM theme: $prev"
     exit 0
@@ -49,6 +50,36 @@ light=$(pick light); warn=$(pick warn); bg=$(pick bg)
 [ -n "$light" ] && sed -i "s/^light=.*/light=$light/" "$DEST/theme.conf"
 [ -n "$warn" ] && sed -i "s/^warn=.*/warn=$warn/" "$DEST/theme.conf"
 [ -n "$bg" ] && sed -i "s/^bg=.*/bg=$bg/" "$DEST/theme.conf"
+# and the Void's type: weight and scale (shell.conf [font] voidWeight / voidBase / voidRatio)
+pickf() { awk -v k="$1" '/^\[/{s=$0} s=="[font]" || s ~ /^\[font\][[:space:]]/ { if ($1==k) { sub(/^[^=]*=[[:space:]]*/,""); sub(/[[:space:]].*/,""); gsub(/"/,""); print; exit } }' "$conf" 2>/dev/null; }
+for k in voidWeight voidBase voidRatio; do
+    v=$(pickf "$k")
+    printf '%s' "$v" | grep -qE '^[0-9.]+$' && sed -i "s/^$k=.*/$k=$v/" "$DEST/theme.conf"
+done
+
+# greyscale text: the greeter is on X11, where Qt picks the panel's RGB subpixel order and
+# fringes thin strokes red / green. Xsetup tells Qt (Xft.rgba: none) before the greeter
+# starts; the sddm user's fontconfig says the same to FreeType
+install -m 755 "$HERE/sddm-void/Xsetup" "$DEST/Xsetup"
+printf '[X11]\nDisplayCommand=%s/Xsetup\n' "$DEST" > /etc/sddm.conf.d/void-x11.conf
+sddm_home=$(getent passwd sddm | cut -d: -f6)
+if [ -n "$sddm_home" ] && [ -d "$sddm_home" ]; then
+    install -d -o sddm -g sddm "$sddm_home/.config" "$sddm_home/.config/fontconfig"
+    cat > "$sddm_home/.config/fontconfig/fonts.conf" <<'FC'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<!-- written by quickshell's dotfiles/system/sddm-void.sh: greyscale text on the login screen -->
+<fontconfig>
+  <match target="font">
+    <edit name="rgba" mode="assign"><const>none</const></edit>
+    <edit name="lcdfilter" mode="assign"><const>lcdnone</const></edit>
+    <edit name="antialias" mode="assign"><bool>true</bool></edit>
+    <edit name="hintstyle" mode="assign"><const>hintslight</const></edit>
+  </match>
+</fontconfig>
+FC
+    chown sddm:sddm "$sddm_home/.config/fontconfig/fonts.conf"
+fi
 
 chmod -R a+rX "$DEST"
 select_theme void

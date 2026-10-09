@@ -39,7 +39,11 @@ fallback() {
 
 rm -f "$run.ready" "$run.unlocked"
 frames
-qs -p "$dir/lock.qml" >"$run.log" 2>&1 &
+# its log outlives a reboot (the runtime dir doesn't), the last two locks kept
+logd=${XDG_STATE_HOME:-$HOME/.local/state}/quickshell
+mkdir -p "$logd"
+[ -f "$logd/lock.log" ] && mv -f "$logd/lock.log" "$logd/lock.prev.log"
+qs -p "$dir/lock.qml" >"$logd/lock.log" 2>&1 &
 pid=$!
 
 i=0

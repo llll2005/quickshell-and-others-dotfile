@@ -1,0 +1,15 @@
+#!/bin/sh
+# Xsetup for the Void's login screen (installed by sddm-void.sh as
+# /usr/share/sddm/themes/void/Xsetup, SDDM's [X11] DisplayCommand): greyscale text.
+# The greeter runs on X11, where Qt takes the panel's RGB subpixel order from RandR and
+# draws LCD-antialiased text — on Josefin Sans Light that showed as red / green fringes
+# beside every stroke. The Wayland desktop draws greyscale; so does this, then.
+xrdb -merge <<XRES
+Xft.antialias: 1
+Xft.rgba: none
+Xft.lcdfilter: lcdnone
+Xft.hintstyle: hintslight
+XRES
+# then whatever the stock setup does
+[ -x /usr/share/sddm/scripts/Xsetup ] && exec /usr/share/sddm/scripts/Xsetup
+exit 0

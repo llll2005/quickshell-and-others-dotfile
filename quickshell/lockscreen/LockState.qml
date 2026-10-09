@@ -57,6 +57,17 @@ Scope {
         }
     }
     Timer { id: doneT; interval: 950; onTriggered: st.unlocked() }   // the authorized hit, then the screen opens
+    // PAM that never answers (e.g. asked just before the machine slept) would leave the
+    // phase on "verifying" and every key ignored: give it 15 s, then let typing back in
+    Timer {
+        interval: 15000
+        running: st.phase === "verifying"
+        onTriggered: {
+            console.log("lock: PAM gave no answer in 15 s — aborting, typing back on")
+            try { pam.abort() } catch (e) {}
+            st.text = ""; st.phase = "failed"; st.failedPulse()
+        }
+    }
 
     // Caps Lock: the keyboard LED (sysfs doesn't notify, so read after each key)
     Process {

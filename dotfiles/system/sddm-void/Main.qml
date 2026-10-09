@@ -166,7 +166,7 @@ Rectangle {
                 }
             }
             Item { width: 1; height: 26 * root.u }
-            Text {
+            Text { renderType: Text.QtRendering;
                 anchors.horizontalCenter: parent.horizontalCenter
                 opacity: root.inT
                 text: ({ idle: "SYSTEM LOGIN", verifying: "VERIFYING", failed: "ACCESS DENIED", authorized: "WELCOME" })[root.phase]
@@ -181,7 +181,7 @@ Rectangle {
                 Rectangle { width: parent.width * root.inT; x: (parent.width - width) / 2; height: 1; color: root.alpha(root.light, 0.45) }
             }
             Item { width: 1; height: 20 * root.u }
-            Text {   // the mono line: the time, the date, this machine
+            Text { renderType: Text.QtRendering;   // the mono line: the time, the date, this machine
                 anchors.horizontalCenter: parent.horizontalCenter
                 opacity: 0.6 * root.inT
                 text: Qt.formatTime(root.now, "HH:mm") + "  ·  " + Qt.formatDate(root.now, "ddd dd MMM").toUpperCase()
@@ -195,10 +195,10 @@ Rectangle {
                 opacity: root.inT
                 spacing: 12 * root.u
                 readonly property bool many: root.users.length > 1
-                Text { text: "AS"; font.family: root.voidFont; font.weight: root.voidWeight; font.pixelSize: Math.round(root.step(0)); font.letterSpacing: 0.3 * root.step(0); color: root.alpha(root.light, 0.45) }
-                Text { visible: parent.many; text: "◂"; font.pixelSize: Math.round(root.step(0)); color: root.alpha(root.light, 0.6) }
-                Text { text: root.userName.toUpperCase(); font.family: root.voidFont; font.weight: root.voidWeight; font.pixelSize: Math.round(root.step(0)); font.letterSpacing: 0.3 * root.step(0); color: root.light }
-                Text { visible: parent.many; text: "▸"; font.pixelSize: Math.round(root.step(0)); color: root.alpha(root.light, 0.6) }
+                Text { renderType: Text.QtRendering; text: "AS"; font.family: root.voidFont; font.weight: root.voidWeight; font.pixelSize: Math.round(root.step(0)); font.letterSpacing: 0.3 * root.step(0); color: root.alpha(root.light, 0.45) }
+                Text { renderType: Text.QtRendering; visible: parent.many; text: "◂"; font.pixelSize: Math.round(root.step(0)); color: root.alpha(root.light, 0.6) }
+                Text { renderType: Text.QtRendering; text: root.userName.toUpperCase(); font.family: root.voidFont; font.weight: root.voidWeight; font.pixelSize: Math.round(root.step(0)); font.letterSpacing: 0.3 * root.step(0); color: root.light }
+                Text { renderType: Text.QtRendering; visible: parent.many; text: "▸"; font.pixelSize: Math.round(root.step(0)); color: root.alpha(root.light, 0.6) }
             }
             Item { width: 1; height: 18 * root.u }
             Item {   // the password: a diamond per character on a hairline
@@ -235,7 +235,7 @@ Rectangle {
                             color: "transparent"; border.color: root.light; border.width: 1
                             opacity: root.blink
                         }
-                        Text {
+                        Text { renderType: Text.QtRendering;
                             visible: root.pw === "" && root.phase === "idle"
                             anchors.verticalCenter: parent.verticalCenter
                             text: "TYPE TO LOG IN"
@@ -251,7 +251,7 @@ Rectangle {
                 }
             }
             Item { width: 1; height: 16 * root.u }
-            Text {   // caps lock · failures · a power key waiting for its second press
+            Text { renderType: Text.QtRendering;   // caps lock · failures · a power key waiting for its second press
                 anchors.horizontalCenter: parent.horizontalCenter
                 opacity: root.inT
                 readonly property bool caps: typeof keyboard !== "undefined" && keyboard.capsLock
@@ -275,8 +275,8 @@ Rectangle {
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: 12 * root.u
-                Text { text: "SESSION"; font.family: root.voidFont; font.weight: root.voidWeight; font.pixelSize: Math.round(root.step(0)); font.letterSpacing: 0.3 * root.step(0); color: root.alpha(root.light, 0.45) }
-                Text { text: root.sessionName.toUpperCase(); font.family: root.voidFont; font.weight: root.voidWeight; font.pixelSize: Math.round(root.step(0)); font.letterSpacing: 0.3 * root.step(0); color: root.light }
+                Text { renderType: Text.QtRendering; text: "SESSION"; font.family: root.voidFont; font.weight: root.voidWeight; font.pixelSize: Math.round(root.step(0)); font.letterSpacing: 0.3 * root.step(0); color: root.alpha(root.light, 0.45) }
+                Text { renderType: Text.QtRendering; text: root.sessionName.toUpperCase(); font.family: root.voidFont; font.weight: root.voidWeight; font.pixelSize: Math.round(root.step(0)); font.letterSpacing: 0.3 * root.step(0); color: root.light }
             }
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -290,9 +290,9 @@ Rectangle {
                         Rectangle {
                             width: kk.implicitWidth + root.step(0) * 0.7; height: root.step(0) * 1.5
                             color: "transparent"; border.color: root.alpha(root.light, 0.35); border.width: 1
-                            Text { id: kk; anchors.centerIn: parent; text: modelData[0]; font.family: root.voidFont; font.weight: root.voidWeight; font.pixelSize: Math.round(root.step(0) * 0.85); color: root.light }
+                            Text { renderType: Text.QtRendering; id: kk; anchors.centerIn: parent; text: modelData[0]; font.family: root.voidFont; font.weight: root.voidWeight; font.pixelSize: Math.round(root.step(0) * 0.85); color: root.light }
                         }
-                        Text {
+                        Text { renderType: Text.QtRendering;
                             anchors.verticalCenter: parent.verticalCenter
                             text: modelData[1]; font.family: root.voidFont; font.weight: root.voidWeight
                             font.pixelSize: Math.round(root.step(0)); font.letterSpacing: 0.26 * root.step(0)
