@@ -234,9 +234,10 @@ Popup {
                     var prefix = n.active ? "✓ " : n.busy ? "… " : n.known ? "· " : "  "
                     var sigBars = ["▱▱▱", "▰▱▱", "▰▰▱", "▰▰▰"][n.bars]
                     var lock = n.secured && !n.known ? " ⚿" : "  "
+                    var portal = n.active && wifiPortal ? "  · LOGIN PAGE" : ""
                     acts.push({
                         key: "connect:" + n.ssid,
-                        label: prefix + n.ssid + "  " + sigBars + lock
+                        label: prefix + n.ssid + "  " + sigBars + lock + portal
                     })
                 }
             }
@@ -470,6 +471,58 @@ Popup {
         return null
     }
     function wifiSecured(n) { return n.security !== WifiSecurityType.Open && n.security !== WifiSecurityType.Owe }
+    // what a network asks for: one shared password (the prompt), an account (802.1X: the
+    // prompt can't hold a user name — nmtui-connect asks), or nothing. An unknown type is
+    // tried without a password first: public networks behind a login page are open, and
+    // asking for a password they don't have left them impossible to join.
+    function wifiNeedsPsk(n) {
+        return n.security === WifiSecurityType.WpaPsk || n.security === WifiSecurityType.Wpa2Psk
+            || n.security === WifiSecurityType.Sae || n.security === WifiSecurityType.StaticWep
+    }
+    function wifiEnterprise(n) {
+        return n.security === WifiSecurityType.Wpa2Eap || n.security === WifiSecurityType.WpaEap
+            || n.security === WifiSecurityType.Wpa3SuiteB192 || n.security === WifiSecurityType.DynamicWep
+            || n.security === WifiSecurityType.Leap
+    }
+    function wifiEnterpriseJoin(ssid) {   // an account network: NetworkManager's own dialog, in a terminal
+        Quickshell.execDetached(["kitty", "--title", "Wi-Fi · " + ssid, "-e", "nmtui-connect", ssid])
+    }
+    function wifiNotify(title, body) {
+        Quickshell.execDetached(["notify-send", "-a", "Wi-Fi", "-i", "network-wireless", title, body])
+    }
+
+    // ── joined: the row flashes green when the list is on screen, else a notification. A
+    //    drop and a rejoin of the same network within 90 s (a phone hotspot does that) is quiet.
+    property string wifiFlashSSID: ""
+    Timer { id: wifiFlashT; interval: 1600; onTriggered: root.wifiFlashSSID = "" }
+    property string _wifiDropSSID: ""
+    property double _wifiDropAt: 0
+    function wifiJoined(ssid) {
+        var rejoin = ssid === _wifiDropSSID && Date.now() - _wifiDropAt < 90000
+        _wifiPortalShown = ""                       // a fresh join may sit behind a new login page
+        if (wifiListShown) {
+            wifiFlashSSID = ssid
+            wifiFlashT.restart()
+        } else if (!rejoin) {
+            wifiNotify("Wi-Fi 已連線", ssid)
+        }
+        portalCheckT.restart()
+    }
+    function wifiDropped(ssid) { _wifiDropSSID = ssid; _wifiDropAt = Date.now() }
+
+    // ── a login page in the way (NetworkManager's connectivity check says "portal"): open
+    //    it in Firefox, once per join. Firefox's own probe URL is the one its captive-portal
+    //    handling expects, and plain HTTP so the portal can redirect it.
+    readonly property bool wifiPortal: Networking.connectivity === NetworkConnectivity.Portal
+    property string _wifiPortalShown: ""
+    function wifiCheckPortal() {
+        if (!wifiPortal || wifiCurrentSSID === "" || _wifiPortalShown === wifiCurrentSSID) return
+        _wifiPortalShown = wifiCurrentSSID
+        Quickshell.execDetached(["firefox", "--new-window", "http://detectportal.firefox.com/canonical.html"])
+        wifiNotify("「" + wifiCurrentSSID + "」需要網頁登入", "已在 Firefox 打開登入頁；登入後就能上網。")
+    }
+    Timer { id: portalCheckT; interval: 1500; onTriggered: root.wifiCheckPortal() }   // the check lands just after the join
+    Connections { target: Networking; function onConnectivityChanged() { portalCheckT.restart() } }
     // The rows are rebuilt only when what they show changes (signal as 0-3 bars), so
     // signal jitter doesn't replay the list's entrance
     function _wifiSnapshot() {
@@ -510,12 +563,20 @@ Popup {
             function onConnectedChanged() {
                 wifiSnapT.restart()
                 if (modelData.connected && modelData.name === root.wifiPromptSSID) root.cancelWifiPrompt()
+                if (modelData.connected) root.wifiJoined(modelData.name)
+                else root.wifiDropped(modelData.name)
             }
             function onStateChangingChanged() { wifiSnapT.restart() }
             function onKnownChanged()         { wifiSnapT.restart() }
             function onConnectionFailed(reason) {
                 wifiSnapT.restart()
-                if (reason === ConnectionFailReason.NoSecrets) {
+                if (reason === ConnectionFailReason.NoSecrets && root.wifiEnterprise(modelData)) {
+                    root.wifiEnterpriseJoin(modelData.name)        // the account: nmtui-connect asks
+                } else if (reason === ConnectionFailReason.NoSecrets && !root.wifiNeedsPsk(modelData)) {
+                    // not a password network: a prompt here could never be filled in
+                    root.wifiNotify("「" + modelData.name + "」連線失敗",
+                                    "這個網路不用密碼，但 NetworkManager 沒能連上；離基地台近一點再試，或用 nmtui 看詳細原因。")
+                } else if (reason === ConnectionFailReason.NoSecrets) {
                     // needs a password: new network, or the saved one no longer works
                     var again = root._wifiTriedPsk === modelData.name
                     root.wifiPromptSSID = modelData.name
@@ -1046,8 +1107,9 @@ Popup {
                 var wn = wifiNetObj(actionKey.substring(8))
                 if (!wn) return
                 if (wn.connected) { wn.disconnect(); return }
-                // saved profile or open network: no password needed
-                if (wn.known || !wifiSecured(wn)) { wn.connect(); wifiSnapT.restart(); return }
+                // saved profile, open or unknown type: no password asked first
+                if (wn.known || !wifiNeedsPsk(wn) && !wifiEnterprise(wn)) { wn.connect(); wifiSnapT.restart(); return }
+                if (wifiEnterprise(wn)) { wifiEnterpriseJoin(wn.name); return }   // an account, not a password
                 wifiPromptSSID = wn.name
                 wifiError = ""
                 return
@@ -3524,7 +3586,7 @@ Popup {
             Translate { id: btnT; x: -8 },
             Translate { y: btn.isFocus ? root.bump * root.bumpDir * 7 : 0 }
         ]
-        Component.onCompleted: enterAnim2.start()
+        Component.onCompleted: { enterAnim2.start(); if (joinedFlash) okAnim.restart() }
         SequentialAnimation {
             id: enterAnim2
             PauseAnimation { duration: btn.enterDelay }
@@ -3542,6 +3604,24 @@ Popup {
             border.width: 1
             opacity: btn.isFocus ? 1 : 0.5
             Behavior on opacity { NumberAnimation { duration: 220 } }
+        }
+
+        // a Wi-Fi network just joined: its row flashes green, then settles (rows are rebuilt
+        // as the list re-sorts, so a fresh row picks the flash up from root's state)
+        readonly property bool joinedFlash: root.wifiFlashSSID !== "" && btn.actionData.key === "connect:" + root.wifiFlashSSID
+        onJoinedFlashChanged: if (joinedFlash) okAnim.restart()
+        Rectangle {
+            id: okFlash
+            anchors.fill: parent
+            color: Theme.good
+            opacity: 0
+            z: 1
+        }
+        SequentialAnimation {
+            id: okAnim
+            NumberAnimation { target: okFlash; property: "opacity"; to: 0.9; duration: 160; easing.type: Easing.OutCubic }
+            PauseAnimation { duration: 420 }
+            NumberAnimation { target: okFlash; property: "opacity"; to: 0; duration: 760; easing.type: Easing.InOutQuad }
         }
 
         // ↵ on this action: the impact comes out of its marker

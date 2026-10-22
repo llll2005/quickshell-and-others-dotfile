@@ -13,6 +13,8 @@
 #   sudo sh wifi-iwd.sh --undo   NetworkManager on wpa_supplicant, iwd off
 #
 # Either way only one daemon runs. Wi-Fi drops for a few seconds while NM restarts.
+# NetworkManager, not iwd, decides what to join: every profile it saved with autoconnect
+# on comes back by itself.
 set -e
 [ "$(id -u)" = 0 ] || { echo "run with sudo"; exit 1; }
 CONF=/etc/NetworkManager/NetworkManager.conf
@@ -29,7 +31,10 @@ if [ "$1" = "--undo" ]; then
     exit 0
 fi
 
-printf '# NetworkManager drives iwd (dotfiles/system/wifi-iwd.sh). The key belongs in [device].\n[device]\nwifi.backend=iwd\n' > "$DROP"
+# wifi.iwd.autoconnect=false: NetworkManager picks the network to join itself, from every
+# profile it saved. Left to iwd (the default), only the networks iwd had joined on its own
+# came back by themselves — NM's other profiles (cafés, campus) waited for a click (2026-10).
+printf '# NetworkManager drives iwd (dotfiles/system/wifi-iwd.sh). The keys belong in [device].\n[device]\nwifi.backend=iwd\nwifi.iwd.autoconnect=false\n' > "$DROP"
 systemctl enable iwd
 systemctl stop wpa_supplicant 2>/dev/null || true
 # iwd's own profiles go: NetworkManager hands it the secrets from its connections
