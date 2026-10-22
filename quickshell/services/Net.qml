@@ -28,9 +28,36 @@ QtObject {
         for (var i = 0; i < ns.length; i++) if (ns[i] && ns[i].connected) return ns[i]
         return null
     }
-    readonly property bool   wifiOn:   wifiNet !== null
-    readonly property string wifiSSID: wifiNet ? wifiNet.name : ""
-    readonly property int    wifiSig:  wifiNet ? Math.round(Math.min(1, wifiNet.signalStrength) * 100) : 0   // 0-100
+    // Quickshell ties a network to the saved profiles whose security matches what the access
+    // point advertises. A profile joined under another security (a phone hotspot that
+    // switches WPA2 / WPA3: the WPA3 profile active, the AP saying WPA2) leaves the device
+    // connected and no network claiming it (2026-10-22: the HUD read "offline"). Then the
+    // device's word stands, with NetworkManager's own SSID and signal for it.
+    readonly property bool   wifiDevUp: wifiDev ? wifiDev.connected : false
+    readonly property bool   wifiUntied: wifiDevUp && wifiNet === null
+    property string          _orphanSSID: ""
+    property int             _orphanSig:  0
+    readonly property bool   wifiOn:   wifiNet !== null || (wifiUntied && _orphanSSID !== "")
+    readonly property string wifiSSID: wifiNet ? wifiNet.name : (wifiUntied ? _orphanSSID : "")
+    readonly property int    wifiSig:  wifiNet ? Math.round(Math.min(1, wifiNet.signalStrength) * 100) : (wifiUntied ? _orphanSig : 0)   // 0-100
+    onWifiUntiedChanged: if (wifiUntied) _orphanP.running = true; else { _orphanSSID = ""; _orphanSig = 0 }
+    property Timer _orphanT: Timer { interval: 15000; repeat: true; running: root.wifiUntied; onTriggered: root._orphanP.running = true }
+    property Process _orphanP: Process {
+        running: false
+        command: ["nmcli", "-t", "-f", "IN-USE,SIGNAL,SSID", "dev", "wifi", "list", "--rescan", "no"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var lines = (this.text || "").split("\n")
+                for (var i = 0; i < lines.length; i++) {
+                    var m = /^(\*):(\d*):(.*)$/.exec(lines[i])     // IN-USE is "*" in any locale
+                    if (!m) continue
+                    root._orphanSig = Number(m[2]) || 0
+                    root._orphanSSID = m[3].replace(/\\:/g, ":")
+                    return
+                }
+            }
+        }
+    }
     property string          wifiIP:   ""
 
     // ── Ethernet (NM's wired devices only: docker/veth/bridges aren't listed) ──

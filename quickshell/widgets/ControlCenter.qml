@@ -531,10 +531,12 @@ Popup {
         for (var i = 0; i < ns.length; i++) {
             var n = ns[i]
             if (!n || !n.name) continue
-            if (n.connected) cur = n.name
+            // joined under a profile Quickshell doesn't tie to this network: Net knows (see Net.qml)
+            var joined = n.connected || (Net.wifiOn && Net.wifiSSID === n.name)
+            if (joined) cur = n.name
             out.push({ ssid: n.name, signal: Math.round(n.signalStrength * 100),
                        bars: Math.min(3, Math.floor(n.signalStrength * 4)),
-                       secured: wifiSecured(n), known: n.known, active: n.connected, busy: n.stateChanging })
+                       secured: wifiSecured(n), known: n.known, active: joined, busy: n.stateChanging })
         }
         out.sort(function(a, b) {
             if (a.active !== b.active) return a.active ? -1 : 1
@@ -553,6 +555,13 @@ Popup {
     // scan while the Wi-Fi list is on screen
     Binding { target: root.wifiDev; property: "scannerEnabled"; value: root.isOpen && root.slot === "top" && !root.power; when: root.wifiDev !== null }
     Connections { target: Networking; function onWifiEnabledChanged() { wifiSnapT.restart() } }
+    Connections {   // a join no network claims (Net.wifiUntied) fires no connectedChanged below
+        target: Net
+        function onWifiSSIDChanged() {
+            wifiSnapT.restart()
+            if (Net.wifiUntied && Net.wifiSSID !== "") root.wifiJoined(Net.wifiSSID)
+        }
+    }
     Instantiator {
         model: root.wifiDev ? root.wifiDev.networks : null
         onObjectAdded: wifiSnapT.restart()
