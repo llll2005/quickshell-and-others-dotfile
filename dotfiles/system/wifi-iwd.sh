@@ -9,12 +9,15 @@
 # the password again (the CC said "wrong password", nmtui looped); a few minutes or a
 # reboot sometimes let one of them win.
 #
-#   sudo sh wifi-iwd.sh          NetworkManager on iwd (iwd handles WPA3/SAE natively)
-#   sudo sh wifi-iwd.sh --undo   NetworkManager on wpa_supplicant, iwd off
+#   sudo sh wifi-iwd.sh            NetworkManager on iwd (iwd handles WPA3/SAE natively)
+#   sudo sh wifi-iwd.sh --restore  put back the iwd profiles a re-run moved aside, iwd autoconnect on
+#   sudo sh wifi-iwd.sh --undo     NetworkManager on wpa_supplicant, iwd off
 #
 # Either way only one daemon runs. Wi-Fi drops for a few seconds while NM restarts.
-# NetworkManager, not iwd, decides what to join: every profile it saved with autoconnect
-# on comes back by itself.
+# iwd keeps the secrets and does the autoconnecting: it rejoins every network it has joined
+# once. Don't hand autoconnect to NetworkManager (wifi.iwd.autoconnect=false): NM's own
+# profiles from before iwd hold no secrets, and with no secret agent running they all
+# failed with "no-secrets" (2026-10-22).
 set -e
 [ "$(id -u)" = 0 ] || { echo "run with sudo"; exit 1; }
 CONF=/etc/NetworkManager/NetworkManager.conf
@@ -22,6 +25,23 @@ DROP=/etc/NetworkManager/conf.d/wifi-backend.conf
 
 # the misplaced key, wherever it is
 sed -i '/^[[:space:]]*wifi\.backend[[:space:]]*=/d' "$CONF"
+
+# --restore: the profiles iwd had learned, back from their newest .bak-<date> copies
+if [ "$1" = "--restore" ]; then
+    # only the newest batch (the 10-03 one held the stale hotspot profile)
+    last=$(ls -1 /var/lib/iwd/ 2>/dev/null | sed -n 's/.*\.bak-\([0-9]*\)$/\1/p' | sort | tail -1)
+    for b in /var/lib/iwd/*.bak-"$last"; do
+        [ -e "$b" ] || continue
+        f=${b%.bak-*}
+        [ -e "$f" ] || { mv "$b" "$f"; echo "restored $(basename "$f")"; }
+    done
+    printf '# NetworkManager drives iwd (dotfiles/system/wifi-iwd.sh). The key belongs in [device].\n[device]\nwifi.backend=iwd\n' > "$DROP"
+    systemctl restart iwd
+    systemctl restart NetworkManager
+    sleep 4
+    nmcli -t -f DEVICE,STATE,CONNECTION dev | grep wlan || true
+    exit 0
+fi
 
 if [ "$1" = "--undo" ]; then
     rm -f "$DROP"
@@ -31,17 +51,20 @@ if [ "$1" = "--undo" ]; then
     exit 0
 fi
 
-# wifi.iwd.autoconnect=false: NetworkManager picks the network to join itself, from every
-# profile it saved. Left to iwd (the default), only the networks iwd had joined on its own
-# came back by themselves — NM's other profiles (cafés, campus) waited for a click (2026-10).
-printf '# NetworkManager drives iwd (dotfiles/system/wifi-iwd.sh). The keys belong in [device].\n[device]\nwifi.backend=iwd\nwifi.iwd.autoconnect=false\n' > "$DROP"
+# already on iwd? then iwd's profiles are the good ones: leave them
+first=1
+grep -qs '^wifi.backend=iwd' "$DROP" && first=0
+printf '# NetworkManager drives iwd (dotfiles/system/wifi-iwd.sh). The key belongs in [device].\n[device]\nwifi.backend=iwd\n' > "$DROP"
 systemctl enable iwd
 systemctl stop wpa_supplicant 2>/dev/null || true
-# iwd's own profiles go: NetworkManager hands it the secrets from its connections
-# (iwd's stale "psk" one for the WPA3 hotspot was failing every retry)
-for f in /var/lib/iwd/*.psk /var/lib/iwd/*.open /var/lib/iwd/*.8021x; do
-    [ -e "$f" ] && mv "$f" "$f.bak-$(date +%Y%m%d)"
-done
+# switching from wpa_supplicant: iwd's old profiles go (its stale "psk" one for the WPA3
+# hotspot was failing every retry). Only then — a re-run moved the working ones aside
+# (2026-10-22), and NetworkManager had no secrets of its own to give iwd instead.
+if [ "$first" = 1 ]; then
+    for f in /var/lib/iwd/*.psk /var/lib/iwd/*.open /var/lib/iwd/*.8021x; do
+        [ -e "$f" ] && mv "$f" "$f.bak-$(date +%Y%m%d)"
+    done
+fi
 systemctl restart iwd
 systemctl restart NetworkManager
 sleep 3

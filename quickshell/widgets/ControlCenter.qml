@@ -3260,11 +3260,14 @@ Popup {
                 Item {
                     width: parent.width
                     visible: sl.slotKey === "top" && root.sub === "wifi" && root.wifiPromptSSID !== ""
-                    height: visible ? 110 : 0
+                    // as tall as what it holds: a fixed 110 let the error line and the buttons
+                    // run past it, under whatever came next
+                    height: visible ? pwCol.implicitHeight + 22 : 0
 
                     Item { width: 1; height: 14 }
 
                     Column {
+                        id: pwCol
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
@@ -3376,7 +3379,7 @@ Popup {
                         Text {
                             visible: root.wifiError !== ""
                             text: root.wifiError
-                            width: parent.width; elide: Text.ElideRight
+                            width: parent.width; wrapMode: Text.Wrap
                             font.pixelSize: Theme.ts(1)
                             color: Theme.warn
                         }
