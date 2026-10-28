@@ -95,6 +95,15 @@ slot no group owns gets a group ("任務 N"); an empty one passing by doesn't.
 DELETE under it (→ / ↵ asks YES / NO, then closes the group's windows; it goes once they
 have, and stays, saying so, if an app kept one open to ask about saving; the last group
 can't go), ← shows RENAME (← / ↵ edits in place); + names a new group on its own card.
+**Drag**: a window row of the preview (or a filled cell of its 5×5: all its windows) can be
+carried — onto a group row (it lands in cell 13), onto NEW GROUP (named, then moved there),
+or, held over a group for 450 ms (the preview turns to it), onto one of its cells; Esc drops
+nothing. While carried, the preview's window list is frozen (`frozenWins`): its rows hold
+the MouseArea doing the drag, and a model change would destroy it mid-drag; a 5×5 cell
+stays enabled while dragging for the same reason. Moves go through `TaskGroups.moveWindows`
+(`follow = false`). Groups are adopted from windows, not workspaces (Quickshell's workspace
+list can keep a destroyed one), and a test window in a slot no group owns gets adopted by
+the live shell: test in a registered slot, or clean the list after.
 The old rofi grouping (`workspace-group.py`) and the per-monitor 1–10 / 11–20 numbering are
 gone; the old group data is kept in `~/.local/state/quickshell/old-workspace-groups.json`.
 
