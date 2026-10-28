@@ -3,9 +3,11 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import "../components"
+import "../services"
 import "../theme"
 
-// Move every window of the current workspace to another one (number + ↵).
+// Move every window of the current workspace to another cell of its task group (1–25,
+// the HUD's 5×5; services/TaskGroups.qml) — number + ↵.
 // Window, lifecycle and glass backdrop: components/Popup.qml.
 Popup {
     id: root
@@ -13,6 +15,7 @@ Popup {
     readonly property int pw: 440
     readonly property int ph: 200
     property int curWs: 0
+    readonly property int curCell: curWs > 0 ? TaskGroups.cellOf(curWs) : 0
 
     IpcHandler {
         target: "wsmove"
@@ -57,13 +60,13 @@ Popup {
 
     function confirm() {
         var t = parseInt(wsInput.text.trim())
-        if (isNaN(t) || t < 1 || t > 25 || t === root.curWs) {   // 1–25: the HUD's 5×5 grid
+        if (isNaN(t) || t < 1 || t > 25 || t === root.curCell) {   // 1–25: the group's 5×5
             shakeAnim.restart()
             return
         }
         var script = Qt.resolvedUrl("../scripts/move-ws.sh").toString().replace("file://", "")
         moveProc.running = false
-        moveProc.command = ["bash", script, String(root.curWs), String(t)]
+        moveProc.command = ["bash", script, String(root.curWs), String(TaskGroups.wsOf(TaskGroups.slotOf(root.curWs), t))]
         moveProc.running = true
         root.close()
     }
@@ -128,9 +131,9 @@ Popup {
                 Row {
                     anchors { right:parent.right; rightMargin:20; verticalCenter:parent.verticalCenter }
                     spacing: 6
-                    Text { text:"WS"; font.pixelSize:Theme.ts(0); font.letterSpacing:2; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
+                    Text { text: TaskGroups.label(TaskGroups.slotOf(Math.max(1, root.curWs))) + "  ·  CELL"; font.pixelSize:Theme.ts(0); font.letterSpacing:2; color:root.inkSoft; anchors.verticalCenter:parent.verticalCenter }
                     Text {
-                        text: String(root.curWs).padStart(2, "0")
+                        text: String(root.curCell).padStart(2, "0")
                         font.pixelSize:Theme.ts(1); font.letterSpacing:2; color:root.accent
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -149,7 +152,7 @@ Popup {
 
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "MOVE ALL WINDOWS  ·  WS " + String(root.curWs).padStart(2,"0") + " → ?"
+                        text: "MOVE ALL WINDOWS  ·  CELL " + String(root.curCell).padStart(2,"0") + " → ?"
                         font.pixelSize:Theme.ts(1); font.letterSpacing:2.5; color:root.inkSoft
                     }
 

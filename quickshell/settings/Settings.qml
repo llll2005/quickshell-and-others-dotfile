@@ -35,6 +35,7 @@ QtObject {
     // ── sleep and wake (widgets/Welcome.qml) ──
     readonly property bool lockOnSleep: Config.bool("void.lockOnSleep", false)   // lock before every sleep
     readonly property bool welcomeOnWake: Config.bool("void.welcome", true)      // the Void's welcome when it wakes
+    readonly property bool sessionRestore: Config.bool("session.restore", true)   // windows back in their task groups at login
 
     // ── effects (components/Fx.qml) ──
     readonly property bool clickFx:   Config.bool("effects.click", true)

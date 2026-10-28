@@ -38,6 +38,11 @@ core/
   env.lua             # All hl.env() — NVIDIA/Wayland/fcitx5/locale/cursor
   display.lua         # hl.monitor() x2, misc, render, dwindle
   input.lua           # input (keyboard/touchpad), cursor
+  tasks.lua           # task groups: 25 workspaces each (Quickshell's TaskGroups owns the
+                      # list, ~/.local/state/hypr/taskgroups.lua mirrors it here); the keys'
+                      # group/cell math, the group switch on every screen, and the session's
+                      # final snapshot on hl.on("hyprland.shutdown"). window.move reads
+                      # `follow` in 0.56 — `silent = true` is ignored and takes you along
   autostart.lua       # hl.on("hyprland.start") + hyprshade on reload; also loads the
                       # imecaret plugin (~/.config/quickshell/hypr-plugin/imecaret —
                       # rebuild with `make` there after every Hyprland update)
@@ -55,7 +60,8 @@ ui/
 
 binds/
   dispatchers.lua     # App launches, media keys, system commands
-  wm.lua              # Window close/float, focus, workspace switch/move
+  wm.lua              # Window close/float, focus; SUPER+1-0 = task group, SHIFT = window to
+                      # cell 1-10, CTRL+arrows walk the group's 5×5 (core/tasks.lua), SUPER+G menu
   submaps.lua         # resize submap (ALT+W to enter, Escape to exit)
 
 scripts/

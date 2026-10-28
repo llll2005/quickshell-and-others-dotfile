@@ -9,7 +9,8 @@ on HDMI it stayed off). So:
   off   marks the screens as meant to be off ($XDG_RUNTIME_DIR/hypr-dpms-off), turns them
         off, and stays as a guard on Hyprland's event socket: while the mark is there, a
         monitor that comes back is turned off again
-  on    removes the mark (the guard leaves at its next look) and turns the screens on
+  on    removes the mark (the guard leaves at its next look) and turns the screens on;
+        the shell's HUD then says which task group this is
 
 hypridle.conf runs `off` on its idle timeout and `on` on resume and after sleep.
 """
@@ -78,6 +79,11 @@ def main():
         except OSError:
             pass
         dpms('enable')
+        try:
+            subprocess.run(['qs', 'ipc', 'call', 'tasks', 'prompt'], timeout=3,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
     elif what == 'guard':                   # for testing: just the guard, in the foreground
         guard()
     else:

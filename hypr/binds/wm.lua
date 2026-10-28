@@ -1,6 +1,7 @@
 -- Window Management: focus, float, workspaces, mouse
 local G    = require("globals")
 local anim = require("ui.animations")
+local T    = require("core.tasks")
 local M    = G.mainMod
 
 -- ── Window Actions ───────────────────────────────────────────
@@ -14,55 +15,51 @@ hl.bind(M .. " + right", hl.dsp.focus({ direction = "right" }))
 hl.bind(M .. " + up",    hl.dsp.focus({ direction = "up" }))
 hl.bind(M .. " + down",  hl.dsp.focus({ direction = "down" }))
 
--- ── Workspace Switch & Move (monitor-aware) ──────────────────
--- On DP-2 (MSI): keys 1-0 → workspaces 11-20
--- On eDP-2 (laptop): keys 1-0 → workspaces 1-10
+-- ── Task groups (core/tasks.lua) ─────────────────────────────
+-- SUPER+1-0      → task group 1-10, opened at its centre cell (13) on every screen
+-- SUPER+SHIFT+1-0 → the focused window to cell 1-10 of this group (you stay)
+-- SUPER+G        → the groups menu (Quickshell): ↑↓ pick · → delete · ← rename · + new
 for i = 1, 10 do
     local key = tostring(i % 10)
-    local ki  = tostring(i)
-    hl.bind(M .. " + " .. key,
-        hl.dsp.exec_cmd("lua5.4 ~/.config/hypr/scripts/ws_switch.lua " .. ki))
-    hl.bind(M .. " + SHIFT + " .. key,
-        hl.dsp.exec_cmd("lua5.4 ~/.config/hypr/scripts/ws_move.lua " .. ki))
+    hl.bind(M .. " + " .. key,             function() T.go(i) end)
+    hl.bind(M .. " + SHIFT + " .. key,     function() T.move_to_cell(i) end)
 end
-
--- ── Compact workspaces (left-pack current range) ─────────────
-hl.bind(M .. " + G", hl.dsp.exec_cmd("lua5.4 ~/.config/hypr/scripts/ws_compact.lua"))
+hl.bind(M .. " + G", hl.dsp.exec_cmd("qs ipc call tasks menu"))
 
 -- ── Vertical workspace slides ────────────────────────────────
--- Runs a dispatcher with a one-off workspace slide style, so ±5 actions slide
--- vertically while everything else keeps "slide". The new workspace enters from
--- the arrow's side (same logic as left/right: Right → enters from right).
--- hl.dispatch is synchronous, so the animation has already captured its
--- direction when the style is restored.
-local function with_ws_style(style, dispatcher)
+-- Runs a ±5 step with a one-off workspace slide style, so it slides vertically while
+-- everything else keeps "slide". The new workspace enters from the arrow's side (same
+-- logic as left/right: Right → enters from right). hl.dispatch is synchronous, so the
+-- animation has already captured its direction when the style is restored. The step is
+-- the group's (core/tasks.lua): nothing happens at its edge, so no step leaves the group.
+local function step_with_style(style, d, move, follow)
     return function()
+        if not T.step_target(d) then return end
         anim.set_workspace_style(style)
-        hl.dispatch(dispatcher)
+        if move then T.move_step(d, follow) else T.step(d) end
         anim.set_workspace_style("slide")
     end
 end
 
--- ── WIN+SHIFT+Arrow: move window to adjacent/±5 workspace ────
--- 0.56 window.move reads `follow`, not `silent`: these follow the window.
-hl.bind(M .. " + SHIFT + left",  hl.dsp.window.move({ workspace = "-1", silent = true }))
-hl.bind(M .. " + SHIFT + right", hl.dsp.window.move({ workspace = "+1", silent = true }))
-hl.bind(M .. " + SHIFT + up",    with_ws_style("slide top",    hl.dsp.window.move({ workspace = "+5" })))
-hl.bind(M .. " + SHIFT + down",  with_ws_style("slide bottom", hl.dsp.window.move({ workspace = "-5" })))
+-- ── WIN+SHIFT+Arrow: move window to the adjacent / ±5 cell of this group ────
+-- ±5 follows the window, ±1 leaves you where you are (what `silent = true` meant: 0.56's
+-- window.move reads `follow`, so before core/tasks.lua all four followed).
+hl.bind(M .. " + SHIFT + left",  function() T.move_step(-1, false) end)
+hl.bind(M .. " + SHIFT + right", function() T.move_step(1, false) end)
+hl.bind(M .. " + SHIFT + up",    step_with_style("slide top",    5, true, true))
+hl.bind(M .. " + SHIFT + down",  step_with_style("slide bottom", -5, true, true))
 
--- ── CTRL+WIN extended controls ───────────────────────────────
--- ±1 relative navigation (unchanged from original)
-hl.bind(M .. " + CTRL + left",  hl.dsp.focus({ workspace = "-1" }), { repeating = true })
-hl.bind(M .. " + CTRL + right", hl.dsp.focus({ workspace = "+1" }), { repeating = true })
--- ±5 jump (cross monitor boundary)
-hl.bind(M .. " + CTRL + up",   with_ws_style("slide top",    hl.dsp.focus({ workspace = "+5" })), { repeating = true })
-hl.bind(M .. " + CTRL + down", with_ws_style("slide bottom", hl.dsp.focus({ workspace = "-5" })), { repeating = true })
+-- ── CTRL+WIN: walk the group's 5×5 ───────────────────────────
+hl.bind(M .. " + CTRL + left",  function() T.step(-1) end, { repeating = true })
+hl.bind(M .. " + CTRL + right", function() T.step(1) end, { repeating = true })
+hl.bind(M .. " + CTRL + up",   step_with_style("slide top",    5), { repeating = true })
+hl.bind(M .. " + CTRL + down", step_with_style("slide bottom", -5), { repeating = true })
 -- Cycle monitor focus
 hl.bind(M .. " + CTRL + C", hl.dsp.focus({ monitor = "+1" }))
 
--- Scroll wheel through workspaces
-hl.bind(M .. " + mouse_down", hl.dsp.focus({ workspace = "e-1" }))
-hl.bind(M .. " + mouse_up",   hl.dsp.focus({ workspace = "e+1" }))
+-- Scroll wheel: the group's cells that have windows
+hl.bind(M .. " + mouse_down", function() T.cycle(-1) end)
+hl.bind(M .. " + mouse_up",   function() T.cycle(1) end)
 
 -- ── Mouse Window Interaction ─────────────────────────────────
 hl.bind(M .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })

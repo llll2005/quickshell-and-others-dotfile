@@ -197,6 +197,7 @@ Popup {
             { type: "num",  key: "notifications.history",         def: 50,    min: 10, max: 200, step: 10, label: "通知歷史則數", desc: "Control Center 保留的通知數量。" },
             { type: "bool", key: "void.lockOnSleep", def: false, label: "睡前自動鎖定", desc: "闔上螢幕或睡眠前先鎖定（關掉時不鎖，要鎖就在闔上前按 SUPER+L）。" },
             { type: "bool", key: "void.welcome", def: true, label: "醒來的歡迎頁", desc: "睡前畫上虛空的 STANDBY，醒來顯示 WELCOME BACK、時間與睡了多久；任意鍵或 2 秒後淡出。" },
+            { type: "bool", key: "session.restore", def: true, label: "開機恢復視窗", desc: "登入時把關機前的視窗開回來，放回原本的任務組與格子：瀏覽器自己的分頁、kitty 原本的資料夾、其他程式用原本的指令。關掉時任務組照樣保留，只是不自動開程式。" },
             { type: "bool", key: "companions.enabled", def: false, label: "角落小人", desc: "右下角的動畫小人（需要自己放 gif，見 README）。" }
         ]
     })

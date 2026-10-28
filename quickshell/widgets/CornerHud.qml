@@ -119,11 +119,22 @@ Scope {
     }
 
     // ── OSD: header briefly shows VOL/BRI while adjusting, then back to clock ──
-    property string osdMode: ""   // "" | vol | bri | mic | caps | ime
+    property string osdMode: ""   // "" | vol | bri | mic | caps | ime | task
     property bool   _osdReady: false   // ignore the initial volume binding at startup
     property Timer _osdT:     Timer { interval: Settings.hudOsdDuration; onTriggered: root.osdMode = "" }
     property Timer _osdInitT: Timer { interval: 1500; running: true; onTriggered: root._osdReady = true }
     function showOsd(m) { osdMode = m; _osdT.restart() }
+    // the task group you're in (services/TaskGroups.qml): on a group switch, at start and
+    // when the screen comes back — a little longer than a level
+    property int taskOsdSlot: 0
+    property int taskOsdMissing: 0          // SUPER+N with no group N
+    property Timer _taskOsdT: Timer { interval: 2600; onTriggered: if (root.osdMode === "task") root.osdMode = "" }
+    function showTaskOsd() { osdMode = "task"; _osdT.stop(); _taskOsdT.restart() }
+    Connections {
+        target: TaskGroups
+        function onPrompt(slot)  { root.taskOsdMissing = 0; root.taskOsdSlot = slot; root.showTaskOsd() }
+        function onMissing(n)    { root.taskOsdMissing = n; root.showTaskOsd() }
+    }
     // Volume changes (incl. media keys → Pipewire) auto-trigger the VOL osd.
     Connections {
         target: Audio
@@ -485,6 +496,11 @@ Scope {
                                                 : (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 0)
             }
 
+            // its task group (services/TaskGroups.qml) and the cell it shows: the grid is that group's
+            readonly property int slot: TaskGroups.slotOf(Math.max(1, wsId))
+            readonly property int cell: TaskGroups.cellOf(Math.max(1, wsId))
+            readonly property int base: (slot - 1) * TaskGroups.cells
+
             property bool statsExpanded: false
             property int  hoveredWs: -1
             readonly property bool showWsp:   root.wspMode
@@ -618,8 +634,8 @@ Scope {
                         // workspace label (morph-in)
                         Text {
                             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                            text: "WORKSPACE"; font.pixelSize: Theme.ts(1); font.weight: Font.Medium
-                            font.letterSpacing: 3; color: root.cAccent
+                            text: TaskGroups.label(win.slot); font.pixelSize: Theme.ts(1); font.weight: Font.Medium
+                            font.letterSpacing: 1.5; color: root.cAccent
                             opacity: win.showWsp ? 1 : 0
                             Behavior on opacity { NumberAnimation { duration: 200 } }
                         }
@@ -643,14 +659,15 @@ Scope {
                             // mic / caps / ime: a label and a state chip (filled = on)
                             Text {
                                 visible: !parent.level
-                                text: ({ mic: "MIC", caps: "CAPS", ime: "IME" })[root.osdMode] || ""
+                                text: ({ mic: "MIC", caps: "CAPS", ime: "IME", task: "TASK" })[root.osdMode] || ""
                                 font.pixelSize: Theme.ts(1); font.weight: Font.Medium; font.letterSpacing: 3
                                 color: root.cAccent; anchors.verticalCenter: parent.verticalCenter
                             }
                             Rectangle {
                                 visible: !parent.level
                                 readonly property bool on: root.osdMode === "mic" ? !Audio.micMuted
-                                                         : root.osdMode === "caps" ? root.capsOn : true
+                                                         : root.osdMode === "caps" ? root.capsOn
+                                                         : root.osdMode === "task" ? root.taskOsdMissing === 0 : true
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: chipT.implicitWidth + 14; height: 15
                                 color: on ? root.cAccent : "transparent"
@@ -659,9 +676,12 @@ Scope {
                                 Text {
                                     id: chipT; anchors.centerIn: parent
                                     text: root.osdMode === "ime" ? (Ime.name || Ime.label)
+                                        : root.osdMode === "task" ? (root.taskOsdMissing > 0
+                                              ? "NO GROUP " + String(root.taskOsdMissing).padStart(2, "0")
+                                              : TaskGroups.label(root.taskOsdSlot))
                                         : parent.on ? "ON" : "OFF"
                                     font.family: root.osdMode === "ime" ? Theme.cjk : root.mono
-                                    font.pixelSize: Theme.ts(1); font.letterSpacing: root.osdMode === "ime" ? 0.5 : 2
+                                    font.pixelSize: Theme.ts(1); font.letterSpacing: root.osdMode === "ime" || root.osdMode === "task" ? 0.5 : 2
                                     color: parent.on ? root.cInk : root.cText
                                 }
                             }
@@ -696,7 +716,8 @@ Scope {
                                         color: root.wspPinned ? root.cAccent : "transparent"
                                         border.color: root.wspPinned ? root.cAccent : root.cMuted; border.width: 1
                                         anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "ws·" + win.wsId; font.family: root.mono; font.pixelSize: Theme.ts(2)
+                            Text { text: String(TaskGroups.numberOf(win.slot)).padStart(2, "0") + "·" + String(win.cell).padStart(2, "0")
+                                   font.family: root.mono; font.pixelSize: Theme.ts(2)
                                    font.letterSpacing: 1; color: root.cText
                                    anchors.verticalCenter: parent.verticalCenter }
                         }
@@ -1332,7 +1353,7 @@ Scope {
                             opacity: win.showWsp ? 1 : 0
                             Behavior on opacity { NumberAnimation { duration: 220 } }
 
-                            // 5×5 grid — ws 1..25 (cols = ±1, rows = ±5). Open workspaces are
+                            // 5×5 grid — the group's cells 1..25 (cols = ±1, rows = ±5). Open workspaces are
                             // framed in their monitor's tint, the current one is filled, unopened
                             // ones are a ◇. A light frame springs between cells under the pointer
                             // (two afterimages trailing); a click throws the burst.
@@ -1345,7 +1366,7 @@ Scope {
                                     var c = (id - 1) % 5, r = 4 - Math.floor((id - 1) / 5)
                                     return Qt.point(c * (wspGrid.cell + 4), r * (cellH + 4))
                                 }
-                                readonly property point selAt: cellPos(win.hoveredWs > 0 ? win.hoveredWs : Math.max(1, Math.min(25, win.wsId)))
+                                readonly property point selAt: cellPos(win.hoveredWs > 0 ? TaskGroups.cellOf(win.hoveredWs) : win.cell)
 
                             Grid {
                                 id: wspGrid
@@ -1357,7 +1378,8 @@ Scope {
                                         id: wsCell
                                         required property int index
                                         // rows reversed: 21-25 on top, 1-5 on bottom
-                                        readonly property int wsid: (4 - Math.floor(index/5))*5 + (index%5) + 1
+                                        readonly property int cellNo: (4 - Math.floor(index/5))*5 + (index%5) + 1
+                                        readonly property int wsid: win.base + cellNo
                                         readonly property int  monIdx: root.wsMonIdx(wsid)   // -1 if not open
                                         readonly property bool exists: monIdx >= 0
                                         readonly property bool active: root.wsIsActive(wsid) // active on its monitor
@@ -1373,7 +1395,7 @@ Scope {
                                         Text {
                                             visible: wsCell.exists
                                             anchors.centerIn: parent
-                                            text: wsCell.wsid
+                                            text: wsCell.cellNo
                                             font.family: root.mono; font.pixelSize: Theme.ts(1)
                                             color: wsCell.active ? root.cInk : wsCell.monColor
                                         }
@@ -1418,7 +1440,7 @@ Scope {
                                 width: parent.width; spacing: 2
                                 Rectangle { width: parent.width; height: 1; color: root.cBorder }
                                 Text {
-                                    text: "ws·" + win.displayWs + "  ·  " + root.windowsFor(win.displayWs).length + " win"
+                                    text: "cell·" + String(TaskGroups.cellOf(Math.max(1, win.displayWs))).padStart(2, "0") + "  ·  " + root.windowsFor(win.displayWs).length + " win"
                                     font.family: root.mono; font.pixelSize: Theme.ts(0); font.letterSpacing: 1
                                     color: root.cMuted; topPadding: 2
                                 }

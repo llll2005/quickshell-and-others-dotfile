@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import "../theme"
 import "../settings"
+import "../services"
 
 // Welcome — sleep and wake in the Void (quickshell/CLAUDE.md, "Design language").
 // The shell holds a logind delay lock on sleep, so the system waits for it:
@@ -100,7 +101,7 @@ Scope {
         id: liftOut
         NumberAnimation { target: root; property: "words"; to: 0; duration: 240; easing.type: Easing.InCubic }
         NumberAnimation { target: root; property: "dark"; to: 0; duration: 560; easing.type: Easing.OutCubic }
-        ScriptAction { script: { root.phase = "awake"; root.words = 0 } }
+        ScriptAction { script: { root.phase = "awake"; root.words = 0; TaskGroups.showPrompt() } }   // the HUD: which task group
     }
 
     Variants {

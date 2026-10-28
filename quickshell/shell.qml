@@ -28,6 +28,7 @@ ShellRoot {
     Clipboard {}        // clipboard history     qs ipc call clip toggle
     AuthPrompt {}       // the polkit agent      qs ipc call auth status · cancel
     WsMover {}          // move a workspace      qs ipc call wsmove open
+    TaskMenu {}         // task groups           qs ipc call tasks menu (SUPER+G) — services/TaskGroups.qml
     SettingsPanel {}    // every switch + health qs ipc call settings toggle — always on, no option disables it
 
     // the effects layer (click / typing bursts), and the helpers every feature needs

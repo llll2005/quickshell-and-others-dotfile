@@ -13,3 +13,4 @@ singleton Media 1.0 Media.qml
 singleton Ime 1.0 Ime.qml
 singleton Lyrics 1.0 Lyrics.qml
 singleton Health 1.0 Health.qml
+singleton TaskGroups 1.0 TaskGroups.qml
