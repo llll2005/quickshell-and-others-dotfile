@@ -406,7 +406,7 @@ Popup {
         if (key === "bottom.output")     return true
         if (key === "bottom.volume")     return !audioMuted
         if (key === "left.send")         return pendingFiles.length > 0
-        if (key === "left.receive")      return qshareUrl !== ""
+        if (key === "left.receive")      return qshareActive && qshareMode === "recv"
         if (key === "right.history")     return notifications.length > 0
         if (key === "right.dnd")         return dndEnabled
         var d3 = root.details[key]
@@ -419,14 +419,12 @@ Popup {
         if (power) { var pa = root.powerActs[sub]; return pa ? pa.hint : "" }
         var key = detailKey()
         if (key === "left.send") {
-            return qshareTunnel
-                ? "Opens a page on your phone listing these files. Internet mode: works on mobile data, goes through Cloudflare."
-                : "Opens a page on your phone listing these files. LAN mode: phone must be on the same Wi-Fi."
+            return "手機掃 QR 後會看到這些檔案的清單，點一下就下載。"
+                + (qshareTunnel ? "INTERNET：經過 Cloudflare，手機用行動數據也行。" : "LAN：手機要連同一個 Wi-Fi。")
         }
         if (key === "left.receive") {
-            return qshareTunnel
-                ? "Scan, then pick files on your phone — they land in " + qshareOutputShort() + ". Internet mode: works on mobile data."
-                : "Scan, then pick files on your phone — they land in " + qshareOutputShort() + ". LAN mode: same Wi-Fi required."
+            return "手機掃 QR 後選檔案傳過來，會存到 " + qshareOutputShort() + "。"
+                + (qshareTunnel ? "INTERNET：經過 Cloudflare，手機用行動數據也行。" : "LAN：手機要連同一個 Wi-Fi。")
         }
         return ""
     }
@@ -830,15 +828,25 @@ Popup {
     property bool   qshareTunnel:    false  // false = LAN (même Wi-Fi), true = Internet (tunnel)
     property string qshareOutputDir: home + "/Downloads"
     property string qshareMode:      ""     // "send" | "recv" — mode du transfert en cours
-    property string qshareUrl:       ""     // URL active (modal visible si non vide)
-    property string qshareQrPath:    ""     // chemin du PNG QR
+    // The share card (widgets/ShareCard.qml) is up while a share runs, and after one
+    // failed until Esc: qshareActive. Everything below is rebuilt from the event file.
+    property bool   qshareActive:    false
+    property string qshareUrl:       ""     // the link, once the server (and tunnel) is up
+    property int    qshareQrN:       0      // the QR's module matrix (QRM), drawn by the card
+    property string qshareQrBits:    ""
     property string qshareLabel:     ""     // ex. "3 items → phone"
+    property string qshareMeta:      ""     // "3 items · 38.1 MB" (COUNT / SIZE)
     property var    qshareTicks:     []     // journal des fichiers transférés
+    property var    qshareXfers:     []     // [{id, name, done, total, state}] from PROG / TICK
+    property int    qshareVisitors:  0      // phones that opened the page (VISIT)
     property string qshareStatus:    ""     // message transitoire (ex. démarrage du tunnel)
+    property string qshareErrCode:   ""     // ERROR <code> <text>
+    property string qshareErrText:   ""
     property bool   qshareCancelled: false
+    property bool   _qshareRestart:  false  // ←→ in the card: the share comes back on the other network
+    property int    qshareNetDir:    1
     readonly property string qshareScriptPath: xdgConfigHome + "/quickshell/scripts/qshare.py"
-    readonly property string qshareEventFile:  "/tmp/qshare-events"
-    readonly property string qshareQrFile:     "/tmp/qshare-qr.png"
+    readonly property string qshareEventFile:  (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/qshare-events"
 
     readonly property var qshareOutputDirs: [
         home + "/Downloads",
@@ -850,7 +858,7 @@ Popup {
     function fileName(p)         { return p.split("/").pop() }
     function qshareOutputShort()  { return qshareOutputDir.replace(home, "~") }
     function qshareNetLabel() {
-        return qshareTunnel ? "Net: Internet (tunnel)" : "Net: LAN (same wi-fi)"
+        return qshareTunnel ? "Network: INTERNET (any network)" : "Network: LAN (same Wi-Fi)"
     }
 
 
@@ -953,16 +961,9 @@ Popup {
     function startQshare(mode) {
         // Reset state
         root.qshareMode = mode
-        root.qshareUrl = ""
-        root.qshareQrPath = ""
-        root.qshareTicks = []
-        root.qshareCancelled = false
-
-        // Cleanup ancien event/QR file (sync via touch)
-        cleanupQshareProc.command = ["sh","-c",
-            "rm -f " + qshareEventFile + " " + qshareQrFile + "; " +
-            "touch " + qshareEventFile]
-        cleanupQshareProc.running = true
+        root._qshareReset()
+        qshareEvents.setText("")
+        root.qshareActive = true
 
         // Construit la commande
         var args = ["python3", qshareScriptPath, mode]
@@ -977,25 +978,60 @@ Popup {
             qshareLabel = qshareOutputShort()   // le modal préfixe déjà "PHONE → PC"
         }
         if (qshareTunnel) args.push("--tunnel")
-        args.push("--qr-out");     args.push(qshareQrFile)
         args.push("--event-file"); args.push(qshareEventFile)
 
         qshareProc.command = args
         qshareProc.running = true
-        qshareWatching = true
+    }
+
+    function _qshareReset() {
+        qshareUrl = ""; qshareQrN = 0; qshareQrBits = ""; qshareMeta = ""
+        qshareTicks = []; qshareXfers = []; qshareVisitors = 0
+        qshareStatus = ""; qshareErrCode = ""; qshareErrText = ""
+        qshareCancelled = false
     }
 
     function stopQshare() {
+        var shared = qshareUrl !== ""
+        _qshareRestart = false
         qshareCancelled = true
+        qshareActive = false
         qshareProc.running = false   // SIGTERM → le script nettoie ses zips temporaires
-        qshareWatching = false
-        qshareUrl = ""
-        qshareQrPath = ""
-        // La sélection a été partagée : on repart de zéro
-        if (qshareMode === "send") { pendingFiles = []; pendingSize = "" }
+        // La sélection a été partagée : on repart de zéro (not after a share that never came up)
+        if (shared && qshareMode === "send") { pendingFiles = []; pendingSize = "" }
     }
 
-    Process { id: cleanupQshareProc; command: ["sh","-c","true"]; running: false }
+    // ←→ in the card: the same share again on the other network
+    function qshareSwitchNet(tunnel) {
+        if (tunnel === qshareTunnel || !qshareActive) return
+        qshareNetDir = tunnel ? 1 : -1
+        qshareTunnel = tunnel
+        if (qshareProc.running) { _qshareRestart = true; qshareProc.running = false }
+        else startQshare(qshareMode)
+    }
+
+    // ↵ in the card: copy the link · install cloudflared · try the tunnel again
+    function qshareVerb() {
+        if (qshareErrCode === "cloudflared-missing") {
+            // its password prompt is the shell's own (polkit), so the panel steps aside first
+            var log = (Quickshell.env("XDG_STATE_HOME") || home + "/.local/state") + "/quickshell/cloudflared-install.log"
+            Quickshell.execDetached(["sh", "-c",
+                "mkdir -p \"$(dirname \"$1\")\"; " +
+                "if pkexec pacman -S --noconfirm --needed cloudflared >\"$1\" 2>&1; then " +
+                "notify-send -a Quickshell -i network-wireless '已安裝 cloudflared' '回到控制中心再分享一次，就能跨網路傳了。'; " +
+                "else notify-send -a Quickshell -i dialog-error 'cloudflared 沒裝成' \"$(tail -n 1 \"$1\")\"; fi", "sh", log])
+            stopQshare()
+            close()
+            return true
+        }
+        if (qshareErrCode.indexOf("tunnel") === 0) { startQshare(qshareMode); return true }
+        if (qshareUrl !== "") {
+            Quickshell.execDetached(["wl-copy", qshareUrl])
+            shareCard.flashMsg("COPIED")
+            return true
+        }
+        return false
+    }
 
     Process {
         id: qshareProc
@@ -1003,12 +1039,12 @@ Popup {
         command: ["sh","-c","true"]
         // stdout/stderr ignorés — on s'en remet à l'event-file
         onRunningChanged: {
-            if (!running) {
-                // Process terminé → ferme le modal après un petit délai pour
-                // laisser le temps de voir le tick final
-                qshareWatching = false
-                qshareCloseTimer.restart()
-            }
+            if (running) return
+            if (_qshareRestart) { _qshareRestart = false; root.startQshare(root.qshareMode); return }
+            qshareEvents.reload()            // the last lines (an ERROR) may not have been read yet
+            // Process terminé → ferme le modal après un petit délai pour
+            // laisser le temps de voir le tick final; an error stays until Esc
+            qshareCloseTimer.restart()
         }
     }
 
@@ -1017,28 +1053,28 @@ Popup {
         interval: qshareCancelled ? 0 : 600
         repeat: false
         onTriggered: {
-            qshareUrl = ""
-            qshareQrPath = ""
-            qshareTicks = []
+            if (root.qshareErrCode !== "" && !root.qshareCancelled) return
+            var shared = root.qshareUrl !== ""
+            root.qshareActive = false
             // Reset de la sélection après un envoi terminé
-            if (!qshareCancelled && root.qshareMode === "send") {
+            if (shared && !qshareCancelled && root.qshareMode === "send") {
                 pendingFiles = []
                 pendingSize = ""
             }
         }
     }
 
-    // qshare.py appends one line per event (URL/QR/TICK/STATUS/…): the file is
-    // watched (inotify) while a transfer runs, and re-read whole on each change —
-    // state is rebuilt from it, not accumulated, so TICKs never double.
-    property bool qshareWatching: false
+    // qshare.py appends one line per event (URL/QRM/PROG/TICK/STATUS/…): the file is
+    // watched (inotify), and re-read whole on each change while the card is up —
+    // state is rebuilt from it, not accumulated, so TICKs never double. startQshare
+    // empties it first, so the last share's lines never come back.
     FileView {
         id: qshareEvents
-        path: root.qshareWatching ? root.qshareEventFile : ""
+        path: root.qshareEventFile
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
-        onLoaded: root._parseQshareEvents(text())
+        onLoaded: if (root.qshareActive) root._parseQshareEvents(text())
     }
     function _parseQshareEvents(txt) {
                 var lines = txt.split("\n")
@@ -1047,16 +1083,36 @@ Popup {
                 for (var i = 0; i < lines.length; i++) {
                     var line = lines[i].trim()
                     if (!line) continue
-                    if (line.indexOf("URL ") === 0) {
-                        root.qshareUrl = line.substring(4)
-                    } else if (line.indexOf("QR ") === 0) {
-                        root.qshareQrPath = line.substring(3)
-                    } else if (line.indexOf("TICK ") === 0) {
-                        ticks.push(line.substring(5))
-                    } else if (line.indexOf("STATUS ") === 0) {
-                        status = line.substring(7)
-                    } else if (line.indexOf("ERROR ") === 0) {
-                        status = "✗ " + line.substring(6)
+                    var sp = line.indexOf(" "), head = sp < 0 ? line : line.substring(0, sp), rest = sp < 0 ? "" : line.substring(sp + 1)
+                    if (head === "URL") {
+                        if (root.qshareUrl !== rest) root.qshareUrl = rest
+                    } else if (head === "QRM") {
+                        var q = rest.split(" ")
+                        if (root.qshareQrBits !== q[1]) { root.qshareQrN = Number(q[0]); root.qshareQrBits = q[1] || "" }
+                    } else if (head === "PROG") {
+                        // PROG <id> <done> <total> <name>; done -1 = the phone gave up
+                        var m = /^(\S+) (-?\d+) (\d+) (.*)$/.exec(rest)
+                        if (!m) continue
+                        var d = Number(m[2]), tot = Number(m[3])
+                        var x = byId[m[1]]
+                        if (!x) { x = byId[m[1]] = { id: m[1], name: m[4], done: 0, total: tot, state: "run" }; xf.push(x) }
+                        x.name = m[4]; x.total = tot
+                        if (d < 0) x.state = "fail"
+                        else { x.done = d; x.state = d >= tot ? "ok" : "run" }
+                    } else if (head === "TICK") {
+                        ticks.push(rest)
+                    } else if (head === "VISIT") {
+                        visitors++
+                    } else if (head === "COUNT") {
+                        count = rest
+                    } else if (head === "SIZE") {
+                        size = rest
+                    } else if (head === "STATUS") {
+                        status = rest
+                    } else if (head === "ERROR") {
+                        var e = rest.indexOf(" ")
+                        root.qshareErrCode = e < 0 ? rest : rest.substring(0, e)
+                        root.qshareErrText = e < 0 ? "" : rest.substring(e + 1)
                     } else if (line === "READY") {
                         status = ""
                     } else if (line === "DONE") {
@@ -1066,6 +1122,9 @@ Popup {
                     }
                 }
                 root.qshareTicks = ticks
+                root.qshareXfers = xf
+                root.qshareVisitors = visitors
+                root.qshareMeta = count === "" ? "" : (count === "1" ? "1 item" : count + " items") + (size !== "" ? " · " + size : "")
                 root.qshareStatus = status
     }
 
@@ -1481,7 +1540,10 @@ Popup {
     onIntro:   ready = true
     // phase is already "closing" here, so the depth reset doesn't kick or pop
     // (the mode stays: the arms fold in with the labels they had)
-    onOutro:   { confirmKey = ""; level = 1; slot = "center"; sub = ""; action = ""; atAction = false }
+    onOutro:   {
+        confirmKey = ""; level = 1; slot = "center"; sub = ""; action = ""; atAction = false
+        if (qshareActive) stopQshare()     // no share (or public tunnel) outlives its card
+    }
     function back() {
         if (depth === 3)      atAction = false
         else if (depth === 2) { level = 1; sub = ""; action = "" }   // stay on this section
@@ -1621,11 +1683,18 @@ Popup {
         if (depth >= 2) c.push(subLabel())
         if (depth === 3) c.push("ACTION")
         if (confirmKey !== "") c.push("CONFIRM")
+        if (qshareActive) c.push("SHARE")
         return c
     }
     function navHints() {
         var deep = deeperDir() === "left" ? "←" : "→", away = awayDir() === "left" ? "←" : "→"
         if (confirmKey !== "") return [["←→", "SELECT"], ["↵", "CONFIRM"], ["Y / N", "YES / NO"], ["ESC", "CANCEL"]]
+        if (qshareActive) {
+            var sh = [["←→", "NETWORK"]]
+            if (shareCard.verb !== "") sh.push(["↵", shareCard.verb])
+            sh.push(["ESC", qshareErrCode !== "" ? "CLOSE" : "STOP"])
+            return sh
+        }
         if (depth === 1) {
             if (power) return slot === "center"
                 ? [["↑↓←→", "SELECT"], ["↵ / ESC", "MENU"]]
@@ -1687,6 +1756,14 @@ Popup {
                 else if (k === Qt.Key_Left)                             root.confirmChoose(true)
                 else if (k === Qt.Key_Right)                            root.confirmChoose(false)
                 else if (k === Qt.Key_Tab)                              root.confirmChoose(!root.confirmYes)
+                e.accepted = true
+                return
+            }
+            if (root.qshareActive) {                                    // the share card
+                if (k === Qt.Key_Escape)                                root.stopQshare()
+                else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) { if (root.qshareVerb()) shareCard.popAction() }
+                else if (k === Qt.Key_Left)                             root.qshareSwitchNet(false)
+                else if (k === Qt.Key_Right)                            root.qshareSwitchNet(true)
                 e.accepted = true
                 return
             }
@@ -2001,235 +2078,42 @@ Popup {
         }
 
         // ═══════════════════════════════════════════════════════
-        //   QR Modal qshare (visible quand qshareUrl !== "")
+        //   Quickshare: the share card (widgets/ShareCard.qml) over a dim,
+        //   under the HitBurst (z 55) and the nav bar (z 60), like the YES / NO card
         // ═══════════════════════════════════════════════════════
         Rectangle {
-            id: qrBackdrop
+            id: shareDim
             anchors.fill: parent
-            color: "#000000"
-            opacity: root.qshareUrl !== "" ? 0.55 : 0
-            visible: opacity > 0
-            z: 100
-            Behavior on opacity { NumberAnimation { duration: 280 } }
-            MouseArea {
-                anchors.fill: parent
-                onClicked: root.stopQshare()
-                enabled: root.qshareUrl !== ""
-            }
+            z: 48
+            color: "black"
+            opacity: root.qshareActive ? 0.42 : 0
+            visible: opacity > 0.01
+            Behavior on opacity { NumberAnimation { duration: 200 } }
+            MouseArea { anchors.fill: parent; enabled: root.qshareActive; onClicked: root.stopQshare() }
         }
-
-        Item {
-            id: qrModal
+        ShareCard {
+            id: shareCard
+            z: 50
             anchors.centerIn: parent
-            width: 380; height: 560
-            z: 101
-            opacity: root.qshareUrl !== "" ? 1 : 0
-            visible: opacity > 0
-            scale: root.qshareUrl !== "" ? 1.0 : 0.92
-            Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-            Behavior on scale   { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-
-            // Fond carte
-            Rectangle {
-                anchors.fill: parent
-                color: root.colCard
-                border.color: root.colInk
-                border.width: 1
-            }
-            // Bordure interne décalée
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: 4
-                color: "transparent"
-                border.color: root.colInk
-                border.width: 1
-                opacity: 0.35
-            }
-            // Diamond corners + glass rim (as ScreenCapture / Menu)
-            Item {
-                anchors.fill: parent; z: 3
-                visible: true
-                Rectangle {
-                    x: 1; y: 1; width: parent.width - 2; height: 1
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: "transparent" }
-                        GradientStop { position: 0.35 + 0.05 * Math.sin(root.t * 0.8); color: Theme.alpha(Theme.light, 0.9) }
-                        GradientStop { position: 1.0; color: "transparent" }
-                    }
-                }
-                Repeater {
-                    model: 4
-                    Rectangle {
-                        width: 7; height: 7; rotation: 45; color: root.colInk
-                        x: (index % 2 === 0 ? 0 : parent.width) - 3.5
-                        y: (index < 2 ? 0 : parent.height) - 3.5
-                    }
-                }
-            }
-
-            Column {
-                anchors.fill: parent
-                anchors.margins: 24
-                anchors.bottomMargin: 52   // place pour le bouton STOP
-                spacing: 10
-
-                // Header
-                Text {
-                    text: "QSHARE"
-                    font.pixelSize: Theme.ts(2)
-                    font.letterSpacing: 5
-                    font.weight: Font.Medium
-                    color: root.colInk
-                    opacity: 0.6
-                }
-                Rectangle { width: 36; height: 1; color: root.colInk; opacity: 0.5 }
-
-                Item { width: 1; height: 4 }
-
-                // Direction + cible du transfert
-                Text {
-                    width: parent.width
-                    text: (root.qshareMode === "recv" ? "PHONE → PC   " : "PC → PHONE   ")
-                          + root.qshareLabel
-                    font.pixelSize: Theme.ts(2)
-                    font.weight: Font.Medium
-                    color: root.colInk
-                    elide: Text.ElideMiddle
-                }
-                // Mode réseau, en clair
-                Text {
-                    width: parent.width
-                    text: root.qshareTunnel
-                          ? "Internet · works on mobile data"
-                          : "LAN · phone must share this Wi-Fi"
-                    font.pixelSize: Theme.ts(1)
-                    color: root.colInkSoft
-                }
-
-                // QR area
-                Item {
-                    width: parent.width
-                    height: 280
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: 280; height: 280
-                        color: root.colHi
-                        Image {
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            source: root.qshareQrPath !== ""
-                                    ? "file://" + root.qshareQrPath + "?t=" + Date.now()
-                                    : ""
-                            fillMode: Image.PreserveAspectFit
-                            smooth: false
-                            cache: false
-                            asynchronous: true
-                        }
-                        // Loading state — le tunnel Cloudflare prend
-                        // quelques secondes, on dit pourquoi ça attend
-                        Text {
-                            anchors.centerIn: parent
-                            width: parent.width - 24
-                            visible: root.qshareQrPath === ""
-                            text: root.qshareStatus !== ""
-                                  ? root.qshareStatus.toUpperCase()
-                                  : "GENERATING…"
-                            font.pixelSize: Theme.ts(1)
-                            font.letterSpacing: 3
-                            color: root.colCard
-                            opacity: 0.6
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-                }
-
-                // URL en petit
-                Text {
-                    width: parent.width
-                    text: root.qshareUrl
-                    font.family: Theme.mono
-                    font.pixelSize: Theme.ts(1)
-                    color: root.colInk
-                    opacity: 0.55
-                    elide: Text.ElideMiddle
-                    horizontalAlignment: Text.AlignHCenter
-                }
-
-                // Journal des transferts (le serveur reste allumé, donc
-                // il peut y en avoir plusieurs pour un seul QR)
-                Text {
-                    width: parent.width
-                    visible: root.qshareTicks.length === 0
-                    text: root.qshareMode === "recv"
-                          ? "Scan, then pick files on your phone"
-                          : "Scan to open the file list on your phone"
-                    font.pixelSize: Theme.ts(1)
-                    font.letterSpacing: 1.5
-                    color: root.colInk
-                    opacity: 0.7
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                }
-                Column {
-                    width: parent.width
-                    spacing: 1
-                    visible: root.qshareTicks.length > 0
-                    Repeater {
-                        // Les 3 derniers transferts, plus récent en haut
-                        model: root.qshareTicks.slice(-3).reverse()
-                        Text {
-                            width: parent.width
-                            text: "✓ " + modelData
-                            font.family: Theme.mono
-                            font.pixelSize: Theme.ts(1)
-                            color: root.colInk
-                            opacity: 0.85
-                            elide: Text.ElideMiddle
-                            horizontalAlignment: Text.AlignHCenter
-                        }
-                    }
-                    Text {
-                        width: parent.width
-                        visible: root.qshareTicks.length > 3
-                        text: root.qshareTicks.length + " transfers total"
-                        font.pixelSize: Theme.ts(1)
-                        color: root.colInkSoft
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-                }
-            }
-
-            // Bouton Cancel/Stop en bas-droite
-            Rectangle {
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.margins: 14
-                width: 90; height: 26
-                color: cancelMA.containsMouse ? root.colInk : "transparent"
-                border.color: root.colInk
-                border.width: 1
-                Behavior on color { ColorAnimation { duration: 180 } }
-
-                Text {
-                    anchors.centerIn: parent
-                    // Le serveur tourne tant que ce modal est ouvert
-                    text: "× STOP"
-                    font.pixelSize: Theme.ts(1)
-                    font.letterSpacing: 2.5
-                    font.weight: Font.Medium
-                    color: cancelMA.containsMouse ? root.colCard : root.colInk
-                    Behavior on color { ColorAnimation { duration: 180 } }
-                }
-                MouseArea {
-                    id: cancelMA
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.stopQshare()
-                }
-            }
+            t: root.t; pulse: root.pulse
+            active: root.qshareActive
+            mode: root.qshareMode
+            tunnel: root.qshareTunnel
+            netDir: root.qshareNetDir
+            label: root.qshareLabel
+            meta: root.qshareMeta
+            url: root.qshareUrl
+            qrN: root.qshareQrN
+            qrBits: root.qshareQrBits
+            status: root.qshareStatus
+            errorCode: root.qshareErrCode
+            errorText: root.qshareErrText
+            visitors: root.qshareVisitors
+            transfers: root.qshareXfers
+            onImpact: (item, x, y, strength) => burst.playAt(item, x, y, strength)
+            onStopRequested: root.stopQshare()
+            onNetRequested: (tunnel) => root.qshareSwitchNet(tunnel)
+            onVerbClicked: if (root.qshareVerb()) shareCard.popAction()
         }
     }
 
