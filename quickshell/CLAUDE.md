@@ -85,7 +85,7 @@ shell: SUPER+1–0 opens group 1–10 on **every screen at once** — the focuse
 the other where it last was there (14 the first time), by focusing each monitor in turn
 with `focus({ workspace, on_current_monitor = true })` and putting the pointer back (a
 monitor's `set_workspace` needs an existing workspace object); SUPER+SHIFT+1–0 sends the
-window to that cell of this group (you stay: `follow = false`); CTRL+arrows walk the 5×5
+window to that cell of this group and takes you along; CTRL+arrows walk the 5×5
 and stop at its edge; the wheel steps through the cells that have windows. A group switch
 posts `custom>>task:go:<slot>` (no group N: `task:none:<n>`), and the HUD shows TASK and
 the group (`osdMode` "task") — also 2.5 s after the shell starts, when the screens wake

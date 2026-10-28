@@ -68,10 +68,10 @@ function T.go(n)
     else hl.dispatch(hl.dsp.event("task:none:" .. n)) end
 end
 
--- SUPER+SHIFT+N: the focused window to cell N of this group (you stay). 0.56's window.move
--- reads `follow`, not `silent` (`silent = true` was ignored: the old binds took you along)
+-- SUPER+SHIFT+N: the focused window to cell N of this group, and you with it (0.56's
+-- window.move reads `follow`, not `silent`)
 function T.move_to_cell(c)
-    hl.dispatch(hl.dsp.window.move({ workspace = T.ws(T.slot(active()), c), follow = false }))
+    hl.dispatch(hl.dsp.window.move({ workspace = T.ws(T.slot(active()), c), follow = true }))
 end
 
 -- a step inside the group: ±1 along the cells, ±5 a row; nil at the group's edge
@@ -87,9 +87,9 @@ function T.step(d)
     if id then hl.dispatch(hl.dsp.focus({ workspace = id })) end
 end
 
-function T.move_step(d, follow)
+function T.move_step(d)
     local id = T.step_target(d)
-    if id then hl.dispatch(hl.dsp.window.move({ workspace = id, follow = follow })) end
+    if id then hl.dispatch(hl.dsp.window.move({ workspace = id, follow = true })) end
 end
 
 -- the scroll wheel: the next / previous cell of this group that has windows
