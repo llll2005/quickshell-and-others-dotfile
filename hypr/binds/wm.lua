@@ -42,10 +42,10 @@ local function step_with_style(style, d, move, follow)
 end
 
 -- ── WIN+SHIFT+Arrow: move window to the adjacent / ±5 cell of this group ────
--- ±5 follows the window, ±1 leaves you where you are (what `silent = true` meant: 0.56's
--- window.move reads `follow`, so before core/tasks.lua all four followed).
-hl.bind(M .. " + SHIFT + left",  function() T.move_step(-1, false) end)
-hl.bind(M .. " + SHIFT + right", function() T.move_step(1, false) end)
+-- You go with the window, all four ways (0.56's window.move reads `follow`; SUPER+SHIFT+N,
+-- which throws a window to a cell, leaves you where you are).
+hl.bind(M .. " + SHIFT + left",  function() T.move_step(-1, true) end)
+hl.bind(M .. " + SHIFT + right", function() T.move_step(1, true) end)
 hl.bind(M .. " + SHIFT + up",    step_with_style("slide top",    5, true, true))
 hl.bind(M .. " + SHIFT + down",  step_with_style("slide bottom", -5, true, true))
 
