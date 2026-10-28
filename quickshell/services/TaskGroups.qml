@@ -82,6 +82,13 @@ Singleton {
         _eval.command = ["hyprctl", "eval", 'require("core.tasks").go_slot(' + slot + ')']
         _eval.running = true
     }
+    // windows (by address) to a cell of a group; you stay where you are
+    function moveWindows(addrs, slot, cell) {
+        var ws = wsOf(slot, cell)
+        for (var i = 0; i < addrs.length; i++)
+            Hyprland.dispatch('hl.dsp.window.move({ workspace = "' + ws + '", follow = false, window = "address:' + addrs[i] + '" })')
+        return addrs.length
+    }
     function goNumber(n) { if (n >= 1 && n <= groups.length) go(groups[n - 1].slot); else missing(n) }
 
     function add(name) {
@@ -156,15 +163,17 @@ Singleton {
         if (changed) { last = l; _saveT.restart() }
         _adopt()
     }
-    // a workspace in a slot no group owns (made by hand, or left from before): give it a group
+    // a window in a slot no group owns (moved there by hand, or left from before): give it a
+    // group. Windows, not workspaces: Quickshell's workspace list can keep a destroyed one
+    // whose last state still says it had a window (that re-made a deleted test group).
     function _adopt() {
         if (!loaded) return
-        var ws = Hyprland.workspaces.values, owned = {}, extra = []
+        var tl = Hyprland.toplevels.values, owned = {}, extra = []
         for (var i = 0; i < groups.length; i++) owned[groups[i].slot] = true
-        for (var j = 0; j < ws.length; j++) {
-            var w = ws[j], o = w ? w.lastIpcObject : null
-            if (!w || w.id < 1 || !o || !(o.windows > 0)) continue      // a passing empty one isn't a group
-            var s = slotOf(w.id)
+        for (var j = 0; j < tl.length; j++) {
+            var o = tl[j] ? tl[j].lastIpcObject : null
+            if (!o || !o.workspace || o.workspace.id < 1) continue
+            var s = slotOf(o.workspace.id)
             if (!owned[s]) { owned[s] = true; extra.push(s) }
         }
         if (extra.length === 0) return

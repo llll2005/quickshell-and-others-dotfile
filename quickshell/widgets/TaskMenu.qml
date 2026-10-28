@@ -8,11 +8,14 @@ import "../theme"
 // ↑↓ pick · ↵ open (every screen jumps to it, the focused one at cell 13) · 1–9 open that
 // row. A row slides: → shows DELETE under it (→ / ↵ again asks, then closes the group's
 // windows), ← shows RENAME (← / ↵ again edits the name in place). + names a new group.
+// A window in the preview (or a whole cell of its 5×5) can be dragged onto a group (it lands
+// in cell 13), onto NEW GROUP (named, then moved), or — after holding it over a group for a
+// moment, which turns the preview to that group — onto one of its cells.
 Popup {
     id: root
 
     readonly property int  lw: 780
-    readonly property int  lh: 500
+    readonly property int  lh: 570
     readonly property real rowH: 58
     readonly property real swipeW: 132
 
@@ -29,10 +32,56 @@ Popup {
     property bool   asking: false     // the delete confirm
     property bool   askYes: false
     property string notice: ""
+    property bool   noticeOk: false
     readonly property bool onNew: focusIdx >= groups.length
     readonly property var  cur: onNew ? null : groups[focusIdx]
     Timer { id: noticeT; interval: 4200; onTriggered: root.notice = "" }
-    function say(s) { notice = s; noticeT.restart() }
+    function say(s, ok) { notice = s; noticeOk = ok === true; noticeT.restart() }
+
+    // ── drag a window (or a cell's windows) onto a group or a cell ──
+    property bool   dragging: false
+    property var    dragAddrs: []
+    property string dragLabel: ""
+    property int    dragFromSlot: 0
+    property int    dragFromCell: 0
+    property int    dropRow: -1          // the group row under it (groups.length = NEW GROUP)
+    property int    dropCell: 0          // a cell of the previewed group under it
+    property var    frozenWins: []       // the preview's list stays put while one of its rows is carried
+    property var    pendingMove: null    // dropped on NEW GROUP: moved once it has a name
+    // the ghost starts under the pointer; the MouseArea's drag then moves it along
+    function placeGhost(item, mx, my) {
+        var p = item.mapToItem(ghost.parent, mx, my)
+        ghost.x = p.x - 12; ghost.y = p.y - ghost.height / 2
+    }
+    function beginDrag(addrs, label, slot, cell) {
+        if (!addrs.length || editing !== "" || asking) return
+        frozenWins = preview.wins.slice(0, 6)
+        dragAddrs = addrs; dragLabel = label; dragFromSlot = slot; dragFromCell = cell
+        dropRow = -1; dropCell = 0; swipe = 0
+        dragging = true
+    }
+    function endDrag() {
+        if (!dragging) return
+        var addrs = dragAddrs, row = dropRow, cell = dropCell
+        springT.stop()
+        if (cell > 0 && cur) land(addrs, cur.slot, cell)
+        else if (row >= 0 && row < groups.length) land(addrs, groups[row].slot, TaskGroups.home)
+        else if (row === groups.length) { pendingMove = addrs; focusIdx = row; startNew() }
+        dragging = false; dropRow = -1; dropCell = 0
+    }
+    function cancelDrag() { springT.stop(); dragging = false; dropRow = -1; dropCell = 0 }
+    function land(addrs, slot, cell) {
+        if (slot === dragFromSlot && cell === dragFromCell) { bumpAnim.restart(); return }
+        TaskGroups.moveWindows(addrs, slot, cell)
+        root.burst.playAt(ghost, 12, ghost.height / 2, 0.9)
+        say((addrs.length > 1 ? addrs.length + " 個視窗" : "視窗") + "移到 " + TaskGroups.label(slot) + " 的第 " + cell + " 格", true)
+    }
+    // held over a group for a moment: the preview turns to it, so a cell can take the drop
+    Timer {
+        id: springT; interval: 450
+        onTriggered: if (root.dragging && root.dropRow >= 0 && root.dropRow < root.groups.length) root.focusIdx = root.dropRow
+    }
+    onDropRowChanged: if (dragging) springT.restart()
 
     function pick(i) {
         i = Math.max(0, Math.min(rowCount - 1, i))
@@ -126,11 +175,16 @@ Popup {
             focusIdx = TaskGroups.indexOf(slot)
             list.positionViewAtIndex(focusIdx, ListView.Contain)
             Qt.callLater(function() { root.burst.playAt(burstAnchor, 0, 0, 0.8) })
+            if (pendingMove) {
+                TaskGroups.moveWindows(pendingMove, slot, TaskGroups.home)
+                say((pendingMove.length > 1 ? pendingMove.length + " 個視窗" : "視窗") + "移到新的 " + TaskGroups.label(slot), true)
+                pendingMove = null
+            }
         }
         editing = ""
         keys.forceActiveFocus()
     }
-    function cancelEdit() { editing = ""; keys.forceActiveFocus() }
+    function cancelEdit() { editing = ""; pendingMove = null; keys.forceActiveFocus() }
 
     property real bump: 0
     SequentialAnimation {
@@ -154,6 +208,7 @@ Popup {
     onOpening: {
         focusIdx = Math.max(0, TaskGroups.indexOf(TaskGroups.currentSlot))
         swipe = 0; editing = ""; asking = false; notice = ""; _busy = false
+        dragging = false; pendingMove = null
     }
     onIntro:    { host.reveal(); keys.forceActiveFocus() }
     onOutro:    host.conceal()
@@ -185,6 +240,7 @@ Popup {
                     else if (k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Space) root.answer(root.askYes)
                     return
                 }
+                if (root.dragging) { if (k === Qt.Key_Escape) root.cancelDrag(); return }
                 if (k === Qt.Key_Escape) { if (root.swipe !== 0) root.swipe = 0; else root.close() }
                 else if (k === Qt.Key_Up)    root.pick(root.focusIdx - 1)
                 else if (k === Qt.Key_Down)  root.pick(root.focusIdx + 1)
@@ -359,9 +415,27 @@ Popup {
                             }
                         }
 
+                        // a carried window over this row: it would land here (cell 13; NEW: a new group)
+                        Rectangle {
+                            anchors { fill: parent; margins: 3 }
+                            visible: root.dragging && root.dropRow === row.index
+                            color: Theme.alpha(Theme.accent, 0.08)
+                            border.color: Theme.accent; border.width: 1.5
+                            Text {
+                                anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                                text: row.isNew ? "＋ NEW" : "→ CELL 13"
+                                font.pixelSize: Theme.ts(0); font.letterSpacing: 2; color: Theme.accent
+                            }
+                        }
+                        DropArea {
+                            anchors.fill: parent; keys: ["qs-window"]
+                            onEntered: root.dropRow = row.index
+                            onExited: if (root.dropRow === row.index) root.dropRow = -1
+                        }
+
                         MouseArea {
                             anchors.fill: parent; hoverEnabled: true
-                            onEntered: if (!root._busy && !root.asking && root.editing === "" && root.swipe === 0) root.focusIdx = row.index
+                            onEntered: if (!root._busy && !root.asking && root.editing === "" && root.swipe === 0 && !root.dragging) root.focusIdx = row.index
                             onClicked: {
                                 if (root.asking || root.editing !== "") return
                                 root.focusIdx = row.index
@@ -402,18 +476,45 @@ Popup {
                         Repeater {
                             model: 25
                             Rectangle {
+                                id: pcell
                                 required property int index
                                 readonly property int cell: (4 - Math.floor(index / 5)) * 5 + (index % 5) + 1
                                 readonly property int n: preview.occ[cell - 1] || 0
+                                readonly property bool target: root.dragging && root.dropCell === cell
                                 width: 52; height: 26
-                                color: n > 0 ? Theme.ink : "transparent"
-                                border.width: 1
-                                border.color: cell === TaskGroups.home ? Theme.accent : Theme.alpha(Theme.ink, n > 0 ? 1 : 0.2)
+                                color: target ? Theme.accent : n > 0 ? Theme.ink : "transparent"
+                                border.width: target ? 1.5 : 1
+                                border.color: target ? Theme.accent : cell === TaskGroups.home ? Theme.accent : Theme.alpha(Theme.ink, n > 0 ? 1 : 0.2)
+                                scale: target ? 1.08 : 1
+                                Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutBack } }
                                 Text {
                                     anchors.centerIn: parent
-                                    text: parent.n > 0 ? parent.cell + (parent.n > 1 ? "·" + parent.n : "") : (parent.cell === TaskGroups.home ? "◇" : "")
+                                    text: parent.n > 0 ? parent.cell + (parent.n > 1 ? "·" + parent.n : "")
+                                        : root.dragging ? parent.cell : (parent.cell === TaskGroups.home ? "◇" : "")
                                     font.pixelSize: Theme.ts(0); font.letterSpacing: 1
-                                    color: parent.n > 0 ? Theme.paper : Theme.accent
+                                    color: parent.target || parent.n > 0 ? Theme.paper : Theme.accent
+                                    opacity: parent.n > 0 || parent.target || parent.cell === TaskGroups.home ? 1 : 0.5
+                                }
+                                DropArea {
+                                    anchors.fill: parent; keys: ["qs-window"]
+                                    onEntered: root.dropCell = pcell.cell
+                                    onExited: if (root.dropCell === pcell.cell) root.dropCell = 0
+                                }
+                                // a whole cell can be carried too
+                                MouseArea {
+                                    anchors.fill: parent
+                                    enabled: pcell.n > 0 || root.dragging
+                                    cursorShape: root.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                                    drag.target: ghost; drag.threshold: 6
+                                    onPressed: (m) => root.placeGhost(pcell, m.x, m.y)
+                                    drag.onActiveChanged: {
+                                        if (drag.active) {
+                                            var ws = preview.wins.filter(function(w) { return w.cell === pcell.cell })
+                                            root.beginDrag(ws.map(function(w) { return w.address }),
+                                                           "CELL " + String(pcell.cell).padStart(2, "0") + "  ·  " + ws.length + " WIN",
+                                                           preview.g.slot, pcell.cell)
+                                        } else root.endDrag()
+                                    }
                                 }
                             }
                         }
@@ -421,23 +522,53 @@ Popup {
                     Column {
                         width: parent.width; spacing: 3
                         visible: preview.g !== null
+                        Text {
+                            visible: preview.wins.length > 0 || root.dragging
+                            width: parent.width; elide: Text.ElideRight
+                            text: root.dragging ? "放到格子上；放到左邊的任務組會進第 13 格，按住停一下會打開它"
+                                                : "拖曳視窗（或上面的格子）到別的任務組"
+                            font.family: Theme.cjk; font.pixelSize: Theme.ts(0); color: root.dragging ? Theme.accent : Theme.inkSoft
+                            bottomPadding: 2
+                        }
                         Repeater {
-                            model: preview.wins.slice(0, 5)
-                            Row {
+                            model: root.dragging ? root.frozenWins : preview.wins.slice(0, 6)
+                            Item {
+                                id: wrow
                                 required property var modelData
-                                width: parent.width; spacing: 8
-                                Text { text: String(modelData.cell).padStart(2, "0"); width: 20; font.pixelSize: Theme.ts(1); color: Theme.accent }
-                                Text { text: modelData.cls; width: 70; elide: Text.ElideRight; font.pixelSize: Theme.ts(1); color: Theme.ink }
-                                Text { text: modelData.title; width: parent.width - 106; elide: Text.ElideRight; font.pixelSize: Theme.ts(1); color: Theme.inkSoft }
+                                width: parent.width; height: 22
+                                opacity: root.dragging ? 0.35 : 1
+                                Rectangle { anchors.fill: parent; color: Theme.alpha(Theme.ink, 0.08); visible: wma.containsMouse && !root.dragging }
+                                Row {
+                                    anchors.verticalCenter: parent.verticalCenter; spacing: 8
+                                    Rectangle {
+                                        width: 6; height: 6; rotation: 45; antialiasing: true; anchors.verticalCenter: parent.verticalCenter
+                                        color: wma.containsMouse ? Theme.accent : "transparent"; border.color: Theme.accent; border.width: 1
+                                    }
+                                    Text { text: String(wrow.modelData.cell).padStart(2, "0"); width: 18; font.pixelSize: Theme.ts(1); color: Theme.accent }
+                                    Text { text: wrow.modelData.cls; width: 70; elide: Text.ElideRight; font.pixelSize: Theme.ts(1); color: Theme.ink }
+                                    Text { text: wrow.modelData.title; width: wrow.width - 118; elide: Text.ElideRight; font.pixelSize: Theme.ts(1); color: Theme.inkSoft }
+                                }
+                                MouseArea {
+                                    id: wma
+                                    anchors.fill: parent; hoverEnabled: true
+                                    cursorShape: root.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                                    drag.target: ghost; drag.threshold: 6
+                                    onPressed: (m) => root.placeGhost(wrow, m.x, m.y)
+                                    drag.onActiveChanged: {
+                                        if (drag.active) root.beginDrag([wrow.modelData.address], wrow.modelData.cls + "  ·  " + wrow.modelData.title,
+                                                                        root.cur ? root.cur.slot : 0, wrow.modelData.cell)
+                                        else root.endDrag()
+                                    }
+                                }
                             }
                         }
                         Text {
-                            visible: preview.wins.length > 5
-                            text: "+ " + (preview.wins.length - 5) + " MORE"
+                            visible: preview.wins.length > 6 && !root.dragging
+                            text: "+ " + (preview.wins.length - 6) + " MORE"
                             font.pixelSize: Theme.ts(0); font.letterSpacing: 2; color: Theme.inkSoft
                         }
                         Text {
-                            visible: preview.wins.length === 0
+                            visible: preview.wins.length === 0 && !root.dragging
                             width: parent.width; wrapMode: Text.WordWrap
                             text: "還沒有視窗。打開它會先到第 13 格（◇）。"
                             font.family: Theme.cjk; font.pixelSize: Theme.ts(1); color: Theme.inkSoft
@@ -460,13 +591,14 @@ Popup {
                 Text {
                     visible: root.notice !== ""
                     anchors { left: parent.left; leftMargin: 28; verticalCenter: parent.verticalCenter }
-                    text: root.notice; font.family: Theme.cjk; font.pixelSize: Theme.ts(1); color: Theme.warn
+                    text: root.notice; font.family: Theme.cjk; font.pixelSize: Theme.ts(1); color: root.noticeOk ? Theme.accent : Theme.warn
                 }
                 Row {
                     anchors { right: parent.right; rightMargin: 28; verticalCenter: parent.verticalCenter }
                     spacing: 14
                     Repeater {
-                        model: root.editing !== "" ? [["↵", root.editing === "new" ? "CREATE" : "SAVE"], ["ESC", "CANCEL"]]
+                        model: root.dragging ? [["DROP", "GROUP → CELL 13"], ["HOLD", "OPEN IT"], ["ESC", "CANCEL"]]
+                             : root.editing !== "" ? [["↵", root.editing === "new" ? "CREATE" : "SAVE"], ["ESC", "CANCEL"]]
                              : root.asking ? [["←→", "SELECT"], ["↵", "CONFIRM"], ["ESC", "CANCEL"]]
                              : root.swipe > 0 ? [["→ / ↵", "DELETE…"], ["←", "BACK"]]
                              : root.swipe < 0 ? [["← / ↵", "RENAME"], ["→", "BACK"]]
@@ -483,6 +615,28 @@ Popup {
                             Text { text: modelData[1]; font.pixelSize: Theme.ts(1); font.letterSpacing: 2; color: Theme.inkSoft; anchors.verticalCenter: parent.verticalCenter }
                         }
                     }
+                }
+            }
+
+            // ── what's being carried: an ink chip with the accent edge, under the pointer ──
+            Item {
+                id: ghost
+                z: 60
+                width: Math.min(300, ghostRow.implicitWidth + 30); height: 30
+                visible: root.dragging
+                Drag.active: root.dragging
+                Drag.keys: ["qs-window"]
+                Drag.hotSpot.x: 12
+                Drag.hotSpot.y: height / 2
+                scale: root.dragging ? 1 : 0.85
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack } }
+                Rectangle { anchors.fill: parent; color: Theme.ink; opacity: 0.94 }
+                Rectangle { width: 3; height: parent.height; color: Theme.accent }
+                Row {
+                    id: ghostRow
+                    x: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 8
+                    Rectangle { width: 6; height: 6; rotation: 45; antialiasing: true; color: Theme.accent; anchors.verticalCenter: parent.verticalCenter; scale: 1 + 0.3 * root.pulse }
+                    Text { width: Math.min(implicitWidth, 250); elide: Text.ElideRight; text: root.dragLabel; font.pixelSize: Theme.ts(1); color: Theme.paper }
                 }
             }
 
